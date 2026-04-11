@@ -124,31 +124,43 @@ public class FusionBridgeService extends Service {
 
     private void startWebSocketServer() {
         int port = prefs.getInt("ws_port", DEFAULT_PORT);
-        wsServer = new FusionWebSocketServer(new InetSocketAddress(port));
 
+        wsServer = new FusionWebSocketServer(new InetSocketAddress(port));
         wsServer.setEventListener((type, data) -> {
-            // 转发客户端发来的命令 (如: 打开链接, 设置剪贴板)
             handleClientCommand(type, data);
         });
 
-        // 先启动 Server (独立模式)
-        try {
-            wsServer.start();
-            Log.i(TAG, "WebSocket Server 已启动: 端口 " + port);
-        } catch (Exception e) {
-            Log.e(TAG, "WebSocket Server 启动失败", e);
-        }
-
-        // 在后台线程检测 Termux Bridge (混合模式)
+        // 先检测 Termux Bridge (混合模式)，再启动 Server
+        // 避免检测时连接到自己的 Server 导致自杀
         new Thread(() -> {
             try {
-                Thread.sleep(1000);  // 等 Server 完全启动
-                wsServer.detectMode();
-                // 更新前台通知
-                handler.post(() -> updateNotification());
+                // 尝试连接 Termux Bridge (端口比 Server 高 1)
+                int termuxPort = port + 1;
+                java.net.Socket testSocket = new java.net.Socket();
+                testSocket.connect(
+                    new java.net.InetSocketAddress("127.0.0.1", termuxPort),
+                    2000  // 2秒超时
+                );
+                testSocket.close();
+
+                // 连接成功 → Termux Bridge 在运行 → 混合模式
+                Log.i(TAG, "检测到 Termux Bridge (端口 " + termuxPort + ")，进入混合模式");
+                wsServer.setHybridMode(true);
+
+                // 混合模式: 不启动自己的 Server，作为 Client 连接 Termux
+                wsServer.connectToTermux(termuxPort);
             } catch (Exception e) {
-                Log.d(TAG, "模式检测失败: " + e.getMessage());
+                // 连接失败 → 独立模式 → 启动自己的 Server
+                Log.i(TAG, "未检测到 Termux Bridge，独立模式");
+                try {
+                    wsServer.start();
+                    Log.i(TAG, "WebSocket Server 已启动: 端口 " + port);
+                } catch (Exception ex) {
+                    Log.e(TAG, "WebSocket Server 启动失败", ex);
+                }
             }
+
+            handler.post(() -> updateNotification());
         }).start();
     }
 

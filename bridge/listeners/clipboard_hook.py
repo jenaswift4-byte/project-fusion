@@ -19,6 +19,30 @@ WM_CLIPBOARDUPDATE = 0x031D
 WM_DESTROY = 0x0002
 WM_QUIT = 0x0012
 
+# 手动定义 WNDCLASSW (ctypes.wintypes 不包含此结构体)
+class WNDCLASSW(ctypes.Structure):
+    _fields_ = [
+        ("style", ctypes.c_uint),
+        ("lpfnWndProc", ctypes.c_void_p),
+        ("cbClsExtra", ctypes.c_int),
+        ("cbWndExtra", ctypes.c_int),
+        ("hInstance", ctypes.wintypes.HINSTANCE),
+        ("hIcon", ctypes.wintypes.HICON),
+        ("hCursor", ctypes.wintypes.HANDLE),
+        ("hbrBackground", ctypes.wintypes.HBRUSH),
+        ("lpszMenuName", ctypes.c_wchar_p),
+        ("lpszClassName", ctypes.c_wchar_p),
+    ]
+
+# WNDPROC 回调函数类型
+WNDPROC = ctypes.WINFUNCTYPE(
+    ctypes.wintypes.LRESULT,
+    ctypes.wintypes.HWND,
+    ctypes.c_uint,
+    ctypes.wintypes.WPARAM,
+    ctypes.wintypes.LPARAM,
+)
+
 
 class ClipboardChangeListener:
     """剪贴板实时变化监听器
@@ -62,9 +86,12 @@ class ClipboardChangeListener:
 
     def _message_loop(self):
         """Win32 消息循环"""
+        # 创建窗口过程回调 (必须保持引用防止 GC)
+        self._wnd_proc_cb = WNDPROC(self._wnd_proc)
+
         # 注册窗口类
-        wnd_class = ctypes.wintypes.WNDCLASSW()
-        wnd_class.lpfnWndProc = self._wnd_proc
+        wnd_class = WNDCLASSW()
+        wnd_class.lpfnWndProc = self._wnd_proc_cb
         wnd_class.hInstance = kernel32.GetModuleHandleW(None)
         wnd_class.lpszClassName = "FusionClipboardListener"
 

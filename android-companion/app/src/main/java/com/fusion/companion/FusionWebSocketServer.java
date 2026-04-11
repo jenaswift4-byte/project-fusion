@@ -47,25 +47,24 @@ public class FusionWebSocketServer extends WebSocketServer {
     }
 
     /**
-     * 检测 Termux Bridge 是否在运行，决定模式
-     * 在后台线程调用
+     * 设置混合模式 (由 FusionBridgeService 调用)
      */
-    public void detectMode() {
+    public void setHybridMode(boolean hybrid) {
+        this.hybridMode = hybrid;
+    }
+
+    /**
+     * 连接到 Termux Bridge WS Server
+     * 仅在混合模式下调用
+     */
+    public void connectToTermux(int termuxPort) {
         try {
-            // 尝试连接本地 WS Server (Termux Bridge)
-            URI uri = new URI("ws://127.0.0.1:" + DEFAULT_PORT);
+            URI uri = new URI("ws://127.0.0.1:" + termuxPort);
             termuxClient = new WebSocketClient(uri) {
                 @Override
                 public void onOpen(ServerHandshake handshake) {
                     hybridMode = true;
                     Log.i(TAG, "✅ 混合模式: 已连接到 Termux Bridge");
-                    // 停止自己的 Server (端口冲突)
-                    try {
-                        FusionWebSocketServer.this.stop();
-                    } catch (Exception e) {
-                        Log.d(TAG, "停止独立 Server: " + e.getMessage());
-                    }
-                    // 发送标识消息，让 Termux Bridge 知道这是伴侣 App
                     try {
                         org.json.JSONObject hello = new org.json.JSONObject();
                         hello.put("type", "companion_hello");
@@ -80,7 +79,6 @@ public class FusionWebSocketServer extends WebSocketServer {
 
                 @Override
                 public void onMessage(String message) {
-                    // Termux Bridge 转发的 PC 命令
                     try {
                         org.json.JSONObject json = new org.json.JSONObject(message);
                         String type = json.optString("type", "");
@@ -96,35 +94,23 @@ public class FusionWebSocketServer extends WebSocketServer {
                 public void onClose(int code, String reason, boolean remote) {
                     if (hybridMode) {
                         hybridMode = false;
-                        Log.w(TAG, "Termux Bridge 断开，回退到独立模式");
-                        // 回退: 重启自己的 Server
-                        try {
-                            FusionWebSocketServer.this.start();
-                        } catch (Exception e) {
-                            Log.e(TAG, "重启独立 Server 失败", e);
-                        }
+                        Log.w(TAG, "Termux Bridge 断开");
                     }
                 }
 
                 @Override
                 public void onError(Exception ex) {
-                    Log.d(TAG, "Termux Bridge 连接失败 (可能未运行): " + ex.getMessage());
+                    Log.e(TAG, "Termux Bridge 连接错误: " + ex.getMessage());
                 }
             };
 
             termuxClient.setConnectionLostTimeout(10);
             termuxClient.connectBlocking(3, java.util.concurrent.TimeUnit.SECONDS);
 
-            if (!hybridMode) {
-                // 连接超时/失败 → 独立模式
-                termuxClient = null;
-                Log.i(TAG, "📡 独立模式: 未检测到 Termux Bridge");
-            }
-
         } catch (Exception e) {
             hybridMode = false;
             termuxClient = null;
-            Log.i(TAG, "📡 独立模式: " + e.getMessage());
+            Log.e(TAG, "连接 Termux Bridge 失败: " + e.getMessage());
         }
     }
 
