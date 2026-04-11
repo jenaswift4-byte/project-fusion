@@ -32,23 +32,22 @@ class TrayIcon:
         """启动托盘图标"""
         try:
             import pystray
-            from PIL import Image
-            import io
+            from PIL import Image, ImageDraw
         except ImportError:
             logger.warning("pystray 或 Pillow 未安装，托盘图标不可用")
             logger.warning("安装: pip install pystray Pillow")
             return
 
-        try:
-            # 生成图标
-            img = Image.open(io.BytesIO(ICON_SVG.encode())).resize((64, 64))
-        except Exception:
-            # 备选: 创建简单图标
-            img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-            from PIL import ImageDraw
-            draw = ImageDraw.Draw(img)
-            draw.rectangle([4, 8, 28, 48], fill="#4CAF50", outline="#333")
-            draw.rectangle([36, 2, 60, 54], fill="#2196F3", outline="#333")
+        # 创建图标 (PIL 不支持 SVG，直接绘制)
+        img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        # 手机 (绿色)
+        draw.rounded_rectangle([4, 8, 28, 48], radius=3, fill="#4CAF50", outline="#333333", width=2)
+        # 电脑 (蓝色)
+        draw.rounded_rectangle([36, 2, 60, 54], radius=2, fill="#2196F3", outline="#333333", width=2)
+        # 连接线 (橙色)
+        draw.line([28, 28, 36, 28], fill="#FF9800", width=3)
+        draw.line([28, 34, 36, 34], fill="#FF9800", width=3)
 
         # 创建托盘图标
         self._icon = pystray.Icon(

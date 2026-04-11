@@ -59,6 +59,7 @@ class ClipboardChangeListener:
         self._thread = None
         self._hwnd = None
         self._on_change = None
+        self._suppress_next = False  # 防回弹: 跳过下一次变化通知
 
     def on_change(self, callback):
         """注册剪贴板变化回调
@@ -67,6 +68,14 @@ class ClipboardChangeListener:
             callback: 无参数函数，剪贴板变化时调用
         """
         self._on_change = callback
+
+    def suppress_next(self):
+        """抑制下一次剪贴板变化通知 (防回弹)
+
+        当外部代码主动设置剪贴板时调用此方法，
+        避免 Hook 回调将被自己设置的内容又推送回去。
+        """
+        self._suppress_next = True
 
     def start(self):
         """启动监听"""
@@ -133,6 +142,11 @@ class ClipboardChangeListener:
     def _wnd_proc(self, hwnd, msg, wparam, lparam):
         """窗口过程"""
         if msg == WM_CLIPBOARDUPDATE:
+            if self._suppress_next:
+                # 跳过此次变化 (由自身 set_clipboard_text 触发)
+                self._suppress_next = False
+                return 0
+
             if self._on_change:
                 try:
                     self._on_change()

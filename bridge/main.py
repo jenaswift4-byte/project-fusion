@@ -371,6 +371,9 @@ class BridgeDaemon:
         if not content:
             return
 
+        # 抑制剪贴板 Hook 回弹 (自身设置会触发 WM_CLIPBOARDUPDATE)
+        self.clipboard_hook.suppress_next()
+
         if content_type == "url" and self.config.get("clipboard", {}).get("auto_open_urls", True):
             set_clipboard_text(content)
             try:
