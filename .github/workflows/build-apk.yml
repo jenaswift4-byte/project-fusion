@@ -1,0 +1,100 @@
+name: Build Fusion Companion APK
+
+on:
+  # 手动触发
+  workflow_dispatch:
+  # 推送到 main 分支时自动构建
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'android-companion/**'
+  # Pull Request 时构建 (不上传 artifact)
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'android-companion/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android-companion/.gradle
+          key: gradle-${{ hashFiles('android-companion/**/*.gradle*', 'android-companion/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - name: Generate Gradle Wrapper
+        working-directory: android-companion
+        run: |
+          # 如果没有 gradlew，手动生成
+          if [ ! -f gradlew ]; then
+            echo "生成 Gradle Wrapper..."
+            # 创建临时 build.gradle 来生成 wrapper
+            gradle wrapper --gradle-version 8.4
+          fi
+          chmod +x gradlew
+
+      - name: Accept Android Licenses
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Build Debug APK
+        working-directory: android-companion
+        run: |
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Build Release APK (unsigned)
+        working-directory: android-companion
+        run: |
+          ./gradlew assembleRelease --stacktrace
+        continue-on-error: true
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: fusion-companion-debug
+          path: android-companion/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: fusion-companion-release-unsigned
+          path: android-companion/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Output APK info
+        if: success()
+        run: |
+          echo "### 📦 APK 构建成功!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 类型 | 路径 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          for f in android-companion/app/build/outputs/apk/debug/*.apk; do
+            [ -f "$f" ] && echo "| Debug | \`$(basename $f)\` |" >> $GITHUB_STEP_SUMMARY
+          done
+          for f in android-companion/app/build/outputs/apk/release/*.apk; do
+            [ -f "$f" ] && echo "| Release | \`$(basename $f)\` |" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 下载: Actions → 本次运行 → Artifacts 区域" >> $GITHUB_STEP_SUMMARY
