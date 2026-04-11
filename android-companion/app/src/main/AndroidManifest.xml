@@ -6,7 +6,6 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_CLIPBOARD" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
@@ -18,11 +17,6 @@
         android:label="Fusion Companion"
         android:supportsRtl="true"
         android:theme="@style/Theme.FusionCompanion">
-
-        <!-- specialUse 前台服务用途声明 (必须在 <application> 内) -->
-        <property
-            android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-            android:value="WebSocket bridge for cross-device notification, clipboard and telephony forwarding between Android and PC" />
 
         <!-- 主 Activity -->
         <activity
@@ -48,8 +42,7 @@
         <!-- 前台服务 (WebSocket + 事件转发) -->
         <service
             android:name=".service.FusionBridgeService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse" />
+            android:exported="false" />
 
     </application>
 </manifest>

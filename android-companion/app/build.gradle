@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId "com.fusion.companion"
         minSdk 26
-        targetSdk 34
+        targetSdk 30
         versionCode 2
         versionName "2.1"
     }
