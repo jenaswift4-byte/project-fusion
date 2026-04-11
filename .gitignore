@@ -38,3 +38,4 @@ desktop.ini
 .workbuddy/
 *.log
 .env
+fetch_logs.py
