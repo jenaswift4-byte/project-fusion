@@ -11,11 +11,6 @@
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
-    <!-- specialUse 前台服务必须声明用途 -->
-    <property
-        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-        android:value="WebSocket bridge for cross-device notification, clipboard and telephony forwarding between Android and PC" />
-
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -23,6 +18,11 @@
         android:label="Fusion Companion"
         android:supportsRtl="true"
         android:theme="@style/Theme.FusionCompanion">
+
+        <!-- specialUse 前台服务用途声明 (必须在 <application> 内) -->
+        <property
+            android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+            android:value="WebSocket bridge for cross-device notification, clipboard and telephony forwarding between Android and PC" />
 
         <!-- 主 Activity -->
         <activity
