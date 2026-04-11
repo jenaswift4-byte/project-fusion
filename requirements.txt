@@ -1,0 +1,6 @@
+# Project Fusion 依赖
+pyyaml>=6.0              # 配置文件解析
+pyperclip>=1.8.0         # 剪贴板操作 (备用方案)
+Pillow>=10.0             # 图片剪贴板 + 托盘图标
+pystray>=0.19            # 系统托盘图标
+websocket-client>=1.6.0  # WebSocket 客户端 (连接 Android 伴侣 App)

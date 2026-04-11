@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Android
+android-companion/.gradle/
+android-companion/build/
+android-companion/app/build/
+android-companion/local.properties
+android-companion/*.iml
+android-companion/.idea/
+*.apk
+*.aab
+*.dex
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project
+.workbuddy/
+*.log
+.env

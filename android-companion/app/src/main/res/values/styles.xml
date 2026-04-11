@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.FusionCompanion" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">#4CAF50</item>
+        <item name="android:colorPrimaryDark">#388E3C</item>
+        <item name="android:colorAccent">#2196F3</item>
+        <item name="android:statusBarColor">#388E3C</item>
+    </style>
+</resources>

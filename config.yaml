@@ -1,0 +1,68 @@
+# Project Fusion 完整配置
+# 修改此文件以自定义行为
+
+scrcpy:
+  path: "C:\\Users\\wang\\Desktop\\scrcpy-win64-v3.3.4"
+  window_title: "Phone"
+  x: 1440
+  y: 0
+  width: 480
+  height: 1080
+  max_fps: 60
+  bit_rate: "8M"
+  always_on_top: true
+  no_border: true
+  turn_screen_off: true
+  stay_awake: true
+
+adb:
+  path: "C:\\Users\\wang\\Desktop\\scrcpy-win64-v3.3.4\\adb.exe"
+  wifi_auto_connect: true
+  wifi_port: 5555
+
+clipboard:
+  sync_to_windows: true
+  sync_to_phone: true
+  image_save_dir: "D:\\Fusion\\Clipboard"
+  auto_open_urls: true
+  poll_interval_ms: 1000
+  max_history: 20
+
+notification:
+  show_toast: true
+  auto_focus_scrcpy: true
+  poll_interval_ms: 2000
+  ignore_packages:
+    - com.android.systemui
+    - com.android.launcher
+    - android
+    - com.android.packageinstaller
+
+telephony:
+  show_call_popup: true
+  auto_focus_scrcpy: true
+  poll_interval_ms: 2000
+
+file:
+  push_target: "/sdcard/Download/"
+  pull_target: "C:\\Users\\wang\\Downloads"
+
+kde_connect:
+  enabled: false          # 设为 true 启用 KDE Connect 集成
+  device_id: "auto"       # "auto" 自动发现，或填入设备 ID
+  cli_path: "kdeconnect-cli"
+  poll_interval_ms: 1000
+
+input_leap:
+  enabled: false          # 设为 true 启用键鼠跨屏
+  config_path: ""         # 留空使用默认路径
+
+autostart:
+  enabled: false          # 开机自启 (用 --autostart 命令注册)
+
+tray:
+  enabled: true           # 系统托盘图标
+
+paths:
+  clipboard_images: "D:\\Fusion\\Clipboard"
+  logs: "D:\\Fusion\\Logs"
