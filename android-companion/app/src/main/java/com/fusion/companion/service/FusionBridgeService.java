@@ -8,9 +8,11 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyManager;
@@ -45,6 +47,7 @@ public class FusionBridgeService extends Service {
     private TelephonyManager telephonyManager;
     private SharedPreferences prefs;
     private Handler handler;
+    private PowerManager.WakeLock wakeLock;  // 防止 MIUI 冻结
 
     // 上次剪贴板内容 (去重)
     private String lastClipboardText = "";
@@ -67,13 +70,36 @@ public class FusionBridgeService extends Service {
         prefs = getSharedPreferences("fusion", MODE_PRIVATE);
         handler = new Handler(Looper.getMainLooper());
 
+        // 获取 WakeLock 防止 MIUI 冻结进程
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "fusion:bridge_wakelock"
+        );
+        wakeLock.acquire();
+
+        // 请求电池优化白名单 (MIUI 后台保活关键)
+        if (!pm.isIgnoringBatteryOptimizations(getPackageName())) {
+            try {
+                Intent intent = new Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                );
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.w(TAG, "请求电池优化白名单失败: " + e.getMessage());
+            }
+        }
+
         // 创建前台通知
         createNotificationChannel();
         Notification notification = new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("Fusion Bridge 运行中")
-                .setContentText("WebSocket 服务已启动")
+                .setContentText("WebSocket 服务已启动 · 通知/剪贴板/通话实时同步")
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setOngoing(true)
+                .setPriority(Notification.PRIORITY_HIGH)
                 .build();
         startForeground(NOTIFICATION_ID, notification);
 
@@ -108,6 +134,12 @@ public class FusionBridgeService extends Service {
             }
         }
         staticWsServer = null;  // 清除静态引用
+
+        // 释放 WakeLock
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+            wakeLock = null;
+        }
 
         // 通话监听器在 Service 销毁时自动解绑，无需手动清理
         // (TelephonyCallback / PhoneStateListener 随 Service 生命周期结束)
@@ -352,9 +384,11 @@ public class FusionBridgeService extends Service {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     "Fusion Bridge 服务",
-                    NotificationManager.IMPORTANCE_LOW
+                    NotificationManager.IMPORTANCE_HIGH  // 高优先级防止 MIUI 冻结
             );
-            channel.setDescription("保持 Fusion Bridge 服务运行");
+            channel.setDescription("保持 Fusion Bridge 服务运行，实时同步通知/剪贴板/通话");
+            channel.setShowBadge(false);
+            channel.setSound(null, null);  // 无声音
             NotificationManager nm = getSystemService(NotificationManager.class);
             nm.createNotificationChannel(channel);
         }

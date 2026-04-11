@@ -11,7 +11,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-user32 = ctypes.windll.user32
+user32 = ctypes.WinDLL("user32", use_last_error=True)
+kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+# 设置返回类型
+user32.SetWindowsHookExW.restype = ctypes.c_void_p
+user32.CallNextHookEx.restype = ctypes.c_void_p
+user32.UnhookWindowsHookEx.argtypes = [ctypes.c_void_p]
+user32.UnhookWindowsHookEx.restype = ctypes.c_bool
+kernel32.GetModuleHandleW.restype = ctypes.c_void_p
 
 # 钩子类型
 WH_MOUSE_LL = 14
@@ -96,14 +104,25 @@ class EdgeDetector:
         # 必须在同一个线程中安装钩子和运行消息循环
         # 关键: 将回调保存为实例变量，防止 Python GC 回收导致崩溃
         self._callback = HOOKPROC(self._low_level_mouse_proc)
-        self._hook_id = user32.SetWindowsHookExW(
-            WH_MOUSE_LL, self._callback,
-            ctypes.windll.kernel32.GetModuleHandleW(None), 0
-        )
+        
+        # 尝试安装鼠标钩子，带重试
+        max_retries = 3
+        for attempt in range(max_retries):
+            self._hook_id = user32.SetWindowsHookExW(
+                WH_MOUSE_LL, self._callback,
+                kernel32.GetModuleHandleW(None), 0
+            )
+            if self._hook_id:
+                break
+            error_code = ctypes.get_last_error()
+            logger.warning(f"安装鼠标钩子失败 (尝试 {attempt+1}/{max_retries}), 错误码: {error_code}")
+            time.sleep(0.5)
 
         if not self._hook_id:
-            logger.error("安装鼠标钩子失败")
+            logger.error(f"安装鼠标钩子最终失败, 错误码: {ctypes.get_last_error()}")
             return
+
+        logger.info("鼠标钩子安装成功")
 
         # 消息循环
         msg = ctypes.wintypes.MSG()
@@ -155,4 +174,7 @@ class EdgeDetector:
                     except Exception as e:
                         logger.error(f"边缘离开回调错误: {e}")
 
-        return user32.CallNextHookEx(self._hook_id, nCode, wParam, lParam)
+        return user32.CallNextHookEx(
+            ctypes.c_void_p(self._hook_id) if self._hook_id else None,
+            nCode, wParam, lParam
+        )

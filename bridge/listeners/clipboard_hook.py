@@ -11,8 +11,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-user32 = ctypes.windll.user32
-kernel32 = ctypes.windll.kernel32
+user32 = ctypes.WinDLL("user32", use_last_error=True)
+kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
 # Windows 消息
 WM_CLIPBOARDUPDATE = 0x031D
@@ -35,8 +35,10 @@ class WNDCLASSW(ctypes.Structure):
     ]
 
 # WNDPROC 回调函数类型
+LRESULT = ctypes.c_long_ptr if hasattr(ctypes, 'c_long_ptr') else ctypes.c_long
+
 WNDPROC = ctypes.WINFUNCTYPE(
-    ctypes.wintypes.LRESULT,
+    LRESULT,
     ctypes.wintypes.HWND,
     ctypes.c_uint,
     ctypes.wintypes.WPARAM,
@@ -91,7 +93,7 @@ class ClipboardChangeListener:
 
         # 注册窗口类
         wnd_class = WNDCLASSW()
-        wnd_class.lpfnWndProc = self._wnd_proc_cb
+        wnd_class.lpfnWndProc = ctypes.cast(self._wnd_proc_cb, ctypes.c_void_p)
         wnd_class.hInstance = kernel32.GetModuleHandleW(None)
         wnd_class.lpszClassName = "FusionClipboardListener"
 
