@@ -209,7 +209,8 @@ public class FusionBridgeService extends Service {
         telephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            telephonyManager.registerTelephonyCallback(getMainExecutor(), new TelephonyCallback() {
+            // SDK 31+: CallStateListener (TelephonyCallback 子类)
+            telephonyManager.registerTelephonyCallback(getMainExecutor(), new TelephonyCallback.CallStateListener() {
                 private String lastState = "IDLE";
 
                 @Override
@@ -243,6 +244,7 @@ public class FusionBridgeService extends Service {
                 }
             });
         } else {
+            // SDK < 31: 使用已废弃的 PhoneStateListener
             telephonyManager.listen(new PhoneStateListener() {
                 @Override
                 public void onCallStateChanged(int state, String phoneNumber) {

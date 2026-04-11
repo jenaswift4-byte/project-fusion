@@ -1,18 +1,18 @@
 package com.fusion.companion;
 
 import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.text.TextUtils;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.fusion.companion.service.FusionBridgeService;
 
 public class MainActivity extends Activity {
 
@@ -57,7 +57,7 @@ public class MainActivity extends Activity {
         Button startBtn = new Button(this);
         startBtn.setText("启动 Fusion Bridge 服务");
         startBtn.setOnClickListener(v -> {
-            Intent serviceIntent = new Intent(this, com.fusion.companion.service.FusionBridgeService.class);
+            Intent serviceIntent = new Intent(this, FusionBridgeService.class);
             startForegroundService(serviceIntent);
             updateStatus();
         });
@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
         Button stopBtn = new Button(this);
         stopBtn.setText("停止服务");
         stopBtn.setOnClickListener(v -> {
-            Intent serviceIntent = new Intent(this, com.fusion.companion.service.FusionBridgeService.class);
+            Intent serviceIntent = new Intent(this, FusionBridgeService.class);
             stopService(serviceIntent);
             updateStatus();
         });
@@ -96,7 +96,7 @@ public class MainActivity extends Activity {
         sb.append("WebSocket 端口: ").append(port).append("\n");
 
         // 混合模式状态
-        com.fusion.companion.FusionWebSocketServer ws = FusionBridgeService.getWebSocketServer();
+        FusionWebSocketServer ws = FusionBridgeService.getWebSocketServer();
         if (ws != null) {
             sb.append("运行模式: ").append(ws.isHybridMode() ? "🔀 混合 (Termux)" : "📡 独立").append("\n");
         }
