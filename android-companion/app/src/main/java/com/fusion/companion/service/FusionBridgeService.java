@@ -209,40 +209,9 @@ public class FusionBridgeService extends Service {
         telephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            // SDK 31+: CallStateListener (TelephonyCallback 子类)
-            telephonyManager.registerTelephonyCallback(getMainExecutor(), new TelephonyCallback.CallStateListener() {
-                private String lastState = "IDLE";
-
-                @Override
-                public void onCallStateChanged(int state) {
-                    String stateStr;
-                    switch (state) {
-                        case TelephonyManager.CALL_STATE_RINGING:
-                            stateStr = "RINGING";
-                            break;
-                        case TelephonyManager.CALL_STATE_OFFHOOK:
-                            stateStr = "OFFHOOK";
-                            break;
-                        case TelephonyManager.CALL_STATE_IDLE:
-                        default:
-                            stateStr = "IDLE";
-                            break;
-                    }
-
-                    if (!stateStr.equals(lastState)) {
-                        lastState = stateStr;
-                        try {
-                            JSONObject msg = new JSONObject();
-                            msg.put("type", "telephony");
-                            msg.put("state", stateStr);
-                            wsServer.broadcast(msg.toString());
-                            Log.d(TAG, "通话状态: " + stateStr);
-                        } catch (Exception e) {
-                            Log.e(TAG, "发送通话状态失败", e);
-                        }
-                    }
-                }
-            });
+            // SDK 31+: TelephonyCallback + CallStateListener
+            telephonyManager.registerTelephonyCallback(getMainExecutor(),
+                    new FusionCallStateCallback());
         } else {
             // SDK < 31: 使用已废弃的 PhoneStateListener
             telephonyManager.listen(new PhoneStateListener() {
@@ -273,6 +242,45 @@ public class FusionBridgeService extends Service {
         }
 
         Log.i(TAG, "通话监听已启动");
+    }
+
+    /**
+     * SDK 31+ 通话状态回调
+     * 必须同时继承 TelephonyCallback 和实现 CallStateListener 接口
+     */
+    private class FusionCallStateCallback extends TelephonyCallback
+            implements TelephonyCallback.CallStateListener {
+        private String lastState = "IDLE";
+
+        @Override
+        public void onCallStateChanged(int state) {
+            String stateStr;
+            switch (state) {
+                case TelephonyManager.CALL_STATE_RINGING:
+                    stateStr = "RINGING";
+                    break;
+                case TelephonyManager.CALL_STATE_OFFHOOK:
+                    stateStr = "OFFHOOK";
+                    break;
+                case TelephonyManager.CALL_STATE_IDLE:
+                default:
+                    stateStr = "IDLE";
+                    break;
+            }
+
+            if (!stateStr.equals(lastState)) {
+                lastState = stateStr;
+                try {
+                    JSONObject msg = new JSONObject();
+                    msg.put("type", "telephony");
+                    msg.put("state", stateStr);
+                    wsServer.broadcast(msg.toString());
+                    Log.d(TAG, "通话状态: " + stateStr);
+                } catch (Exception e) {
+                    Log.e(TAG, "发送通话状态失败", e);
+                }
+            }
+        }
     }
 
     // === 处理 PC 端发来的命令 ===
