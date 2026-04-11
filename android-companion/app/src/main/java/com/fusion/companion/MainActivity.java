@@ -82,6 +82,11 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         updateStatus();
+        // 自动启动 Bridge 服务 (如果未运行)
+        if (!FusionBridgeService.isRunning()) {
+            Intent serviceIntent = new Intent(this, FusionBridgeService.class);
+            startForegroundService(serviceIntent);
+        }
     }
 
     private void updateStatus() {
