@@ -386,28 +386,28 @@ public class MusicFollower {
                 }
                 
                 // 查找有人的房间
-                RoomInfo occupiedRoom = null;
+                final RoomInfo[] occupiedRoom = {null};
                 for (RoomInfo room : rooms) {
                     if (room.hasPerson && room.personCount > 0) {
-                        occupiedRoom = room;
+                        occupiedRoom[0] = room;
                         break;
                     }
                 }
                 
-                if (occupiedRoom == null) {
+                if (occupiedRoom[0] == null) {
                     // 所有房间都没人，不切换
                     return;
                 }
                 
                 // 检查是否是当前房间
-                if (occupiedRoom.roomId.equals(currentRoomId)) {
+                if (occupiedRoom[0].roomId.equals(currentRoomId)) {
                     // 人还在当前房间，不切换
                     return;
                 }
                 
                 // 检测到人员移动
-                Log.i(TAG, "检测到人从 " + currentRoomId + " 移动到 " + occupiedRoom.roomId);
-                notifyPersonDetected(currentRoomId, occupiedRoom.roomId);
+                Log.i(TAG, "检测到人从 " + currentRoomId + " 移动到 " + occupiedRoom[0].roomId);
+                notifyPersonDetected(currentRoomId, occupiedRoom[0].roomId);
                 
                 // 延迟切换，确认人真的进入新房间
                 mainHandler.postDelayed(() -> {
@@ -415,7 +415,7 @@ public class MusicFollower {
                     RoomInfo currentSensor = sensorListener.getCurrentRoomSensor();
                     if (currentSensor.hasPerson && currentSensor.personCount > 0) {
                         // 确认进入新房间，执行切换
-                        switchToDevice(occupiedRoom);
+                        switchToDevice(occupiedRoom[0]);
                     }
                 }, SWITCH_DELAY_MS);
                 
