@@ -20,19 +20,10 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     
-    - name: Set up Android SDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-    
     - name: Build with Gradle
       uses: gradle/gradle-build-action@v2
       with:
         gradle-version: 8.5
-        dependencies: |
-          com.android.tools.build:gradle:8.2.0
-          com.android.support:android-support-library:28.0.0
     
     - name: Create local.properties
       run: |
