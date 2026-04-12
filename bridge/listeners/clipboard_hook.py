@@ -14,6 +14,15 @@ logger = logging.getLogger(__name__)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
+# 64 位安全的 API 声明
+kernel32.GetModuleHandleW.restype = ctypes.c_void_p
+kernel32.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
+user32.CreateWindowExW.restype = ctypes.wintypes.HWND
+user32.AddClipboardFormatListener.argtypes = [ctypes.wintypes.HWND]
+user32.AddClipboardFormatListener.restype = ctypes.c_bool
+user32.RemoveClipboardFormatListener.argtypes = [ctypes.wintypes.HWND]
+user32.RemoveClipboardFormatListener.restype = ctypes.c_bool
+
 # Windows 消息
 WM_CLIPBOARDUPDATE = 0x031D
 WM_DESTROY = 0x0002
@@ -35,15 +44,68 @@ class WNDCLASSW(ctypes.Structure):
     ]
 
 # WNDPROC 回调函数类型
-LRESULT = ctypes.c_long_ptr if hasattr(ctypes, 'c_long_ptr') else ctypes.c_long
+# 64 位系统上 LRESULT/WPARAM/LPARAM 都是 8 字节，必须用 c_ssize_t / c_size_t
+LRESULT = ctypes.c_ssize_t
 
-WNDPROC = ctypes.WINFUNCTYPE(
+WNDPROC = ctypes.CFUNCTYPE(
     LRESULT,
     ctypes.wintypes.HWND,
     ctypes.c_uint,
-    ctypes.wintypes.WPARAM,
-    ctypes.wintypes.LPARAM,
+    ctypes.c_size_t,  # WPARAM (unsigned, pointer-sized)
+    ctypes.c_ssize_t,  # LPARAM (signed, pointer-sized)
 )
+
+# 正确声明 CreateWindowExW 签名 (防止 64 位 overflow)
+user32.CreateWindowExW.argtypes = [
+    ctypes.c_uint,        # dwExStyle
+    ctypes.c_wchar_p,     # lpClassName
+    ctypes.c_wchar_p,     # lpWindowName
+    ctypes.c_uint,        # dwStyle
+    ctypes.c_int,         # x
+    ctypes.c_int,         # y
+    ctypes.c_int,         # nWidth
+    ctypes.c_int,         # nHeight
+    ctypes.wintypes.HWND, # hWndParent
+    ctypes.wintypes.HMENU,# hMenu
+    ctypes.c_void_p,      # hInstance (64 位安全)
+    ctypes.c_void_p,      # lpParam
+]
+user32.CreateWindowExW.restype = ctypes.wintypes.HWND
+
+# 正确声明 DefWindowProcW 签名 (防止 64 位 overflow)
+user32.DefWindowProcW.argtypes = [
+    ctypes.wintypes.HWND,
+    ctypes.c_uint,
+    ctypes.c_size_t,   # WPARAM
+    ctypes.c_ssize_t,  # LPARAM
+]
+user32.DefWindowProcW.restype = LRESULT
+
+# 正确声明 PostMessageW / GetMessageW 签名 (防止 64 位 overflow)
+user32.PostMessageW.argtypes = [
+    ctypes.wintypes.HWND,
+    ctypes.c_uint,
+    ctypes.c_size_t,   # WPARAM
+    ctypes.c_ssize_t,  # LPARAM
+]
+user32.PostMessageW.restype = ctypes.c_bool
+
+user32.GetMessageW.argtypes = [
+    ctypes.POINTER(ctypes.wintypes.MSG),
+    ctypes.wintypes.HWND,
+    ctypes.c_uint,
+    ctypes.c_uint,
+]
+user32.GetMessageW.restype = ctypes.c_bool
+
+user32.DestroyWindow.argtypes = [ctypes.wintypes.HWND]
+user32.DestroyWindow.restype = ctypes.c_bool
+
+user32.UnregisterClassW.argtypes = [ctypes.c_wchar_p, ctypes.c_void_p]
+user32.UnregisterClassW.restype = ctypes.c_bool
+
+user32.RegisterClassW.argtypes = [ctypes.POINTER(WNDCLASSW)]
+user32.RegisterClassW.restype = ctypes.c_ushort
 
 
 class ClipboardChangeListener:
@@ -76,6 +138,13 @@ class ClipboardChangeListener:
         避免 Hook 回调将被自己设置的内容又推送回去。
         """
         self._suppress_next = True
+
+    def _safe_call(self, callback):
+        """安全执行回调 (独立线程)"""
+        try:
+            callback()
+        except Exception as e:
+            logger.error(f"剪贴板变化回调错误: {e}")
 
     def start(self):
         """启动监听"""
@@ -145,13 +214,14 @@ class ClipboardChangeListener:
             if self._suppress_next:
                 # 跳过此次变化 (由自身 set_clipboard_text 触发)
                 self._suppress_next = False
+                logger.info("剪贴板变化 (已抑制回弹)")
                 return 0
 
+            logger.info("剪贴板变化检测到 (WM_CLIPBOARDUPDATE)")
             if self._on_change:
-                try:
-                    self._on_change()
-                except Exception as e:
-                    logger.error(f"剪贴板变化回调错误: {e}")
+                # 在独立线程执行回调，避免阻塞消息循环
+                # 回调中可能需要 time.sleep 重试读取剪贴板
+                threading.Thread(target=self._safe_call, args=(self._on_change,), daemon=True).start()
             return 0
 
         if msg == WM_DESTROY:

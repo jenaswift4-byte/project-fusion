@@ -7,8 +7,10 @@ import android.app.Service;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -17,20 +19,26 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import android.view.SurfaceControl;
+import android.graphics.Bitmap;
+import android.graphics.PixelFormat;
 
 import com.fusion.companion.FusionWebSocketServer;
 
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.net.InetSocketAddress;
+import java.util.Base64;
 
 /**
  * Fusion Bridge 前台服务
  * 运行 WebSocket Server，实时转发手机事件到 PC
  *
- * PC 端通过 ADB forward 连接:
- *   adb forward tcp:17532 tcp:17532
- * 然后连接 ws://127.0.0.1:17532
+ * 支持事件: 通知 / 剪贴板 / 通话 / 电池 / 短信 / 传感器
+ * 支持命令: clipboard_set / open_url / screenshot / send_sms / ping / ring
  */
 public class FusionBridgeService extends Service {
 
@@ -40,14 +48,23 @@ public class FusionBridgeService extends Service {
     private static final int DEFAULT_PORT = 17532;
 
     private static boolean running = false;
-    private static FusionWebSocketServer staticWsServer;  // 静态引用，供 NotificationListener 访问
+    private static FusionWebSocketServer staticWsServer;
 
     private FusionWebSocketServer wsServer;
     private ClipboardManager clipboardManager;
     private TelephonyManager telephonyManager;
     private SharedPreferences prefs;
     private Handler handler;
-    private PowerManager.WakeLock wakeLock;  // 防止 MIUI 冻结
+    private PowerManager.WakeLock wakeLock;
+
+    // 电池状态
+    private int lastBatteryLevel = -1;
+    private String lastBatteryStatus = "";
+    private Handler batteryHandler;
+    private Runnable batteryPollTask;
+
+    // 短信接收器
+    private FusionSmsReceiver smsReceiver;
 
     // 上次剪贴板内容 (去重)
     private String lastClipboardText = "";
@@ -56,9 +73,6 @@ public class FusionBridgeService extends Service {
         return running;
     }
 
-    /**
-     * 获取 WebSocket Server 实例 (供 FusionNotificationListener 调用)
-     */
     public static FusionWebSocketServer getWebSocketServer() {
         return staticWsServer;
     }
@@ -78,7 +92,7 @@ public class FusionBridgeService extends Service {
         );
         wakeLock.acquire();
 
-        // 请求电池优化白名单 (MIUI 后台保活关键)
+        // 请求电池优化白名单
         if (!pm.isIgnoringBatteryOptimizations(getPackageName())) {
             try {
                 Intent intent = new Intent(
@@ -96,35 +110,47 @@ public class FusionBridgeService extends Service {
         createNotificationChannel();
         Notification notification = new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("Fusion Bridge 运行中")
-                .setContentText("WebSocket 服务已启动 · 通知/剪贴板/通话实时同步")
+                .setContentText("WebSocket 服务已启动 · 通知/剪贴板/通话/电池/短信实时同步")
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_HIGH)
                 .build();
         startForeground(NOTIFICATION_ID, notification);
 
-        // 启动 WebSocket Server
+        // 启动各监听模块
         startWebSocketServer();
-        staticWsServer = wsServer;  // 暴露给 NotificationListener
-
-        // 启动剪贴板监听
+        staticWsServer = wsServer;
         startClipboardMonitor();
-
-        // 启动通话监听
         startTelephonyMonitor();
+        startBatteryMonitor();
+        startSmsMonitor();
 
-        Log.i(TAG, "Fusion Bridge 服务已启动");
+        Log.i(TAG, "Fusion Bridge 服务已启动 (含电池+短信)");
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        return START_STICKY;  // 被杀后自动重启
+        return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         running = false;
+
+        // 停止电池轮询
+        if (batteryHandler != null && batteryPollTask != null) {
+            batteryHandler.removeCallbacks(batteryPollTask);
+        }
+
+        // 注销短信接收器
+        if (smsReceiver != null) {
+            try {
+                unregisterReceiver(smsReceiver);
+            } catch (Exception e) {
+                Log.w(TAG, "注销短信接收器失败", e);
+            }
+        }
 
         if (wsServer != null) {
             try {
@@ -133,16 +159,12 @@ public class FusionBridgeService extends Service {
                 Log.e(TAG, "停止 WebSocket 失败", e);
             }
         }
-        staticWsServer = null;  // 清除静态引用
+        staticWsServer = null;
 
-        // 释放 WakeLock
         if (wakeLock != null && wakeLock.isHeld()) {
             wakeLock.release();
             wakeLock = null;
         }
-
-        // 通话监听器在 Service 销毁时自动解绑，无需手动清理
-        // (TelephonyCallback / PhoneStateListener 随 Service 生命周期结束)
 
         Log.i(TAG, "Fusion Bridge 服务已停止");
     }
@@ -162,27 +184,20 @@ public class FusionBridgeService extends Service {
             handleClientCommand(type, data);
         });
 
-        // 先检测 Termux Bridge (混合模式)，再启动 Server
-        // 避免检测时连接到自己的 Server 导致自杀
         new Thread(() -> {
             try {
-                // 尝试连接 Termux Bridge (端口比 Server 高 1)
                 int termuxPort = port + 1;
                 java.net.Socket testSocket = new java.net.Socket();
                 testSocket.connect(
                     new java.net.InetSocketAddress("127.0.0.1", termuxPort),
-                    2000  // 2秒超时
+                    2000
                 );
                 testSocket.close();
 
-                // 连接成功 → Termux Bridge 在运行 → 混合模式
                 Log.i(TAG, "检测到 Termux Bridge (端口 " + termuxPort + ")，进入混合模式");
                 wsServer.setHybridMode(true);
-
-                // 混合模式: 不启动自己的 Server，作为 Client 连接 Termux
                 wsServer.connectToTermux(termuxPort);
             } catch (Exception e) {
-                // 连接失败 → 独立模式 → 启动自己的 Server
                 Log.i(TAG, "未检测到 Termux Bridge，独立模式");
                 try {
                     wsServer.start();
@@ -197,10 +212,11 @@ public class FusionBridgeService extends Service {
     }
 
     private void updateNotification() {
-        String mode = wsServer.isHybridMode() ? "混合模式 (Termux Bridge)" : "独立模式";
+        String mode = wsServer.isHybridMode() ? "混合模式 (Termux)" : "独立模式";
+        String batteryInfo = lastBatteryLevel >= 0 ? (" · 🔋" + lastBatteryLevel + "%") : "";
         Notification notification = new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("Fusion Bridge 运行中")
-                .setContentText("模式: " + mode)
+                .setContentText(mode + batteryInfo)
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setOngoing(true)
                 .build();
@@ -213,7 +229,6 @@ public class FusionBridgeService extends Service {
     private void startClipboardMonitor() {
         clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
 
-        // 方案 A: 使用 OnPrimaryClipChangedListener (推荐，实时回调)
         clipboardManager.addPrimaryClipChangedListener(() -> {
             try {
                 ClipData clip = clipboardManager.getPrimaryClip();
@@ -227,7 +242,6 @@ public class FusionBridgeService extends Service {
                         msg.put("source", "phone");
                         msg.put("content", text.toString());
 
-                        // 检测是否是 URL
                         String trimmed = text.toString().trim();
                         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
                             msg.put("contentType", "url");
@@ -253,11 +267,9 @@ public class FusionBridgeService extends Service {
         telephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            // SDK 31+: TelephonyCallback + CallStateListener
             telephonyManager.registerTelephonyCallback(getMainExecutor(),
                     new FusionCallStateCallback());
         } else {
-            // SDK < 31: 使用已废弃的 PhoneStateListener
             telephonyManager.listen(new PhoneStateListener() {
                 @Override
                 public void onCallStateChanged(int state, String phoneNumber) {
@@ -288,10 +300,6 @@ public class FusionBridgeService extends Service {
         Log.i(TAG, "通话监听已启动");
     }
 
-    /**
-     * SDK 31+ 通话状态回调
-     * 必须同时继承 TelephonyCallback 和实现 CallStateListener 接口
-     */
     private class FusionCallStateCallback extends TelephonyCallback
             implements TelephonyCallback.CallStateListener {
         private String lastState = "IDLE";
@@ -327,6 +335,123 @@ public class FusionBridgeService extends Service {
         }
     }
 
+    // === 电池监听 (主动轮询 + 充电变化广播) ===
+
+    private void startBatteryMonitor() {
+        batteryHandler = new Handler(Looper.getMainLooper());
+
+        // 首次立即获取
+        pollBattery();
+
+        // 每 30 秒轮询
+        batteryPollTask = new Runnable() {
+            @Override
+            public void run() {
+                pollBattery();
+                batteryHandler.postDelayed(this, 30000);
+            }
+        };
+        batteryHandler.postDelayed(batteryPollTask, 30000);
+
+        // 注册充电状态变化广播 (即时响应插拔充电器)
+        IntentFilter batteryFilter = new IntentFilter();
+        batteryFilter.addAction(Intent.ACTION_BATTERY_CHANGED);
+        batteryFilter.addAction(Intent.ACTION_POWER_CONNECTED);
+        batteryFilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
+        registerReceiver(new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, Intent intent) {
+                pollBattery();
+            }
+        }, batteryFilter);
+
+        Log.i(TAG, "电池监听已启动 (30s 轮询 + 充电变化广播)");
+    }
+
+    private void pollBattery() {
+        try {
+            BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
+            int level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+
+            // 充电状态
+            Intent batteryIntent = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            int status = batteryIntent != null ? batteryIntent.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) : -1;
+            boolean charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                               status == BatteryManager.BATTERY_STATUS_FULL;
+            String statusStr = charging ? "charging" : "discharging";
+
+            // 温度
+            int temp = batteryIntent != null ? batteryIntent.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) : 0;
+            float tempC = temp / 10.0f;
+
+            // 只在状态变化时推送 (或首次)
+            if (level != lastBatteryLevel || !statusStr.equals(lastBatteryStatus)) {
+                lastBatteryLevel = level;
+                lastBatteryStatus = statusStr;
+
+                JSONObject msg = new JSONObject();
+                msg.put("type", "battery");
+                msg.put("level", level);
+                msg.put("status", statusStr);
+                msg.put("temperature", tempC);
+                msg.put("timestamp", System.currentTimeMillis());
+                wsServer.broadcast(msg.toString());
+
+                Log.d(TAG, "电池: " + level + "% " + statusStr + " " + tempC + "°C");
+                handler.post(() -> updateNotification());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "电池轮询错误", e);
+        }
+    }
+
+    // === 短信监听 (BroadcastReceiver) ===
+
+    private void startSmsMonitor() {
+        smsReceiver = new FusionSmsReceiver();
+        IntentFilter smsFilter = new IntentFilter();
+        smsFilter.addAction("android.provider.Telephony.SMS_RECEIVED");
+        smsFilter.setPriority(999);  // 高优先级
+        registerReceiver(smsReceiver, smsFilter);
+
+        Log.i(TAG, "短信监听已启动");
+    }
+
+    /**
+     * 短信广播接收器
+     * 收到短信后通过 WebSocket 推送到 PC
+     */
+    public class FusionSmsReceiver extends android.content.BroadcastReceiver {
+        @Override
+        public void onReceive(android.content.Context context, Intent intent) {
+            if (!"android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) return;
+
+            try {
+                android.telephony.SmsMessage[] msgs = android.telephony.SmsMessage.Intents.getMessagesFromIntent(intent);
+                if (msgs == null || msgs.length == 0) return;
+
+                StringBuilder body = new StringBuilder();
+                String address = msgs[0].getOriginatingAddress();
+                long timestamp = msgs[0].getTimestampMillis();
+
+                for (android.telephony.SmsMessage msg : msgs) {
+                    body.append(msg.getMessageBody());
+                }
+
+                JSONObject msg = new JSONObject();
+                msg.put("type", "sms");
+                msg.put("address", address != null ? address : "未知");
+                msg.put("body", body.toString());
+                msg.put("timestamp", timestamp);
+                wsServer.broadcast(msg.toString());
+
+                Log.d(TAG, "短信: [" + address + "] " + body.toString().substring(0, Math.min(50, body.length())));
+            } catch (Exception e) {
+                Log.e(TAG, "短信接收错误", e);
+            }
+        }
+    }
+
     // === 处理 PC 端发来的命令 ===
 
     private void handleClientCommand(String type, String data) {
@@ -334,17 +459,15 @@ public class FusionBridgeService extends Service {
             try {
                 switch (type) {
                     case "clipboard_set":
-                        // PC → Phone 设置剪贴板
                         JSONObject clipObj = new JSONObject(data);
                         String text = clipObj.getString("content");
                         ClipData clip = ClipData.newPlainText("text", text);
                         clipboardManager.setPrimaryClip(clip);
-                        lastClipboardText = text;  // 防止回弹
+                        lastClipboardText = text;
                         Log.d(TAG, "已设置手机剪贴板");
                         break;
 
                     case "open_url":
-                        // PC → Phone 打开链接
                         JSONObject urlObj = new JSONObject(data);
                         String url = urlObj.getString("url");
                         Intent urlIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url));
@@ -361,7 +484,7 @@ public class FusionBridgeService extends Service {
                         break;
 
                     case "ring":
-                        // 播放铃声音量最大
+                        // 手机响铃 (静默模式也响)
                         android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
                         int maxVol = am.getStreamMaxVolume(android.media.AudioManager.STREAM_RING);
                         am.setStreamVolume(android.media.AudioManager.STREAM_RING, maxVol, 0);
@@ -370,11 +493,122 @@ public class FusionBridgeService extends Service {
                         ringtone.play();
                         handler.postDelayed(() -> ringtone.stop(), 5000);
                         break;
+
+                    case "screenshot":
+                        // 手机截图 → 保存文件 → 通知 PC 拉取
+                        takeScreenshot();
+                        break;
+
+                    case "send_sms":
+                        // PC → 手机发送短信
+                        JSONObject smsObj = new JSONObject(data);
+                        String smsAddr = smsObj.getString("address");
+                        String smsBody = smsObj.getString("body");
+                        sendSms(smsAddr, smsBody);
+                        break;
+
+                    case "battery_query":
+                        // PC 主动查询电池状态
+                        pollBattery();
+                        break;
+
+                    case "open_app":
+                        // PC → 手机打开指定应用
+                        JSONObject appObj = new JSONObject(data);
+                        String pkg = appObj.getString("package");
+                        Intent launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(launchIntent);
+                            Log.d(TAG, "已打开应用: " + pkg);
+                        } else {
+                            Log.w(TAG, "应用未安装: " + pkg);
+                        }
+                        break;
+
+                    case "keyevent":
+                        // PC → 手机发送按键事件
+                        JSONObject keyObj = new JSONObject(data);
+                        int keycode = keyObj.getInt("keycode");
+                        Runtime.getRuntime().exec("input keyevent " + keycode);
+                        Log.d(TAG, "按键事件: " + keycode);
+                        break;
+
+                    case "volume":
+                        // PC → 手机调整音量
+                        JSONObject volObj = new JSONObject(data);
+                        String direction = volObj.optString("direction", "up");
+                        android.media.AudioManager audioMgr = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+                        int stream = android.media.AudioManager.STREAM_MUSIC;
+                        int adjust = "up".equals(direction)
+                            ? android.media.AudioManager.ADJUST_RAISE
+                            : android.media.AudioManager.ADJUST_LOWER;
+                        audioMgr.adjustVolume(adjust, 0);
+                        Log.d(TAG, "音量: " + direction);
+                        break;
                 }
             } catch (Exception e) {
-                Log.e(TAG, "处理客户端命令失败", e);
+                Log.e(TAG, "处理客户端命令失败 [" + type + "]", e);
             }
         });
+    }
+
+    // === 截图 (通过 ADB 的 screencap) ===
+
+    private void takeScreenshot() {
+        new Thread(() -> {
+            try {
+                String filename = "fusion_screenshot_" + System.currentTimeMillis() + ".png";
+                String path = "/sdcard/Download/" + filename;
+
+                Process p = Runtime.getRuntime().exec(new String[]{"screencap", "-p", path});
+                p.waitFor();
+
+                // 通知 PC 端截图已就绪，可以 ADB pull
+                JSONObject msg = new JSONObject();
+                msg.put("type", "screenshot");
+                msg.put("path", path);
+                msg.put("filename", filename);
+                msg.put("timestamp", System.currentTimeMillis());
+                wsServer.broadcast(msg.toString());
+
+                Log.d(TAG, "截图已保存: " + path);
+            } catch (Exception e) {
+                Log.e(TAG, "截图失败", e);
+                try {
+                    JSONObject msg = new JSONObject();
+                    msg.put("type", "screenshot_error");
+                    msg.put("error", e.getMessage());
+                    wsServer.broadcast(msg.toString());
+                } catch (Exception ex) { /* ignore */ }
+            }
+        }).start();
+    }
+
+    // === 发送短信 ===
+
+    private void sendSms(String address, String body) {
+        try {
+            android.telephony.SmsManager smsManager = android.telephony.SmsManager.getDefault();
+            smsManager.sendTextMessage(address, null, body, null, null);
+
+            JSONObject msg = new JSONObject();
+            msg.put("type", "sms_sent");
+            msg.put("address", address);
+            msg.put("body", body);
+            msg.put("timestamp", System.currentTimeMillis());
+            wsServer.broadcast(msg.toString());
+
+            Log.d(TAG, "短信已发送: [" + address + "] " + body.substring(0, Math.min(30, body.length())));
+        } catch (Exception e) {
+            Log.e(TAG, "发送短信失败", e);
+            try {
+                JSONObject msg = new JSONObject();
+                msg.put("type", "sms_error");
+                msg.put("error", e.getMessage());
+                wsServer.broadcast(msg.toString());
+            } catch (Exception ex) { /* ignore */ }
+        }
     }
 
     // === 通知渠道 ===
@@ -384,11 +618,11 @@ public class FusionBridgeService extends Service {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     "Fusion Bridge 服务",
-                    NotificationManager.IMPORTANCE_HIGH  // 高优先级防止 MIUI 冻结
+                    NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("保持 Fusion Bridge 服务运行，实时同步通知/剪贴板/通话");
+            channel.setDescription("保持 Fusion Bridge 服务运行，实时同步通知/剪贴板/通话/电池/短信");
             channel.setShowBadge(false);
-            channel.setSound(null, null);  // 无声音
+            channel.setSound(null, null);
             NotificationManager nm = getSystemService(NotificationManager.class);
             nm.createNotificationChannel(channel);
         }

@@ -27,6 +27,9 @@ class TrayIcon:
         self.daemon = daemon
         self._icon = None
         self._thread = None
+        self._battery_text = ""
+        self._dnd_count = 0
+        self._proximity_text = ""
 
     def start(self):
         """启动托盘图标"""
@@ -74,9 +77,33 @@ class TrayIcon:
         """更新托盘提示文字"""
         if self._icon:
             try:
-                self._icon.title = f"Project Fusion - {status_text}"
+                title = f"Project Fusion - {status_text}"
+                if self._battery_text:
+                    title += f" | {self._battery_text}"
+                self._icon.title = title
             except Exception:
                 pass
+
+    def update_battery(self, battery_text: str):
+        """更新电池状态显示"""
+        self._battery_text = battery_text
+        # 刷新托盘提示
+        if self._icon:
+            try:
+                current = self._icon.title or "Project Fusion"
+                # 移除旧电池信息
+                base = current.split(" | ")[0] if " | " in current else current
+                self._icon.title = f"{base} | {battery_text}"
+            except Exception:
+                pass
+
+    def update_dnd_count(self, count: int):
+        """更新免打扰缓存通知数"""
+        self._dnd_count = count
+
+    def update_proximity(self, text: str):
+        """更新近场检测状态"""
+        self._proximity_text = text
 
     def _build_menu(self):
         """构建右键菜单"""
@@ -95,7 +122,7 @@ class TrayIcon:
             ),
             Menu.SEPARATOR,
             MenuItem("打开 Scrcpy", self._action_focus_scrcpy),
-            MenuItem("发送 Ping", self._action_ping),
+            MenuItem("手机截图", self._action_screenshot),
             MenuItem("手机响铃", self._action_ring),
             Menu.SEPARATOR,
             MenuItem(
@@ -113,6 +140,15 @@ class TrayIcon:
                 self._action_toggle_phone,
                 checked=lambda item: self.daemon.phone_bridge.running,
             ),
+            MenuItem(
+                "免打扰",
+                self._action_toggle_dnd,
+                checked=lambda item: self.daemon.dnd_manager.running,
+            ),
+            Menu.SEPARATOR,
+            MenuItem("推送链接到手机", self._action_handoff),
+            MenuItem("查看短信", self._action_view_sms),
+            MenuItem("截图文件夹", self._action_screenshot_folder),
             Menu.SEPARATOR,
             MenuItem("退出", self._action_quit),
         )
@@ -160,6 +196,46 @@ class TrayIcon:
         else:
             self.daemon.phone_bridge.start()
             logger.info("通话控制已恢复")
+
+    def _action_toggle_dnd(self, icon=None, item=None):
+        """切换免打扰"""
+        if self.daemon.dnd_manager.running:
+            self.daemon.dnd_manager.stop()
+            logger.info("智能免打扰已关闭")
+        else:
+            self.daemon.dnd_manager.start()
+            logger.info("智能免打扰已开启")
+
+    def _action_screenshot(self, icon=None, item=None):
+        """手机截图"""
+        if hasattr(self.daemon, 'screenshot_bridge') and self.daemon.screenshot_bridge:
+            self.daemon.screenshot_bridge.take_screenshot_async()
+
+    def _action_handoff(self, icon=None, item=None):
+        """推送 PC 浏览器链接到手机"""
+        if hasattr(self.daemon, 'handoff_bridge') and self.daemon.handoff_bridge:
+            self.daemon.handoff_bridge.send_pc_url_to_phone()
+
+    def _action_view_sms(self, icon=None, item=None):
+        """查看短信 (Toast 显示最新)"""
+        if hasattr(self.daemon, 'sms_bridge') and self.daemon.sms_bridge:
+            sms_list = self.daemon.sms_bridge.get_recent_sms(3)
+            if sms_list:
+                from bridge.utils.win32_toast import send_toast
+                for sms in sms_list:
+                    send_toast(
+                        title=f"[短信] {sms.get('address', '未知')}",
+                        text=sms.get("body", "")[:200],
+                        app_name="Project Fusion",
+                    )
+            else:
+                from bridge.utils.win32_toast import send_toast
+                send_toast(title="短信", text="暂无短信", app_name="Project Fusion")
+
+    def _action_screenshot_folder(self, icon=None, item=None):
+        """打开截图文件夹"""
+        if hasattr(self.daemon, 'screenshot_bridge') and self.daemon.screenshot_bridge:
+            self.daemon.screenshot_bridge.open_screenshot_folder()
 
     def _action_quit(self, icon=None, item=None):
         """退出"""

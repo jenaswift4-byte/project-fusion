@@ -126,10 +126,39 @@ class FusionWSClient:
         try:
             # 先移除旧的 forward
             subprocess.run(
-                [self._adb_path, "forward", f"tcp:{self.port}", f"tcp:{self.port}"],
+                [self._adb_path, "forward", "--remove", f"tcp:{self.port}"],
                 capture_output=True, timeout=10,
             )
-            logger.info(f"ADB forward 已设置: tcp:{self.port} -> tcp:{self.port}")
+
+            # 获取设备列表，优先用 USB 设备 (非 IP 地址的)
+            result = subprocess.run(
+                [self._adb_path, "devices"],
+                capture_output=True, text=True, timeout=10,
+            )
+            serial = None
+            for line in result.stdout.strip().split("\n")[1:]:
+                parts = line.strip().split("\t")
+                if len(parts) == 2 and parts[1] == "device":
+                    dev_id = parts[0]
+                    # 优先 USB (不含冒号的)，其次 WiFi (含冒号的)
+                    if "." not in dev_id:
+                        serial = dev_id
+                        break
+                    elif serial is None:
+                        serial = dev_id
+
+            # 构建命令
+            cmd = [self._adb_path]
+            if serial:
+                cmd += ["-s", serial]
+            cmd += ["forward", f"tcp:{self.port}", f"tcp:{self.port}"]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                logger.error(f"ADB forward 失败: {result.stderr.strip()}")
+                return False
+
+            logger.info(f"ADB forward 已设置: tcp:{self.port} -> tcp:{self.port} (device: {serial or 'default'})")
             return True
         except Exception as e:
             logger.error(f"ADB forward 设置失败: {e}")

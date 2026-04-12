@@ -30,11 +30,19 @@ from bridge.modules.clipboard_bridge import ClipboardBridge
 from bridge.modules.notification_bridge import NotificationBridge
 from bridge.modules.file_bridge import FileBridge
 from bridge.modules.phone_bridge import PhoneBridge
+from bridge.modules.battery_bridge import BatteryBridge
+from bridge.modules.screenshot_bridge import ScreenshotBridge
+from bridge.modules.sms_bridge import SMSBridge
+from bridge.modules.handoff_bridge import HandoffBridge
+from bridge.modules.audio_bridge import AudioBridge
 from bridge.listeners.kde_connect import KDEConnectListener
 from bridge.listeners.window_focus import WindowFocusListener
 from bridge.listeners.clipboard_hook import ClipboardChangeListener
 from bridge.listeners.mouse_hook import EdgeDetector
 from bridge.listeners.ws_client import FusionWSClient
+from bridge.listeners.hotkey_manager import HotkeyManager
+from bridge.listeners.dnd_manager import DNDManager
+from bridge.listeners.proximity_detector import ProximityDetector
 from bridge.dispatchers.input_leap import InputLeapController
 from bridge.dispatchers.tray_icon import TrayIcon
 from bridge.dispatchers.autostart import enable_autostart, disable_autostart, is_autostart_enabled
@@ -79,6 +87,13 @@ class BridgeDaemon:
         self.file_bridge = FileBridge(self)
         self.phone_bridge = PhoneBridge(self)
 
+        # 扩展模块 (手机作为 PC 外设)
+        self.battery_bridge = BatteryBridge(self)      # 电池状态 → 托盘显示
+        self.screenshot_bridge = ScreenshotBridge(self) # 快捷截图
+        self.sms_bridge = SMSBridge(self)               # 短信收发
+        self.handoff_bridge = HandoffBridge(self)        # 链接接力
+        self.audio_bridge = AudioBridge(self)            # 音频流转
+
         # 实时通道
         self.ws_client = FusionWSClient(config)  # WebSocket 主通道
         self.kde_listener = KDEConnectListener(config)  # KDE Connect
@@ -92,6 +107,15 @@ class BridgeDaemon:
         self.focus_listener = WindowFocusListener(
             config.get("scrcpy", {}).get("window_title", "Phone")
         )
+
+        # 全局热键 (手机当 PC 外设的操控入口)
+        self.hotkey_manager = HotkeyManager(self)
+
+        # 智能免打扰 (全屏检测 + 通知缓存)
+        self.dnd_manager = DNDManager(self)
+
+        # 近场自动连接 (蓝牙 RSSI)
+        self.proximity_detector = ProximityDetector(self)
 
         # Input Leap 键鼠流转
         self.input_leap = InputLeapController(config)
@@ -263,6 +287,28 @@ class BridgeDaemon:
                 print("  ✅ 通话控制 (ADB 轮询)")
             else:
                 print("  ✅ 通话控制 (WebSocket 实时)")
+
+        # 扩展模块: 手机作为 PC 外设
+        print("  ✅ 电池状态监控")
+        self.battery_bridge.start()
+
+        print("  ✅ 快捷截图")
+        self.screenshot_bridge.start()
+
+        sms_cfg = self.config.get("sms", {})
+        if sms_cfg.get("enabled", True):
+            print("  ✅ 短信收发")
+            self.sms_bridge.start()
+
+        handoff_cfg = self.config.get("handoff", {})
+        if handoff_cfg.get("enabled", True):
+            print("  ✅ 链接接力 (Handoff)")
+            self.handoff_bridge.start()
+
+        audio_cfg = self.config.get("audio", {})
+        if audio_cfg.get("enabled", True):
+            print("  ✅ 音频流转")
+            self.audio_bridge.start()
         print()
 
         # ═══ Phase 6: KDE Connect ═══
@@ -276,29 +322,57 @@ class BridgeDaemon:
             print("  ⏭️ KDE Connect 未启用")
         print()
 
-        # ═══ Phase 7: Input Leap ═══
-        print("[7/9] 键鼠流转...")
+        # ═══ Phase 7: 全局热键 ═══
+        print("[7/11] 全局热键...")
+        self.hotkey_manager.start()
+        if self.hotkey_manager.running:
+            print("  ✅ 全局热键 (Win+Shift+S 截图 / P 聚焦 / H HOME / B BACK ...)")
+        else:
+            print("  ⏭️ 全局热键未启用")
+        print()
+
+        # ═══ Phase 8: 智能免打扰 ═══
+        print("[8/11] 智能免打扰...")
+        self.dnd_manager.start()
+        if self.dnd_manager.running:
+            print("  ✅ 全屏自动静默通知")
+        else:
+            print("  ⏭️ 智能免打扰未启用")
+        print()
+
+        # ═══ Phase 9: 近场检测 ═══
+        print("[9/11] 近场检测...")
+        self.proximity_detector.start()
+        if self.proximity_detector.running:
+            print("  ✅ 蓝牙近场自动连接")
+        else:
+            print("  ⏭️ 近场检测未启用")
+        print()
+
+        # ═══ Phase 10: Input Leap ═══
+        print("[10/11] 键鼠流转...")
         if self.input_leap.start():
             print("  ✅ Input Leap 已启动")
         else:
             print("  ⏭️ Input Leap 未启用 (使用边缘检测替代)")
         print()
 
-        # ═══ Phase 8: 系统托盘 ═══
+        # ═══ Phase 11: 系统托盘 ═══
         if enable_tray:
-            print("[8/9] 系统托盘...")
+            print("[11/11] 系统托盘...")
             self.tray_icon.start()
             print("  ✅ 托盘图标已显示")
         else:
-            print("[8/9] 系统托盘已禁用")
+            print("[11/11] 系统托盘已禁用")
         print()
 
-        # ═══ Phase 9: 完成 ═══
+        # ═══ 完成 ═══
         channel = "WebSocket 实时" if self.use_companion else "ADB 轮询"
-        print(f"[9/9] 就绪! 通信模式: {channel}")
+        print(f"就绪! 通信模式: {channel}")
         print()
         print("-" * 60)
         print("  Ctrl+C 停止 / 托盘右键退出 / 鼠标右滑进入手机")
+        print("  Win+Shift+S 截图 / P 聚焦 / H HOME / B BACK / R 多任务")
         print("-" * 60)
         print()
 
@@ -322,12 +396,20 @@ class BridgeDaemon:
         self.edge_detector.stop()
         self.clipboard_hook.stop()
         self.focus_listener.stop()
+        self.hotkey_manager.stop()
+        self.dnd_manager.stop()
+        self.proximity_detector.stop()
         self.input_leap.stop()
         self.ws_client.stop()
         self.kde_listener.stop()
         self.clipboard_bridge.stop()
         self.notification_bridge.stop()
         self.phone_bridge.stop()
+        self.battery_bridge.stop()
+        self.screenshot_bridge.stop()
+        self.sms_bridge.stop()
+        self.handoff_bridge.stop()
+        self.audio_bridge.stop()
         self.scrcpy_ctrl.stop()
 
         print("Project Fusion 已停止")
@@ -341,6 +423,8 @@ class BridgeDaemon:
         self.ws_client.on("notification", self._on_ws_notification)
         self.ws_client.on("clipboard", self._on_ws_clipboard)
         self.ws_client.on("telephony", self._on_ws_telephony)
+        self.ws_client.on("sms", self._on_ws_sms)
+        self.ws_client.on("battery", self._on_ws_battery)
         self.ws_client.on("connected", self._on_ws_connected)
 
     def _on_ws_notification(self, data: dict):
@@ -350,6 +434,11 @@ class BridgeDaemon:
         pkg = data.get("package", "unknown")
 
         if not title:
+            return
+
+        # 智能免打扰: 全屏时缓存通知
+        if self.dnd_manager.running and self.dnd_manager.should_suppress(pkg):
+            self.dnd_manager.cache_notification(data)
             return
 
         send_toast(
@@ -406,14 +495,38 @@ class BridgeDaemon:
         version = data.get("androidVersion", "?")
         logger.info(f"伴侣 App 已连接: {device} (Android {version})")
 
+    def _on_ws_sms(self, data: dict):
+        """WebSocket: 短信"""
+        self.sms_bridge.on_ws_sms(data)
+
+    def _on_ws_battery(self, data: dict):
+        """WebSocket: 电池状态 (来自伴侣 App)"""
+        level = data.get("level", -1)
+        charging = data.get("charging", False)
+        # 直接更新电池桥接的状态
+        self.battery_bridge._last_level = level
+        self.battery_bridge._last_charging = charging
+        charge_icon = "⚡" if charging else "🔋"
+        if self.tray_icon:
+            self.tray_icon.update_battery(f"{charge_icon} {level}%")
+        logger.debug(f"[WS电池] {level}% {'充电中' if charging else '放电中'}")
+
     # ══════════════════════════════════════
     # Win32 实时钩子回调
     # ══════════════════════════════════════
 
     def _on_pc_clipboard_changed(self):
         """Win32: PC 剪贴板变化 (实时钩子)"""
-        text = get_clipboard_text()
+        # WM_CLIPBOARDUPDATE 到达时，发送方可能还没关闭剪贴板，需要重试
+        text = None
+        for attempt in range(3):
+            text = get_clipboard_text()
+            if text:
+                break
+            time.sleep(0.1)  # 等 100ms 重试
+
         if not text:
+            logger.debug("剪贴板变化但读取为空 (可能被占用)")
             return
 
         # 推送到手机
@@ -425,7 +538,7 @@ class BridgeDaemon:
             self.clipboard_bridge.last_pc_clipboard = text
             self.clipboard_bridge._sync_to_phone(text)
 
-        logger.debug(f"[PC剪贴板变化] {text[:40]}")
+        logger.info(f"[PC剪贴板变化] {text[:40]}")
 
     def _on_mouse_edge_enter(self, x, y):
         """鼠标到达屏幕右边缘 → 进入手机区域"""

@@ -63,6 +63,54 @@ autostart:
 tray:
   enabled: true           # 系统托盘图标
 
+# ═══ 手机作为 PC 外设扩展 ═══
+
+battery:
+  poll_interval_ms: 30000   # 电池轮询间隔 (毫秒)
+  low_threshold: 20         # 低电量提醒阈值 (%)
+  critical_threshold: 10    # 严重低电阈值 (%)
+
+screenshot:
+  enabled: true             # 快捷截图
+  save_dir: "D:\\Fusion\\Screenshots"
+  auto_clipboard: true      # 截图自动放入 PC 剪贴板
+  format: "png"             # png 或 jpg
+
+sms:
+  enabled: true             # 短信收发
+  poll_interval_ms: 5000    # ADB 轮询间隔 (WS 模式下无效)
+  max_display: 20           # 最大显示条数
+
+handoff:
+  enabled: true             # 链接接力 (Handoff)
+  clipboard_urls: true      # 剪贴板 URL 自动接力
+  open_on_phone: true       # PC 链接自动在手机打开
+
+audio:
+  enabled: true             # 音频流转
+  mic_enabled: false        # 手机当麦克风 (默认关，延迟高)
+  mic_save_dir: "D:\\Fusion\\Audio"
+  scrcpy_audio: false       # Scrcpy 音频转发 (需重启 Scrcpy)
+
+hotkeys:
+  enabled: true             # 全局热键
+  prefix: "win+shift"       # 热键前缀
+
+dnd:
+  enabled: true             # 智能免打扰
+  check_interval_ms: 2000   # 全屏检测间隔
+  bypass_packages:          # 免打扰时仍弹出的包名 (紧急通知)
+    - "com.tencent.mobileqq"
+    - "com.whatsapp"
+
+proximity:
+  enabled: false            # 近场自动连接 (需蓝牙)
+  device_mac: ""            # 手机蓝牙 MAC 地址
+  device_name: ""           # 手机蓝牙名称
+  rssi_threshold: -10       # RSSI 阈值
+  auto_connect: true        # 靠近时自动连接
+  auto_disconnect: false    # 离开时自动断开
+
 paths:
   clipboard_images: "D:\\Fusion\\Clipboard"
   logs: "D:\\Fusion\\Logs"

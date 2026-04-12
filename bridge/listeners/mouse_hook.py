@@ -14,23 +14,36 @@ logger = logging.getLogger(__name__)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
-# 设置返回类型
+# 设置返回类型和参数类型 (64 位安全)
 user32.SetWindowsHookExW.restype = ctypes.c_void_p
-user32.CallNextHookEx.restype = ctypes.c_void_p
+user32.SetWindowsHookExW.argtypes = [
+    ctypes.c_int,        # idHook
+    ctypes.c_void_p,     # lpfn
+    ctypes.c_void_p,     # hMod
+    ctypes.c_ulong,      # dwThreadId (DWORD)
+]
+user32.CallNextHookEx.restype = ctypes.c_ssize_t  # LRESULT
+user32.CallNextHookEx.argtypes = [
+    ctypes.c_void_p,     # hhk
+    ctypes.c_int,        # nCode
+    ctypes.c_size_t,     # wParam
+    ctypes.c_ssize_t,    # lParam
+]
 user32.UnhookWindowsHookEx.argtypes = [ctypes.c_void_p]
 user32.UnhookWindowsHookEx.restype = ctypes.c_bool
 kernel32.GetModuleHandleW.restype = ctypes.c_void_p
+kernel32.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
 
 # 钩子类型
 WH_MOUSE_LL = 14
 WM_MOUSEMOVE = 0x0200
 
-# 回调类型
+# 回调类型 (64 位安全: WPARAM=c_size_t, LPARAM=c_ssize_t)
 HOOKPROC = ctypes.CFUNCTYPE(
-    ctypes.c_long,
-    ctypes.c_int,
-    ctypes.wintypes.WPARAM,
-    ctypes.wintypes.LPARAM,
+    ctypes.c_ssize_t,    # LRESULT (返回值)
+    ctypes.c_int,        # nCode
+    ctypes.c_size_t,     # wParam (WPARAM)
+    ctypes.c_ssize_t,    # lParam (LPARAM)
 )
 
 

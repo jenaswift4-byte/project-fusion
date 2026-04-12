@@ -65,6 +65,49 @@ DEFAULT_CONFIG = {
         "enabled": False,  # Phase 3 再启用
         "config_path": "",
     },
+    "battery": {
+        "poll_interval_ms": 30000,
+        "low_threshold": 20,
+        "critical_threshold": 10,
+    },
+    "screenshot": {
+        "save_dir": r"D:\Fusion\Screenshots",
+        "auto_clipboard": True,
+        "format": "png",
+    },
+    "sms": {
+        "enabled": True,
+        "poll_interval_ms": 5000,
+        "max_display": 20,
+    },
+    "handoff": {
+        "enabled": True,
+        "clipboard_urls": True,
+        "open_on_phone": True,
+    },
+    "audio": {
+        "enabled": True,
+        "mic_enabled": False,
+        "mic_save_dir": r"D:\Fusion\Audio",
+        "scrcpy_audio": False,
+    },
+    "hotkeys": {
+        "enabled": True,
+        "prefix": "win+shift",
+    },
+    "dnd": {
+        "enabled": True,
+        "check_interval_ms": 2000,
+        "bypass_packages": ["com.tencent.mobileqq", "com.whatsapp"],
+    },
+    "proximity": {
+        "enabled": False,
+        "device_mac": "",
+        "device_name": "",
+        "rssi_threshold": -10,
+        "auto_connect": True,
+        "auto_disconnect": False,
+    },
     "paths": {
         "clipboard_images": r"D:\Fusion\Clipboard",
         "logs": r"D:\Fusion\Logs",

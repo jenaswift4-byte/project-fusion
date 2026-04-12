@@ -19,6 +19,14 @@ CF_HDROP = 15
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
+# 64 位安全的 API 声明 (返回值可能是指针，必须用 c_void_p 避免截断)
+user32.GetClipboardData.restype = ctypes.c_void_p
+user32.GetClipboardData.argtypes = [ctypes.c_uint]
+kernel32.GlobalLock.restype = ctypes.c_void_p
+kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+kernel32.GlobalFree.argtypes = [ctypes.c_void_p]
+
 
 def get_clipboard_text() -> str:
     """获取剪贴板文本"""
