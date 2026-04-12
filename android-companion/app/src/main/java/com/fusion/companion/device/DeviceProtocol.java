@@ -302,13 +302,17 @@ public class DeviceProtocol {
          * @return JSON 字符串
          */
         public static String createMessage(String command, JSONObject params) {
-            JSONObject message = new JSONObject();
-            message.put("command", command);
-            if (params != null) {
-                message.put("params", params);
+            try {
+                JSONObject message = new JSONObject();
+                message.put("command", command);
+                if (params != null) {
+                    message.put("params", params);
+                }
+                message.put("timestamp", System.currentTimeMillis());
+                return message.toString();
+            } catch (org.json.JSONException e) {
+                return "{\"error\":\"" + e.getMessage() + "\"}";
             }
-            message.put("timestamp", System.currentTimeMillis());
-            return message.toString();
         }
         
         /**
@@ -372,19 +376,23 @@ public class DeviceProtocol {
          * @return JSON 字符串
          */
         public static String createMessage(String status, Integer position, Integer battery, JSONObject data) {
-            JSONObject message = new JSONObject();
-            message.put("status", status);
-            if (position != null) {
-                message.put("position", position);
+            try {
+                JSONObject message = new JSONObject();
+                message.put("status", status);
+                if (position != null) {
+                    message.put("position", position);
+                }
+                if (battery != null) {
+                    message.put("battery", battery);
+                }
+                if (data != null) {
+                    message.put("data", data);
+                }
+                message.put("timestamp", System.currentTimeMillis());
+                return message.toString();
+            } catch (org.json.JSONException e) {
+                return "{\"error\":\"" + e.getMessage() + "\"}";
             }
-            if (battery != null) {
-                message.put("battery", battery);
-            }
-            if (data != null) {
-                message.put("data", data);
-            }
-            message.put("timestamp", System.currentTimeMillis());
-            return message.toString();
         }
         
         /**
@@ -434,13 +442,17 @@ public class DeviceProtocol {
          * @return JSON 字符串
          */
         public static String createSuccess(String message, JSONObject data) {
-            JSONObject response = new JSONObject();
-            response.put("success", true);
-            response.put("message", message);
-            if (data != null) {
-                response.put("data", data);
+            try {
+                JSONObject response = new JSONObject();
+                response.put("success", true);
+                response.put("message", message);
+                if (data != null) {
+                    response.put("data", data);
+                }
+                return response.toString();
+            } catch (org.json.JSONException e) {
+                return "{\"error\":\"" + e.getMessage() + "\"}";
             }
-            return response.toString();
         }
         
         /**
@@ -449,10 +461,14 @@ public class DeviceProtocol {
          * @return JSON 字符串
          */
         public static String createError(String message) {
-            JSONObject response = new JSONObject();
-            response.put("success", false);
-            response.put("message", message);
-            return response.toString();
+            try {
+                JSONObject response = new JSONObject();
+                response.put("success", false);
+                response.put("message", message);
+                return response.toString();
+            } catch (org.json.JSONException e) {
+                return "{\"success\":false,\"message\":\"" + message + "\"}";
+            }
         }
         
         /**
