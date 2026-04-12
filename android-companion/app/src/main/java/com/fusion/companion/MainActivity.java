@@ -227,17 +227,15 @@ public class MainActivity extends Activity {
         Intent mqttIntent = new Intent(this, MQTTBrokerService.class);
         startForegroundService(mqttIntent);
         
-        // 等待 Broker 启动后初始化数据存储服务
+        // 等待 Broker 启动后初始化数据存储服务 (全部在后台线程)
         new Thread(() -> {
             try {
                 Thread.sleep(1000); // 等待 Broker 启动
                 
                 if (MQTTBrokerService.isRunning()) {
-                    // 通过反射或绑定获取 Broker 实例（简化实现，实际应该使用 Service 绑定）
+                    mqttDataStorageService = new MQTTDataStorageService(this, null);
+                    mqttDataStorageService.start();
                     runOnUiThread(() -> {
-                        // 这里简化处理，实际应该通过 ServiceConnection 获取
-                        mqttDataStorageService = new MQTTDataStorageService(this, null);
-                        mqttDataStorageService.start();
                         Toast.makeText(this, "MQTT 数据存储服务已启动", Toast.LENGTH_SHORT).show();
                         updateDbStatus();
                     });

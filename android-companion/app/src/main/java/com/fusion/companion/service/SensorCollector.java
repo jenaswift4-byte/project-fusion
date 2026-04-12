@@ -21,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -116,10 +118,13 @@ public class SensorCollector implements SensorEventListener {
     private int collectionInterval = DEFAULT_COLLECTION_INTERVAL;
     
     // MQTT 客户端
-    private MqttClient mqttClient;
+    private volatile MqttClient mqttClient;
     
     // 主线程 Handler
     private final Handler handler = new Handler(Looper.getMainLooper());
+    
+    // 后台线程池 (用于 MQTT 网络 IO，绝不阻塞主线程)
+    private final ExecutorService mqttExecutor = Executors.newSingleThreadExecutor();
     
     // 延迟任务
     private Runnable collectTask;
@@ -140,8 +145,8 @@ public class SensorCollector implements SensorEventListener {
     }
     
     /**
-     * 启动传感器采集
-     * @return true 如果启动成功
+     * 启动传感器采集 (非阻塞，MQTT 初始化在后台线程)
+     * @return true 如果启动流程已提交
      */
     public boolean startCollection() {
         if (isCollecting.get()) {
@@ -149,25 +154,26 @@ public class SensorCollector implements SensorEventListener {
             return true;
         }
         
-        try {
-            // 初始化 MQTT 客户端
-            initMQTTClient();
-            
-            // 注册所有可用传感器
-            registerAllSensors();
-            
-            // 启动定时采集任务
-            startCollectionTask();
-            
-            isCollecting.set(true);
-            Log.i(TAG, "传感器采集已启动 - 注册传感器数量：" + registeredSensors.size());
-            
-            return true;
-            
-        } catch (Exception e) {
-            Log.e(TAG, "启动传感器采集失败", e);
-            return false;
-        }
+        // 注册传感器 (轻量操作，主线程 OK)
+        registerAllSensors();
+        
+        // 标记为采集状态
+        isCollecting.set(true);
+        
+        // MQTT 初始化丢到后台线程，避免阻塞主线程
+        mqttExecutor.execute(() -> {
+            try {
+                initMQTTClient();
+            } catch (Exception e) {
+                Log.e(TAG, "后台初始化 MQTT 失败", e);
+            }
+        });
+        
+        // 启动定时采集任务 (用于检查 MQTT 连接状态)
+        startCollectionTask();
+        
+        Log.i(TAG, "传感器采集已启动 - 注册传感器数量：" + registeredSensors.size());
+        return true;
     }
     
     /**
@@ -179,24 +185,25 @@ public class SensorCollector implements SensorEventListener {
             return;
         }
         
-        try {
-            // 停止定时采集任务
-            stopCollectionTask();
-            
-            // 注销所有传感器监听
-            unregisterAllSensors();
-            
-            // 断开 MQTT 连接
-            disconnectMQTTClient();
-            
-            isCollecting.set(false);
-            lastPublishTime.clear();
-            
-            Log.i(TAG, "传感器采集已停止");
-            
-        } catch (Exception e) {
-            Log.e(TAG, "停止传感器采集失败", e);
-        }
+        // 停止定时采集任务
+        stopCollectionTask();
+        
+        // 注销所有传感器监听
+        unregisterAllSensors();
+        
+        // 断开 MQTT 连接 (后台线程)
+        mqttExecutor.execute(() -> {
+            try {
+                disconnectMQTTClient();
+            } catch (Exception e) {
+                Log.e(TAG, "断开 MQTT 失败", e);
+            }
+        });
+        
+        isCollecting.set(false);
+        lastPublishTime.clear();
+        
+        Log.i(TAG, "传感器采集已停止");
     }
     
     /**
@@ -399,28 +406,26 @@ public class SensorCollector implements SensorEventListener {
     
     /**
      * 启动定时采集任务
+     * 注意：MQTT 重连操作已移至后台线程
      */
     private void startCollectionTask() {
         collectTask = new Runnable() {
             @Override
             public void run() {
-                // 定时任务用于检查 MQTT 连接和传感器状态
-                // 实际数据采集由事件驱动 (onSensorChanged)
-                
                 if (!isCollecting.get()) {
                     return;
                 }
                 
-                // 检查 MQTT 连接
+                // MQTT 重连丢到后台线程
                 if (mqttClient == null || !mqttClient.isConnected()) {
                     Log.w(TAG, "MQTT 连接断开，尝试重连...");
-                    initMQTTClient();
-                }
-                
-                // 检查传感器注册
-                if (registeredSensors.isEmpty()) {
-                    Log.w(TAG, "传感器未注册，重新注册...");
-                    registerAllSensors();
+                    mqttExecutor.execute(() -> {
+                        try {
+                            initMQTTClient();
+                        } catch (Exception e) {
+                            Log.e(TAG, "MQTT 重连失败", e);
+                        }
+                    });
                 }
                 
                 // 调度下一次检查
@@ -456,16 +461,13 @@ public class SensorCollector implements SensorEventListener {
         String unit = SENSOR_UNIT_MAP.get(sensorType);
         
         // 对于多轴传感器，使用第一个值
-        // 陀螺仪和加速度计有三个轴 (X, Y, Z)
         if (sensorType == Sensor.TYPE_GYROSCOPE || 
             sensorType == Sensor.TYPE_ACCELEROMETER) {
-            // 对于多轴传感器，可以发布所有轴的值
-            // 这里简化处理，只发布第一个轴的值
             value = event.values[0];
         }
         
-        // 发布到 MQTT
-        publishSensorData(sensorType, value, unit);
+        // 发布到 MQTT (后台线程，避免阻塞主线程)
+        mqttExecutor.execute(() -> publishSensorData(sensorType, value, unit));
     }
     
     @Override

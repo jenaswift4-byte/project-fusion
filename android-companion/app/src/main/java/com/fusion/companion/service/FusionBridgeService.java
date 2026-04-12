@@ -149,7 +149,11 @@ public class FusionBridgeService extends Service {
         startBatteryMonitor();
         startSmsMonitor();
         startMQTTBroker();  // 启动 MQTT Broker
-        startSensorCollection();  // 启动传感器采集
+
+        // 传感器采集在后台线程启动 (内含 MQTT connect，不能阻塞主线程)
+        new Thread(() -> {
+            startSensorCollection();
+        }).start();
 
         Log.i(TAG, "Fusion Bridge 服务已启动 (含电池 + 短信+MQTT Broker+ 传感器采集)");
     }
