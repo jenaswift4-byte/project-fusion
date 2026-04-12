@@ -260,7 +260,6 @@ public class MQTTBrokerService extends Service {
             channel.setDescription("MQTT Broker 后台运行，提供设备间通信服务");
             channel.setShowBadge(false);
             channel.setSound(null, null);
-            channel.setVibrationEnabled(false);
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) nm.createNotificationChannel(channel);
         }
@@ -294,5 +293,59 @@ public class MQTTBrokerService extends Service {
      */
     public interface MqttMessageCallback {
         void onMessageReceived(String topic, byte[] payload);
+    }
+
+    // 主题订阅管理
+    private final ConcurrentHashMap<String, java.util.List<MqttMessageCallback>> topicSubscribers = new ConcurrentHashMap<>();
+
+    /**
+     * 订阅主题
+     * @param topic 主题
+     * @param callback 消息回调
+     * @param qos QoS 级别
+     * @return 是否订阅成功
+     */
+    public boolean subscribeTopic(String topic, MqttMessageCallback callback, int qos) {
+        topicSubscribers.computeIfAbsent(topic, k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(callback);
+        Log.i(TAG, "已订阅主题：" + topic);
+        return true;
+    }
+
+    /**
+     * 取消订阅主题
+     * @param topic 主题
+     */
+    public void unsubscribeTopic(String topic) {
+        topicSubscribers.remove(topic);
+        Log.i(TAG, "已取消订阅主题：" + topic);
+    }
+
+    /**
+     * 向所有订阅者分发消息
+     */
+    private void dispatchMessage(String topic, byte[] payload) {
+        java.util.List<MqttMessageCallback> callbacks = topicSubscribers.get(topic);
+        if (callbacks != null) {
+            for (MqttMessageCallback cb : callbacks) {
+                try {
+                    cb.onMessageReceived(topic, payload);
+                } catch (Exception e) {
+                    Log.e(TAG, "分发消息回调异常", e);
+                }
+            }
+        }
+        // 检查通配符订阅
+        for (Map.Entry<String, java.util.List<MqttMessageCallback>> entry : topicSubscribers.entrySet()) {
+            String subTopic = entry.getKey();
+            if (subTopic.endsWith("#") && topic.startsWith(subTopic.substring(0, subTopic.length() - 1))) {
+                for (MqttMessageCallback cb : entry.getValue()) {
+                    try {
+                        cb.onMessageReceived(topic, payload);
+                    } catch (Exception e) {
+                        Log.e(TAG, "分发通配符消息回调异常", e);
+                    }
+                }
+            }
+        }
     }
 }

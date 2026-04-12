@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.fusion.companion.tts.TTSManager;
+
 /**
  * 媒体功能使用示例
  * 

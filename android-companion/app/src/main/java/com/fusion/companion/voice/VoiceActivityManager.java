@@ -50,7 +50,7 @@ import java.util.concurrent.Executors;
  * }
  * </pre>
  */
-public class VoiceActivityManager implements RecognitionListener {
+public class VoiceActivityManager implements VoiceRecognitionListener {
     
     private static final String TAG = "VoiceActivityManager";
     
@@ -160,7 +160,7 @@ public class VoiceActivityManager implements RecognitionListener {
         
         // 获取设备 ID
         if (mqttClient != null) {
-            this.deviceId = mqttClient.getDeviceId();
+            this.deviceId = mqttClient.getMqttDeviceId();
         }
         
         // 创建语音识别器
@@ -369,7 +369,7 @@ public class VoiceActivityManager implements RecognitionListener {
                 
             } catch (Exception e) {
                 Log.e(TAG, "AI 处理失败", e);
-                postError(RecognitionListener.ERROR_SERVER, "AI 处理失败：" + e.getMessage());
+                postError(VoiceRecognitionListener.ERROR_SERVER, "AI 处理失败：" + e.getMessage());
             }
         });
     }

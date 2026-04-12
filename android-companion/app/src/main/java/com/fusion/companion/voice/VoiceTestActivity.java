@@ -1,19 +1,14 @@
 package com.fusion.companion.voice;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import com.fusion.companion.ai.LocalAIEngine;
 import com.fusion.companion.service.MQTTClientService;
@@ -30,7 +25,7 @@ import com.fusion.companion.R;
  * 
  * 注意：这是一个测试 Activity，实际使用时可以根据需要集成到自己的 Activity 中
  */
-public class VoiceTestActivity extends AppCompatActivity implements 
+public class VoiceTestActivity extends Activity implements 
         VoiceActivityManager.VoiceInteractionListener {
     
     private static final String TAG = "VoiceTestActivity";
@@ -130,8 +125,6 @@ public class VoiceTestActivity extends AppCompatActivity implements
         voiceManager = new VoiceActivityManager(this);
         
         // 获取 MQTT 客户端（如果已启动服务）
-        // 注意：这里假设 MQTTClientService 已经启动
-        // 实际使用时需要根据你的架构获取服务实例
         mqttClient = null;  // TODO: 从服务获取
         
         // 获取 AI 引擎
@@ -148,10 +141,9 @@ public class VoiceTestActivity extends AppCompatActivity implements
      * 检查录音权限
      */
     private void checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
-            // 请求权限
-            ActivityCompat.requestPermissions(this,
+            requestPermissions(
                     new String[]{Manifest.permission.RECORD_AUDIO},
                     PERMISSION_REQUEST_CODE);
         } else {
@@ -161,8 +153,8 @@ public class VoiceTestActivity extends AppCompatActivity implements
     }
     
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                          @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                          int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         
         if (requestCode == PERMISSION_REQUEST_CODE) {
@@ -266,8 +258,6 @@ public class VoiceTestActivity extends AppCompatActivity implements
     public void onTextRecognized(String text) {
         Log.i(TAG, "识别到文本：" + text);
         updateRecognizedText(text);
-        
-        // 显示提示
         Toast.makeText(this, "识别到：" + text, Toast.LENGTH_SHORT).show();
     }
     
@@ -294,9 +284,7 @@ public class VoiceTestActivity extends AppCompatActivity implements
     public void onError(int errorCode, String message) {
         Log.e(TAG, "错误：" + errorCode + " - " + message);
         updateStatus("状态：错误 - " + message);
-        
         Toast.makeText(this, "错误：" + message, Toast.LENGTH_LONG).show();
-        
         btnStartVoice.setEnabled(true);
         btnStopVoice.setEnabled(false);
     }
@@ -307,7 +295,6 @@ public class VoiceTestActivity extends AppCompatActivity implements
         
         Log.i(TAG, "Activity 销毁，释放语音管理器");
         
-        // 释放资源
         if (voiceManager != null) {
             voiceManager.release();
             voiceManager = null;
@@ -318,7 +305,6 @@ public class VoiceTestActivity extends AppCompatActivity implements
     protected void onPause() {
         super.onPause();
         
-        // 如果正在识别，自动停止
         if (voiceManager != null && voiceManager.isRecognizing()) {
             voiceManager.stopVoiceInteraction();
         }

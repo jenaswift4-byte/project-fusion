@@ -3,6 +3,8 @@ package com.fusion.companion.media;
 import android.content.Context;
 import android.util.Log;
 
+import com.fusion.companion.tts.TTSManager;
+
 /**
  * 媒体中心 - 统一集成 TTS、音乐库、播放器和跟随功能
  * 

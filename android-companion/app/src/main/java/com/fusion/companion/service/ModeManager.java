@@ -12,6 +12,7 @@ import android.util.Log;
 
 import com.fusion.companion.ai.LocalAIEngine;
 import com.fusion.companion.ai.ModelDownloader;
+import com.fusion.companion.FusionWebSocketServer;
 
 import org.json.JSONObject;
 
@@ -273,7 +274,7 @@ public class ModeManager {
      * 判断 PC 是否在线
      * 通过检查 WebSocket 服务器连接状态
      */
-    private boolean isPCOnline() {
+    private boolean checkPCOnline() {
         // 检查 WebSocket 服务器是否有客户端连接
         FusionWebSocketServer wsServer = FusionBridgeService.getWebSocketServer();
         if (wsServer != null) {

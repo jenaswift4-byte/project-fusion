@@ -74,7 +74,7 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
     private SpeechRecognizer speechRecognizer;
     
     // 识别监听器
-    private RecognitionListener listener;
+    private VoiceRecognitionListener listener;
     
     // 主线程 Handler
     private Handler mainHandler;
@@ -131,7 +131,7 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
      * 
      * @param listener 识别监听器
      */
-    public void setRecognitionListener(RecognitionListener listener) {
+    public void setRecognitionListener(VoiceRecognitionListener listener) {
         this.listener = listener;
         Log.d(TAG, "识别监听器已设置");
     }
@@ -165,14 +165,14 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
         // 检查权限
         if (!hasRecordPermission()) {
             Log.e(TAG, "没有录音权限，请先申请权限");
-            postError(RecognitionListener.ERROR_CLIENT, "没有录音权限");
+            postError(VoiceRecognitionListener.ERROR_CLIENT, "没有录音权限");
             return false;
         }
         
         // 检查是否支持
         if (speechRecognizer == null) {
             Log.e(TAG, "SpeechRecognizer 不可用");
-            postError(RecognitionListener.ERROR_CLIENT, "SpeechRecognizer 不可用");
+            postError(VoiceRecognitionListener.ERROR_CLIENT, "SpeechRecognizer 不可用");
             return false;
         }
         
@@ -211,7 +211,7 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
             
         } catch (Exception e) {
             Log.e(TAG, "开始识别失败", e);
-            postError(RecognitionListener.ERROR_CLIENT, e.getMessage());
+            postError(VoiceRecognitionListener.ERROR_CLIENT, e.getMessage());
             return false;
         }
     }

@@ -815,7 +815,6 @@ public class MQTTClientService extends Service implements SensorEventListener {
             channel.setDescription("MQTT 客户端后台运行，提供设备间通信服务");
             channel.setShowBadge(false);
             channel.setSound(null, null);
-            channel.setVibrationEnabled(false);
             
             NotificationManager nm = getSystemService(NotificationManager.class);
             nm.createNotificationChannel(channel);
@@ -914,7 +913,7 @@ public class MQTTClientService extends Service implements SensorEventListener {
      * 获取设备 ID
      * @return 设备 ID
      */
-    public String getDeviceId() {
+    public String getMqttDeviceId() {
         return deviceId;
     }
     

@@ -27,7 +27,7 @@ package com.fusion.companion.voice;
  * }
  * </pre>
  */
-public interface RecognitionListener {
+public interface VoiceRecognitionListener {
     
     /**
      * 识别开始回调

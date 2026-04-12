@@ -459,8 +459,12 @@ public class FusionBridgeService extends Service {
             if (!"android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) return;
 
             try {
-                android.telephony.SmsMessage[] msgs = android.telephony.SmsMessage.Intents.getMessagesFromIntent(intent);
-                if (msgs == null || msgs.length == 0) return;
+                Object[] pdus = (Object[]) intent.getSerializableExtra("pdus");
+                if (pdus == null || pdus.length == 0) return;
+                android.telephony.SmsMessage[] msgs = new android.telephony.SmsMessage[pdus.length];
+                for (int i = 0; i < pdus.length; i++) {
+                    msgs[i] = android.telephony.SmsMessage.createFromPdu((byte[]) pdus[i]);
+                }
 
                 StringBuilder body = new StringBuilder();
                 String address = msgs[0].getOriginatingAddress();
@@ -738,7 +742,7 @@ public class FusionBridgeService extends Service {
 
         try {
             // 获取设备 ID (使用设备型号 + 序列号)
-            String deviceId = getDeviceId();
+            String deviceId = getBridgeDeviceId();
             
             // 创建传感器采集器
             sensorCollector = new SensorCollector(this, deviceId);
@@ -791,7 +795,7 @@ public class FusionBridgeService extends Service {
      * 使用设备型号 + 序列号组合
      * @return 设备 ID 字符串
      */
-    private String getDeviceId() {
+    private String getBridgeDeviceId() {
         // 使用设备型号 + 序列号作为设备 ID
         String model = android.os.Build.MODEL;
         String serial = getSerialNumber();

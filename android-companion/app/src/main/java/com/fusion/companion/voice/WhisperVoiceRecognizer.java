@@ -41,7 +41,7 @@ public class WhisperVoiceRecognizer {
     private Context context;
     private AudioRecord audioRecord;
     private int bufferSize;
-    private RecognitionListener listener;
+    private VoiceRecognitionListener listener;
     private Handler mainHandler;
     private ExecutorService inferenceExecutor;
     private boolean modelLoaded;
@@ -91,14 +91,14 @@ public class WhisperVoiceRecognizer {
         Log.i(TAG, "模型已卸载");
     }
 
-    public void setRecognitionListener(RecognitionListener listener) {
+    public void setRecognitionListener(VoiceRecognitionListener listener) {
         this.listener = listener;
     }
 
     public boolean startRecognition() {
         if (!hasRecordPermission()) {
             Log.e(TAG, "没有录音权限");
-            postError(RecognitionListener.ERROR_CLIENT, "没有录音权限");
+            postError(VoiceRecognitionListener.ERROR_CLIENT, "没有录音权限");
             return false;
         }
 
@@ -117,7 +117,7 @@ public class WhisperVoiceRecognizer {
 
             if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
                 Log.e(TAG, "AudioRecord 初始化失败");
-                postError(RecognitionListener.ERROR_AUDIO, "AudioRecord 初始化失败");
+                postError(VoiceRecognitionListener.ERROR_AUDIO, "AudioRecord 初始化失败");
                 return false;
             }
 
@@ -139,7 +139,7 @@ public class WhisperVoiceRecognizer {
 
         } catch (Exception e) {
             Log.e(TAG, "开始录音失败", e);
-            postError(RecognitionListener.ERROR_AUDIO, e.getMessage());
+            postError(VoiceRecognitionListener.ERROR_AUDIO, e.getMessage());
             return false;
         }
     }
@@ -193,7 +193,7 @@ public class WhisperVoiceRecognizer {
                     postPartialResult(resultCache.toString());
                 }
             } else if (read < 0) {
-                postError(RecognitionListener.ERROR_AUDIO, "AudioRecord 读取失败");
+                postError(VoiceRecognitionListener.ERROR_AUDIO, "AudioRecord 读取失败");
                 break;
             }
         }

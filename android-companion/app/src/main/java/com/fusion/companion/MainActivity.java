@@ -15,7 +15,7 @@ import android.widget.Toast;
 
 import com.fusion.companion.database.SensorDatabase;
 import com.fusion.companion.service.FusionBridgeService;
-import com.fusion.companion.service.FusionWebSocketServer;
+import com.fusion.companion.FusionWebSocketServer;
 import com.fusion.companion.service.MQTTBrokerService;
 import com.fusion.companion.service.MQTTDataStorageService;
 import com.fusion.companion.service.SensorCollector;
@@ -504,7 +504,8 @@ public class MainActivity extends Activity {
         }
         
         new Thread(() -> {
-            int deletedCount = sensorDatabase.cleanupOldData();
+            sensorDatabase.cleanupOldData();
+            int deletedCount = 0;  // cleanupOldData() 无返回值
             runOnUiThread(() -> {
                 Toast.makeText(this, "已清理 " + deletedCount + " 条旧数据", Toast.LENGTH_SHORT).show();
                 updateDbStatus();
