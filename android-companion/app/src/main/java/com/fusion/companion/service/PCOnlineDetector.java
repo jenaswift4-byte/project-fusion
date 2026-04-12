@@ -816,18 +816,18 @@ public class PCOnlineDetector {
      * @param pcId PC 标识
      */
     public void triggerPingDetection(String pcId) {
-        PCConfig config = null;
+        final PCConfig[] found = {null};
         for (PCConfig c : pcConfigs) {
             if (c.id.equals(pcId)) {
-                config = c;
+                found[0] = c;
                 break;
             }
         }
         
-        if (config != null) {
+        if (found[0] != null) {
             executor.execute(() -> {
-                boolean reachable = pingPC(config.ipAddress);
-                updatePCStatus(config.id, config.ipAddress, reachable, DetectionMode.PING);
+                boolean reachable = pingPC(found[0].ipAddress);
+                updatePCStatus(found[0].id, found[0].ipAddress, reachable, DetectionMode.PING);
             });
         }
     }
