@@ -456,15 +456,9 @@ public class SensorCollector implements SensorEventListener {
             return;
         }
         
-        int sensorType = event.sensor.getType();
-        float value = event.values[0];
-        String unit = SENSOR_UNIT_MAP.get(sensorType);
-        
-        // 对于多轴传感器，使用第一个值
-        if (sensorType == Sensor.TYPE_GYROSCOPE || 
-            sensorType == Sensor.TYPE_ACCELEROMETER) {
-            value = event.values[0];
-        }
+        final int sensorType = event.sensor.getType();
+        final float value = event.values[0];
+        final String unit = SENSOR_UNIT_MAP.get(sensorType);
         
         // 发布到 MQTT (后台线程，避免阻塞主线程)
         mqttExecutor.execute(() -> publishSensorData(sensorType, value, unit));
