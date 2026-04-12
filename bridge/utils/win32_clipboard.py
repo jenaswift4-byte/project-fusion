@@ -16,16 +16,23 @@ CF_UNICODETEXT = 13
 CF_DIB = 8
 CF_HDROP = 15
 
+GMEM_MOVEABLE = 0x0002
+GMEM_ZEROINIT = 0x0040
+
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
-# 64 位安全的 API 声明 (返回值可能是指针，必须用 c_void_p 避免截断)
-user32.GetClipboardData.restype = ctypes.c_void_p
-user32.GetClipboardData.argtypes = [ctypes.c_uint]
+# 64 位安全的 API 声明 (返回值和 handle 参数必须用 c_void_p 避免截断)
+kernel32.GlobalAlloc.restype = ctypes.c_void_p
+kernel32.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
 kernel32.GlobalLock.restype = ctypes.c_void_p
 kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
 kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
 kernel32.GlobalFree.argtypes = [ctypes.c_void_p]
+user32.GetClipboardData.restype = ctypes.c_void_p
+user32.GetClipboardData.argtypes = [ctypes.c_uint]
+user32.SetClipboardData.restype = ctypes.c_void_p
+user32.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
 
 
 def get_clipboard_text() -> str:
@@ -60,7 +67,8 @@ def set_clipboard_text(text: str) -> bool:
             return False
         try:
             user32.EmptyClipboard()
-            handle = kernel32.GlobalAlloc(0x0042, (len(text) + 1) * 2)  # GMEM_MOVEABLE
+            size = (len(text) + 1) * 2  # UTF-16 LE + null terminator
+            handle = kernel32.GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, size)
             if not handle:
                 return False
             ptr = kernel32.GlobalLock(handle)
@@ -68,11 +76,14 @@ def set_clipboard_text(text: str) -> bool:
                 kernel32.GlobalFree(handle)
                 return False
             try:
-                ctypes.memmove(ptr, text.encode("utf-16-le"), len(text) * 2)
-                ctypes.memset(ptr + len(text) * 2, 0, 2)  # null terminator
+                encoded = text.encode("utf-16-le")
+                ctypes.memmove(ptr, encoded, len(encoded))
             finally:
-                kernel32.GlobalUnlock(ptr)
-            user32.SetClipboardData(CF_UNICODETEXT, handle)
+                kernel32.GlobalUnlock(handle)  # 解锁 handle，不是 ptr
+            result = user32.SetClipboardData(CF_UNICODETEXT, handle)
+            if not result:
+                logger.error("SetClipboardData failed")
+                return False
             return True
         finally:
             user32.CloseClipboard()
@@ -97,7 +108,7 @@ def set_clipboard_image(image_path: str) -> bool:
             return False
         try:
             user32.EmptyClipboard()
-            handle = kernel32.GlobalAlloc(0x0042, len(dib_data))
+            handle = kernel32.GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, len(dib_data))
             if not handle:
                 return False
             ptr = kernel32.GlobalLock(handle)
@@ -107,8 +118,11 @@ def set_clipboard_image(image_path: str) -> bool:
             try:
                 ctypes.memmove(ptr, dib_data, len(dib_data))
             finally:
-                kernel32.GlobalUnlock(ptr)
-            user32.SetClipboardData(CF_DIB, handle)
+                kernel32.GlobalUnlock(handle)
+            result = user32.SetClipboardData(CF_DIB, handle)
+            if not result:
+                logger.error("SetClipboardData (image) failed")
+                return False
             return True
         finally:
             user32.CloseClipboard()

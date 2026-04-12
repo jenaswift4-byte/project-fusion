@@ -60,9 +60,10 @@ class SMSBridge:
             短信列表 [{address, body, date, type, read}]
         """
         # 使用 content query 查询短信数据库
+        # 注意: Android content query 不支持 --limit，用 head 截断
         output, _, rc = self.daemon.adb_shell(
             f'content query --uri content://sms --projection address:body:date:type:read '
-            f'--sort "date DESC" --limit {limit}'
+            f'--sort "date DESC" | head -{limit}'
         )
 
         if rc != 0 or not output:
@@ -75,7 +76,7 @@ class SMSBridge:
         """获取未读短信"""
         output, _, rc = self.daemon.adb_shell(
             'content query --uri content://sms --projection address:body:date:type:read '
-            '--where "read=0" --sort "date DESC" --limit 20'
+            '--where "read=0" --sort "date DESC" | head -20'
         )
 
         if rc != 0 or not output:

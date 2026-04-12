@@ -529,16 +529,29 @@ class BridgeDaemon:
             logger.debug("剪贴板变化但读取为空 (可能被占用)")
             return
 
+        # 判断是否是 URL
+        is_url = text.strip().startswith(("http://", "https://"))
+
         # 推送到手机
         if self.use_companion:
             # WebSocket 通道: 实时推送到伴侣 App
             self.ws_client.set_clipboard(text)
+            # URL 自动接力: PC 复制链接 → 手机自动打开
+            if is_url and self.handoff_bridge.running and self.handoff_bridge.open_on_phone:
+                self.ws_client.open_url(text.strip())
+                logger.info(f"[PC剪贴板变化] URL 已接力到手机: {text[:60]}")
+            else:
+                logger.info(f"[PC剪贴板变化] {text[:40]}")
         else:
-            # ADB 通道: 记录到 last 值，让轮询检测到变化时同步
+            # ADB 通道
             self.clipboard_bridge.last_pc_clipboard = text
             self.clipboard_bridge._sync_to_phone(text)
-
-        logger.info(f"[PC剪贴板变化] {text[:40]}")
+            # URL 自动接力
+            if is_url and self.handoff_bridge.running and self.handoff_bridge.open_on_phone:
+                self.handoff_bridge.send_url_to_phone(text.strip())
+                logger.info(f"[PC剪贴板变化] URL 已接力到手机: {text[:60]}")
+            else:
+                logger.info(f"[PC剪贴板变化] {text[:40]}")
 
     def _on_mouse_edge_enter(self, x, y):
         """鼠标到达屏幕右边缘 → 进入手机区域"""
