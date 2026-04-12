@@ -57,6 +57,14 @@ public class FusionBridgeService extends Service {
     private Handler handler;
     private PowerManager.WakeLock wakeLock;
 
+    // MQTT Broker 服务
+    private MQTTBrokerService mqttBrokerService;
+    private static boolean mqttBrokerRunning = false;
+
+    // 传感器采集器
+    private SensorCollector sensorCollector;
+    private static boolean sensorCollectionRunning = false;
+
     // 电池状态
     private int lastBatteryLevel = -1;
     private String lastBatteryStatus = "";
@@ -75,6 +83,22 @@ public class FusionBridgeService extends Service {
 
     public static FusionWebSocketServer getWebSocketServer() {
         return staticWsServer;
+    }
+
+    /**
+     * 获取 MQTT Broker 运行状态
+     * @return true 如果 MQTT Broker 正在运行
+     */
+    public static boolean isMQTTBrokerRunning() {
+        return mqttBrokerRunning;
+    }
+
+    /**
+     * 获取传感器采集运行状态
+     * @return true 如果传感器采集正在运行
+     */
+    public static boolean isSensorCollectionRunning() {
+        return sensorCollectionRunning;
     }
 
     @Override
@@ -124,8 +148,10 @@ public class FusionBridgeService extends Service {
         startTelephonyMonitor();
         startBatteryMonitor();
         startSmsMonitor();
+        startMQTTBroker();  // 启动 MQTT Broker
+        startSensorCollection();  // 启动传感器采集
 
-        Log.i(TAG, "Fusion Bridge 服务已启动 (含电池+短信)");
+        Log.i(TAG, "Fusion Bridge 服务已启动 (含电池 + 短信+MQTT Broker+ 传感器采集)");
     }
 
     @Override
@@ -160,6 +186,12 @@ public class FusionBridgeService extends Service {
             }
         }
         staticWsServer = null;
+
+        // 停止 MQTT Broker
+        stopMQTTBroker();
+
+        // 停止传感器采集
+        stopSensorCollection();
 
         if (wakeLock != null && wakeLock.isHeld()) {
             wakeLock.release();
@@ -625,6 +657,166 @@ public class FusionBridgeService extends Service {
             channel.setSound(null, null);
             NotificationManager nm = getSystemService(NotificationManager.class);
             nm.createNotificationChannel(channel);
+        }
+    }
+
+    // === MQTT Broker 管理 ===
+
+    /**
+     * 启动 MQTT Broker 服务
+     * 在后台运行，监听 1883 端口
+     */
+    private void startMQTTBroker() {
+        if (mqttBrokerRunning) {
+            Log.w(TAG, "MQTT Broker 已在运行，跳过启动");
+            return;
+        }
+
+        try {
+            // 启动 MQTT Broker 服务
+            Intent brokerIntent = new Intent(this, MQTTBrokerService.class);
+            startForegroundService(brokerIntent);
+            
+            // 延迟检查是否启动成功
+            handler.postDelayed(() -> {
+                if (MQTTBrokerService.isRunning()) {
+                    mqttBrokerRunning = true;
+                    Log.i(TAG, "MQTT Broker 服务已成功启动 (端口 1883)");
+                } else {
+                    Log.w(TAG, "MQTT Broker 服务启动失败");
+                }
+            }, 2000);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "启动 MQTT Broker 失败", e);
+        }
+    }
+
+    /**
+     * 停止 MQTT Broker 服务
+     * 优雅关闭所有客户端连接
+     */
+    private void stopMQTTBroker() {
+        if (!mqttBrokerRunning) {
+            Log.w(TAG, "MQTT Broker 未运行，跳过停止");
+            return;
+        }
+
+        try {
+            Intent brokerIntent = new Intent(this, MQTTBrokerService.class);
+            stopService(brokerIntent);
+            mqttBrokerRunning = false;
+            Log.i(TAG, "MQTT Broker 服务已停止");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "停止 MQTT Broker 失败", e);
+        }
+    }
+
+    /**
+     * 获取 MQTT Broker 服务实例
+     * 可用于发布/订阅操作
+     * @return MQTTBrokerService 实例或 null
+     */
+    public MQTTBrokerService getMQTTBrokerService() {
+        // 注意：由于是独立服务，需要通过绑定或广播获取实例
+        // 这里返回 null，实际使用需要通过 bindService
+        return null;
+    }
+
+    // === 传感器采集管理 ===
+
+    /**
+     * 启动传感器采集服务
+     * 使用事件驱动，低功耗设计
+     */
+    private void startSensorCollection() {
+        if (sensorCollectionRunning) {
+            Log.w(TAG, "传感器采集已在运行，跳过启动");
+            return;
+        }
+
+        try {
+            // 获取设备 ID (使用设备型号 + 序列号)
+            String deviceId = getDeviceId();
+            
+            // 创建传感器采集器
+            sensorCollector = new SensorCollector(this, deviceId);
+            
+            // 设置采集间隔为 5 秒
+            sensorCollector.setCollectionInterval(5000);
+            
+            // 启动采集
+            boolean success = sensorCollector.startCollection();
+            
+            if (success) {
+                sensorCollectionRunning = true;
+                int sensorCount = sensorCollector.getRegisteredSensorCount();
+                Log.i(TAG, "传感器采集已启动 - 设备 ID: " + deviceId + ", 传感器数量：" + sensorCount);
+            } else {
+                Log.w(TAG, "传感器采集启动失败");
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "启动传感器采集失败", e);
+        }
+    }
+
+    /**
+     * 停止传感器采集服务
+     * 优雅关闭所有传感器监听
+     */
+    private void stopSensorCollection() {
+        if (!sensorCollectionRunning) {
+            Log.w(TAG, "传感器采集未运行，跳过停止");
+            return;
+        }
+
+        try {
+            if (sensorCollector != null) {
+                sensorCollector.stopCollection();
+                sensorCollector = null;
+            }
+            
+            sensorCollectionRunning = false;
+            Log.i(TAG, "传感器采集已停止");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "停止传感器采集失败", e);
+        }
+    }
+
+    /**
+     * 获取设备唯一标识符
+     * 使用设备型号 + 序列号组合
+     * @return 设备 ID 字符串
+     */
+    private String getDeviceId() {
+        // 使用设备型号 + 序列号作为设备 ID
+        String model = android.os.Build.MODEL;
+        String serial = getSerialNumber();
+        
+        // 格式化为友好的设备名称
+        String deviceId = "phone-" + model.replaceAll("[^a-zA-Z0-9]", "-").toLowerCase() + "-" + serial;
+        
+        Log.d(TAG, "生成设备 ID: " + deviceId);
+        return deviceId;
+    }
+
+    /**
+     * 获取设备序列号
+     * @return 设备序列号
+     */
+    private String getSerialNumber() {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                return android.os.Build.getSerial();
+            } else {
+                return android.os.Build.SERIAL;
+            }
+        } catch (Exception e) {
+            // 如果无法获取序列号，使用时间戳后 6 位
+            return String.valueOf(System.currentTimeMillis() % 1000000);
         }
     }
 }

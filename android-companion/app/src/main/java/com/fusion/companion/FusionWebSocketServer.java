@@ -204,4 +204,18 @@ public class FusionWebSocketServer extends WebSocketServer {
     public boolean isHybridMode() {
         return hybridMode;
     }
+    
+    /**
+     * 获取客户端连接数量
+     * @return 当前连接的客户端数量
+     */
+    public int getClientCount() {
+        if (hybridMode && termuxClient != null && termuxClient.isOpen()) {
+            // 混合模式：如果连接到 Termux，认为有 1 个客户端（PC 通过 Termux 连接）
+            return 1;
+        } else {
+            // 独立模式：返回实际连接的客户端数量
+            return super.getConnections().size();
+        }
+    }
 }

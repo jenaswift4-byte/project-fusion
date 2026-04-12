@@ -115,6 +115,130 @@ class FusionWSClient:
         """让手机响铃"""
         return self.send({"type": "ring"})
 
+    # ==================== 触摸/控制命令 ====================
+
+    def send_mouse_move(self, x: int, y: int) -> bool:
+        """
+        发送鼠标移动命令
+
+        Args:
+            x: X 坐标
+            y: Y 坐标
+
+        Returns:
+            bool: 发送是否成功
+        """
+        return self.send({
+            "type": "control",
+            "action": "mouse_move",
+            "x": x,
+            "y": y,
+        })
+
+    def send_mouse_click(self, x: int, y: int, button: str = "left") -> bool:
+        """
+        发送鼠标点击命令
+
+        Args:
+            x: X 坐标
+            y: Y 坐标
+            button: 按钮类型 ("left", "right", "middle")
+
+        Returns:
+            bool: 发送是否成功
+        """
+        return self.send({
+            "type": "control",
+            "action": "mouse_click",
+            "x": x,
+            "y": y,
+            "button": button,
+        })
+
+    def send_mouse_double_click(self, x: int, y: int) -> bool:
+        """
+        发送鼠标双击命令
+
+        Args:
+            x: X 坐标
+            y: Y 坐标
+
+        Returns:
+            bool: 发送是否成功
+        """
+        return self.send({
+            "type": "control",
+            "action": "mouse_double_click",
+            "x": x,
+            "y": y,
+        })
+
+    def send_mouse_right_click(self, x: int, y: int) -> bool:
+        """
+        发送鼠标右键点击命令
+
+        Args:
+            x: X 坐标
+            y: Y 坐标
+
+        Returns:
+            bool: 发送是否成功
+        """
+        return self.send({
+            "type": "control",
+            "action": "mouse_right_click",
+            "x": x,
+            "y": y,
+        })
+
+    def send_mouse_wheel(self, delta: int) -> bool:
+        """
+        发送鼠标滚轮命令
+
+        Args:
+            delta: 滚轮滚动值（正数向上，负数向下）
+
+        Returns:
+            bool: 发送是否成功
+        """
+        return self.send({
+            "type": "control",
+            "action": "mouse_wheel",
+            "delta": delta,
+        })
+
+    def send_key(self, key: str) -> bool:
+        """
+        发送键盘按键命令
+
+        Args:
+            key: 按键名称（如 "A", "Enter", "Escape"）
+
+        Returns:
+            bool: 发送是否成功
+        """
+        return self.send({
+            "type": "control",
+            "action": "key",
+            "key": key,
+        })
+
+    def send_key_combo(self, keys: list[str]) -> bool:
+        """
+        发送组合键命令
+
+        Args:
+            keys: 按键列表（如 ["Ctrl", "C"]）
+
+        Returns:
+            bool: 发送是否成功
+        """
+        return self.send({
+            "type": "control",
+            "action": "key_combo",
+            "keys": keys,
+        })
+
     @property
     def connected(self) -> bool:
         return self._connected

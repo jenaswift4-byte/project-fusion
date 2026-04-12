@@ -1,6 +1,7 @@
-# Project Fusion 完整配置
+# Project Fusion v2.0 完整配置
 # 修改此文件以自定义行为
 
+# ═══ 基础配置 ═══
 scrcpy:
   path: "C:\\Users\\wang\\Desktop\\scrcpy-win64-v3.3.4"
   window_title: "Phone"
@@ -48,69 +49,273 @@ file:
   pull_target: "C:\\Users\\wang\\Downloads"
 
 kde_connect:
-  enabled: false          # 设为 true 启用 KDE Connect 集成
-  device_id: "auto"       # "auto" 自动发现，或填入设备 ID
+  enabled: false
+  device_id: "auto"
   cli_path: "kdeconnect-cli"
   poll_interval_ms: 1000
 
 input_leap:
-  enabled: false          # 设为 true 启用键鼠跨屏
-  config_path: ""         # 留空使用默认路径
+  enabled: false
+  config_path: ""
 
 autostart:
-  enabled: false          # 开机自启 (用 --autostart 命令注册)
+  enabled: false
 
 tray:
-  enabled: true           # 系统托盘图标
+  enabled: true
 
 # ═══ 手机作为 PC 外设扩展 ═══
-
 battery:
-  poll_interval_ms: 30000   # 电池轮询间隔 (毫秒)
-  low_threshold: 20         # 低电量提醒阈值 (%)
-  critical_threshold: 10    # 严重低电阈值 (%)
+  poll_interval_ms: 30000
+  low_threshold: 20
+  critical_threshold: 10
 
 screenshot:
-  enabled: true             # 快捷截图
+  enabled: true
   save_dir: "D:\\Fusion\\Screenshots"
-  auto_clipboard: true      # 截图自动放入 PC 剪贴板
-  format: "png"             # png 或 jpg
+  auto_clipboard: true
+  format: "png"
 
 sms:
-  enabled: true             # 短信收发
-  poll_interval_ms: 5000    # ADB 轮询间隔 (WS 模式下无效)
-  max_display: 20           # 最大显示条数
+  enabled: true
+  poll_interval_ms: 5000
+  max_display: 20
 
 handoff:
-  enabled: true             # 链接接力 (Handoff)
-  clipboard_urls: true      # 剪贴板 URL 自动接力
-  open_on_phone: true       # PC 链接自动在手机打开
+  enabled: true
+  clipboard_urls: true
+  open_on_phone: true
 
 audio:
-  enabled: true             # 音频流转
-  mic_enabled: false        # 手机当麦克风 (默认关，延迟高)
+  enabled: true
+  mic_enabled: false
   mic_save_dir: "D:\\Fusion\\Audio"
-  scrcpy_audio: false       # Scrcpy 音频转发 (需重启 Scrcpy)
+  scrcpy_audio: false
 
 hotkeys:
-  enabled: true             # 全局热键
-  prefix: "win+shift"       # 热键前缀
+  enabled: true
+  prefix: "win+shift"
 
 dnd:
-  enabled: true             # 智能免打扰
-  check_interval_ms: 2000   # 全屏检测间隔
-  bypass_packages:          # 免打扰时仍弹出的包名 (紧急通知)
+  enabled: true
+  check_interval_ms: 2000
+  bypass_packages:
     - "com.tencent.mobileqq"
     - "com.whatsapp"
 
 proximity:
-  enabled: false            # 近场自动连接 (需蓝牙)
-  device_mac: ""            # 手机蓝牙 MAC 地址
-  device_name: ""           # 手机蓝牙名称
-  rssi_threshold: -10       # RSSI 阈值
-  auto_connect: true        # 靠近时自动连接
-  auto_disconnect: false    # 离开时自动断开
+  enabled: false
+  device_mac: ""
+  device_name: ""
+  rssi_threshold: -10
+  auto_connect: true
+  auto_disconnect: false
 
 paths:
   clipboard_images: "D:\\Fusion\\Clipboard"
   logs: "D:\\Fusion\\Logs"
+
+# ═══════════════════════════════════════════════════════════════════
+# ═══ Project Fusion v2.0 新增配置 ═══════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════
+
+# ═══ AI推理配置 ═══
+ai:
+  enabled: true
+  default_model: "qwen2-1.5b-chat-q4"
+  auto_select: true
+  models:
+    qwen2-1.5b-chat-q4:
+      path_android: "/data/local/llm/qwen2-1.5b-q4_k_m.gguf"
+      path_pc: "C:\\Models\\qwen2-1.5b-q4_k_m.gguf"
+      backend: "llama.cpp"
+      max_context: 8192
+      capabilities:
+        - chat
+        - translate
+        - summarize
+    phi-2-q4:
+      path_android: "/data/local/llm/phi-2-q4.gguf"
+      backend: "llama.cpp"
+      max_context: 2048
+      capabilities:
+        - chat
+        - code
+    qwen2.5-7b:
+      path_pc: "C:\\Models\\qwen2.5-7b-q4_k_m.gguf"
+      backend: "ollama"
+      max_context: 16384
+      capabilities:
+        - chat
+        - code
+        - reasoning
+
+# ═══ 手机运行PC应用配置 (Phone as Display) ═══
+phone_as_display:
+  enabled: true
+
+  # Sunshine配置
+  sunshine:
+    auto_start: true
+    port: 47984
+    api_port: 47990
+    apps:
+      - id: "chrome"
+        name: "Google Chrome"
+        exe: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        args: ["--new-window"]
+      - id: "vscode"
+        name: "Visual Studio Code"
+        exe: "C:\\Users\\wang\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+      - id: "file_explorer"
+        name: "File Explorer"
+        exe: "C:\\Windows\\explorer.exe"
+        args: ["::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"]
+      - id: "notepad"
+        name: "Notepad"
+        exe: "C:\\Windows\\System32\\notepad.exe"
+      - id: "powershell"
+        name: "PowerShell"
+        exe: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      - id: "cmd"
+        name: "Command Prompt"
+        exe: "C:\\Windows\\System32\\cmd.exe"
+
+  # 传输配置
+  transport:
+    preferred: "sunshine"
+    usb_priority: true
+    adaptive_bitrate: true
+
+  # 编码配置
+  encoding:
+    hardware_accel: "nvenc"
+    bitrate:
+      usb: "50M"
+      wifi6: "30M"
+      wifi5: "20M"
+      battery_saving: "5M"
+    fps:
+      usb: 120
+      wifi6: 60
+      wifi5: 60
+      battery_saving: 30
+
+  # 触摸配置
+  touch:
+    enabled: true
+    sensitivity: 1.0
+    tap: "left_click"
+    double_tap: "left_double_click"
+    long_press: "right_click"
+    swipe_threshold: 50
+    edge_gestures:
+      left_edge: "windows_key"
+      right_edge: "alt_tab"
+      top_edge: "alt_f4"
+      bottom_edge: "show_taskbar"
+    app_overrides:
+      chrome:
+        swipe_left: "alt_left"
+        swipe_right: "alt_right"
+      vscode:
+        swipe_left: "ctrl_pageup"
+        swipe_right: "ctrl_pagedn"
+
+# ═══ PC运行手机应用配置 ═══
+pc_running_phone_apps:
+  enabled: true
+  virtual_display:
+    width: 1080
+    height: 1920
+    dpi: 420
+  scrcpy:
+    show_in_taskbar: true
+    window_decorations: false
+  apps:
+    - id: "douyin"
+      name: "抖音"
+      package: "com.ss.android.ugc.aweme"
+    - id: "bilibili"
+      name: "哔哩哔哩"
+      package: "tv.danmaku.bili"
+    - id: "wechat"
+      name: "微信"
+      package: "com.tencent.mm"
+    - id: "qq"
+      name: "QQ"
+      package: "com.tencent.mobileqq"
+    - id: "music"
+      name: "网易云音乐"
+      package: "com.netease.cloudmusic"
+    - id: "taobao"
+      name: "淘宝"
+      package: "com.taobao.taobao"
+    - id: "jingdong"
+      name: "京东"
+      package: "com.jingdong.app.mall"
+    - id: "dingding"
+      name: "钉钉"
+      package: "com.alibaba.android.rimet"
+
+# ═══ 分布式计算配置 ═══
+distributed:
+  enabled: true
+  scheduler:
+    strategy: "compute_score"
+    check_interval_seconds: 5
+    migration_threshold: 30
+  offload:
+    enabled: true
+    ai_tasks: true
+    encoding_tasks: true
+
+# ═══ 传感器健康配置 ═══
+sensors:
+  health_check:
+    enabled: true
+    interval_hours: 24
+    auto_calibrate: false
+  thresholds:
+    noise:
+      light: 50.0
+      accelerometer: 0.5
+    drift:
+      light: 100.0
+      accelerometer: 1.0
+
+# ═══ 环境感知配置 ═══
+environment:
+  enabled: true
+  sensors:
+    - light
+    - proximity
+    - noise
+    - wifi_scan
+    - bluetooth
+  home_assistant:
+    enabled: false
+    url: "http://homeassistant:8123"
+    token: ""
+  mqtt:
+    broker: "mqtt://homeassistant:1883"
+    topic_prefix: "fusion"
+
+# ═══ 网络配置 ═══
+network:
+  lan:
+    enabled: true
+    auto_discover: true
+  tunnel:
+    enabled: false
+    provider: "wireguard"
+    wireguard_config: ""
+    tailscale_auth_key: ""
+
+# ═══ 省电配置 ═══
+power_saving:
+  auto_enabled: true
+  battery_threshold: 30
+  reduce_fps_when_low: true
+  reduce_bitrate_when_low: true
+  auto_adjust_refresh_rate: true

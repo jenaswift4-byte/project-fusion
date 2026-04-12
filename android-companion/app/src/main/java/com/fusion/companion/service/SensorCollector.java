@@ -1,0 +1,537 @@
+package com.fusion.companion.service;
+
+import android.content.Context;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * 传感器数据采集器
+ * 
+ * 功能特性:
+ * - 支持所有可用传感器（光线/距离/温度/湿度/气压/陀螺仪/加速度计）
+ * - 每 5 秒采集一次数据
+ * - 支持启动/停止采集
+ * - 低功耗设计（使用事件驱动而非轮询）
+ * - 通过 MQTT 发布传感器数据
+ * 
+ * 支持的传感器类型:
+ * - TYPE_LIGHT (光线传感器)
+ * - TYPE_PROXIMITY (距离传感器)
+ * - TYPE_AMBIENT_TEMPERATURE (温度传感器)
+ * - TYPE_RELATIVE_HUMIDITY (湿度传感器)
+ * - TYPE_PRESSURE (气压计)
+ * - TYPE_GYROSCOPE (陀螺仪)
+ * - TYPE_ACCELEROMETER (加速度计)
+ * 
+ * 数据格式 (JSON):
+ * {
+ *   "device_id": "bedroom-phone-c",
+ *   "sensor_type": "temperature",
+ *   "value": 25.5,
+ *   "unit": "°C",
+ *   "timestamp": 1234567890
+ * }
+ * 
+ * MQTT 发布配置:
+ * - 主题：sensors/{deviceId}/{sensorType}
+ * - QoS: 1
+ * - Retained: false
+ * 
+ * @author Fusion
+ * @version 1.0
+ */
+public class SensorCollector implements SensorEventListener {
+    
+    private static final String TAG = "SensorCollector";
+    
+    // 默认采集间隔 (毫秒)
+    private static final int DEFAULT_COLLECTION_INTERVAL = 5000; // 5 秒
+    
+    // MQTT 配置
+    private static final String MQTT_BROKER_URL = "tcp://127.0.0.1:1883";
+    private static final String MQTT_CLIENT_ID = "sensor-collector";
+    private static final int MQTT_QOS = 1;
+    private static final String TOPIC_PREFIX = "sensors/";
+    
+    // 传感器类型映射表 (传感器类型 -> 字符串名称)
+    private static final Map<Integer, String> SENSOR_TYPE_MAP = new HashMap<>();
+    static {
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_LIGHT, "light");
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_PROXIMITY, "proximity");
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_AMBIENT_TEMPERATURE, "temperature");
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_RELATIVE_HUMIDITY, "humidity");
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_PRESSURE, "pressure");
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_GYROSCOPE, "gyroscope");
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_ACCELEROMETER, "accelerometer");
+    };
+    
+    // 传感器单位映射表
+    private static final Map<Integer, String> SENSOR_UNIT_MAP = new HashMap<>();
+    static {
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_LIGHT, "lux");
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_PROXIMITY, "cm");
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_AMBIENT_TEMPERATURE, "°C");
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_RELATIVE_HUMIDITY, "%");
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_PRESSURE, "hPa");
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_GYROSCOPE, "rad/s");
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_ACCELEROMETER, "m/s²");
+    };
+    
+    // 上下文和传感器管理器
+    private final Context context;
+    private final SensorManager sensorManager;
+    
+    // 设备 ID (用于 MQTT 主题)
+    private final String deviceId;
+    
+    // 运行状态
+    private final AtomicBoolean isCollecting = new AtomicBoolean(false);
+    
+    // 已注册的传感器
+    private final List<Sensor> registeredSensors = new ArrayList<>();
+    
+    // 传感器数据缓存 (用于限流)
+    private final ConcurrentHashMap<Integer, Long> lastPublishTime = new ConcurrentHashMap<>();
+    
+    // 采集间隔 (毫秒)
+    private int collectionInterval = DEFAULT_COLLECTION_INTERVAL;
+    
+    // MQTT 客户端
+    private MqttClient mqttClient;
+    
+    // 主线程 Handler
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    
+    // 延迟任务
+    private Runnable collectTask;
+    
+    /**
+     * 构造函数
+     * @param context 应用上下文
+     * @param deviceId 设备 ID (用于 MQTT 主题)
+     */
+    public SensorCollector(Context context, String deviceId) {
+        this.context = context;
+        this.deviceId = deviceId;
+        
+        // 初始化传感器管理器
+        sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
+        
+        Log.i(TAG, "传感器采集器初始化完成 - 设备 ID: " + deviceId);
+    }
+    
+    /**
+     * 启动传感器采集
+     * @return true 如果启动成功
+     */
+    public boolean startCollection() {
+        if (isCollecting.get()) {
+            Log.w(TAG, "传感器采集已在运行，跳过启动");
+            return true;
+        }
+        
+        try {
+            // 初始化 MQTT 客户端
+            initMQTTClient();
+            
+            // 注册所有可用传感器
+            registerAllSensors();
+            
+            // 启动定时采集任务
+            startCollectionTask();
+            
+            isCollecting.set(true);
+            Log.i(TAG, "传感器采集已启动 - 注册传感器数量：" + registeredSensors.size());
+            
+            return true;
+            
+        } catch (Exception e) {
+            Log.e(TAG, "启动传感器采集失败", e);
+            return false;
+        }
+    }
+    
+    /**
+     * 停止传感器采集
+     */
+    public void stopCollection() {
+        if (!isCollecting.get()) {
+            Log.w(TAG, "传感器采集未运行，跳过停止");
+            return;
+        }
+        
+        try {
+            // 停止定时采集任务
+            stopCollectionTask();
+            
+            // 注销所有传感器监听
+            unregisterAllSensors();
+            
+            // 断开 MQTT 连接
+            disconnectMQTTClient();
+            
+            isCollecting.set(false);
+            lastPublishTime.clear();
+            
+            Log.i(TAG, "传感器采集已停止");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "停止传感器采集失败", e);
+        }
+    }
+    
+    /**
+     * 检查采集是否正在运行
+     * @return true 如果正在采集
+     */
+    public boolean isCollecting() {
+        return isCollecting.get();
+    }
+    
+    /**
+     * 设置采集间隔
+     * @param intervalMs 采集间隔 (毫秒)
+     */
+    public void setCollectionInterval(int intervalMs) {
+        if (intervalMs < 1000) {
+            Log.w(TAG, "采集间隔过短，设置为最小值 1000ms");
+            intervalMs = 1000;
+        }
+        
+        this.collectionInterval = intervalMs;
+        Log.d(TAG, "采集间隔已设置：" + intervalMs + "ms");
+        
+        // 如果正在采集，重新启动任务以应用新间隔
+        if (isCollecting.get()) {
+            stopCollectionTask();
+            startCollectionTask();
+        }
+    }
+    
+    /**
+     * 获取采集间隔
+     * @return 采集间隔 (毫秒)
+     */
+    public int getCollectionInterval() {
+        return collectionInterval;
+    }
+    
+    /**
+     * 初始化 MQTT 客户端
+     */
+    private void initMQTTClient() {
+        if (mqttClient != null && mqttClient.isConnected()) {
+            Log.d(TAG, "MQTT 客户端已连接，跳过初始化");
+            return;
+        }
+        
+        try {
+            // 创建 MQTT 客户端 (使用内存持久化)
+            mqttClient = new MqttClient(
+                MQTT_BROKER_URL,
+                MQTT_CLIENT_ID + "-" + deviceId,
+                new MemoryPersistence()
+            );
+            
+            // 配置连接选项
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true);
+            connOpts.setConnectionTimeout(10);
+            connOpts.setKeepAliveInterval(30);
+            connOpts.setAutomaticReconnect(true);
+            
+            // 连接到本地 Broker
+            mqttClient.connect(connOpts);
+            Log.d(TAG, "MQTT 客户端已连接：" + MQTT_BROKER_URL);
+            
+        } catch (MqttException e) {
+            Log.e(TAG, "MQTT 客户端初始化失败", e);
+            mqttClient = null;
+        }
+    }
+    
+    /**
+     * 断开 MQTT 客户端连接
+     */
+    private void disconnectMQTTClient() {
+        if (mqttClient != null && mqttClient.isConnected()) {
+            try {
+                mqttClient.disconnect();
+                mqttClient.close();
+                mqttClient = null;
+                Log.d(TAG, "MQTT 客户端已断开");
+            } catch (MqttException e) {
+                Log.e(TAG, "断开 MQTT 连接失败", e);
+            }
+        }
+    }
+    
+    /**
+     * 发布传感器数据到 MQTT
+     * @param sensorType 传感器类型
+     * @param value 传感器数值
+     * @param unit 单位
+     */
+    private void publishSensorData(int sensorType, float value, String unit) {
+        if (mqttClient == null || !mqttClient.isConnected()) {
+            Log.w(TAG, "MQTT 客户端未连接，跳过发布");
+            return;
+        }
+        
+        try {
+            // 限流检查 (防止发布过于频繁)
+            Long lastTime = lastPublishTime.get(sensorType);
+            long currentTime = System.currentTimeMillis();
+            
+            if (lastTime != null && (currentTime - lastTime) < collectionInterval) {
+                return; // 未到采集间隔，跳过
+            }
+            
+            // 构建 JSON 消息
+            JSONObject jsonData = new JSONObject();
+            jsonData.put("device_id", deviceId);
+            jsonData.put("sensor_type", SENSOR_TYPE_MAP.get(sensorType));
+            jsonData.put("value", Math.round(value * 100.0) / 100.0); // 保留两位小数
+            jsonData.put("unit", unit);
+            jsonData.put("timestamp", currentTime);
+            
+            // 构建 MQTT 主题
+            String topic = TOPIC_PREFIX + deviceId + "/" + SENSOR_TYPE_MAP.get(sensorType);
+            
+            // 创建 MQTT 消息
+            MqttMessage message = new MqttMessage(jsonData.toString().getBytes());
+            message.setQos(MQTT_QOS);
+            message.setRetained(false);
+            
+            // 发布消息
+            mqttClient.publish(topic, message);
+            
+            // 更新最后发布时间
+            lastPublishTime.put(sensorType, currentTime);
+            
+            Log.d(TAG, "发布传感器数据：" + SENSOR_TYPE_MAP.get(sensorType) + 
+                     " = " + value + " " + unit);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "发布传感器数据失败", e);
+        }
+    }
+    
+    /**
+     * 注册所有可用传感器
+     */
+    private void registerAllSensors() {
+        if (sensorManager == null) {
+            Log.e(TAG, "SensorManager 不可用");
+            return;
+        }
+        
+        // 获取所有传感器列表
+        List<Sensor> allSensors = sensorManager.getSensorList(Sensor.TYPE_ALL);
+        
+        // 注册我们关心的传感器
+        for (Sensor sensor : allSensors) {
+            int type = sensor.getType();
+            
+            // 检查是否是我们支持的传感器类型
+            if (SENSOR_TYPE_MAP.containsKey(type)) {
+                // 注册传感器监听器
+                // 使用 SENSOR_DELAY_NORMAL 以平衡性能和精度
+                boolean registered = sensorManager.registerListener(
+                    this,
+                    sensor,
+                    SensorManager.SENSOR_DELAY_NORMAL
+                );
+                
+                if (registered) {
+                    registeredSensors.add(sensor);
+                    Log.d(TAG, "传感器已注册：" + sensor.getName() + 
+                          " (类型：" + SENSOR_TYPE_MAP.get(type) + ")");
+                } else {
+                    Log.w(TAG, "传感器注册失败：" + sensor.getName());
+                }
+            }
+        }
+        
+        if (registeredSensors.isEmpty()) {
+            Log.w(TAG, "没有可用的传感器");
+        }
+    }
+    
+    /**
+     * 注销所有传感器监听
+     */
+    private void unregisterAllSensors() {
+        if (sensorManager == null || registeredSensors.isEmpty()) {
+            return;
+        }
+        
+        for (Sensor sensor : registeredSensors) {
+            try {
+                sensorManager.unregisterListener(this, sensor);
+                Log.d(TAG, "传感器已注销：" + sensor.getName());
+            } catch (Exception e) {
+                Log.w(TAG, "注销传感器失败：" + sensor.getName(), e);
+            }
+        }
+        
+        registeredSensors.clear();
+    }
+    
+    /**
+     * 启动定时采集任务
+     */
+    private void startCollectionTask() {
+        collectTask = new Runnable() {
+            @Override
+            public void run() {
+                // 定时任务用于检查 MQTT 连接和传感器状态
+                // 实际数据采集由事件驱动 (onSensorChanged)
+                
+                if (!isCollecting.get()) {
+                    return;
+                }
+                
+                // 检查 MQTT 连接
+                if (mqttClient == null || !mqttClient.isConnected()) {
+                    Log.w(TAG, "MQTT 连接断开，尝试重连...");
+                    initMQTTClient();
+                }
+                
+                // 检查传感器注册
+                if (registeredSensors.isEmpty()) {
+                    Log.w(TAG, "传感器未注册，重新注册...");
+                    registerAllSensors();
+                }
+                
+                // 调度下一次检查
+                handler.postDelayed(this, collectionInterval);
+            }
+        };
+        
+        handler.post(collectTask);
+        Log.d(TAG, "定时采集任务已启动");
+    }
+    
+    /**
+     * 停止定时采集任务
+     */
+    private void stopCollectionTask() {
+        if (collectTask != null) {
+            handler.removeCallbacks(collectTask);
+            collectTask = null;
+            Log.d(TAG, "定时采集任务已停止");
+        }
+    }
+    
+    // ==================== SensorEventListener 实现 ====================
+    
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (!isCollecting.get()) {
+            return;
+        }
+        
+        int sensorType = event.sensor.getType();
+        float value = event.values[0];
+        String unit = SENSOR_UNIT_MAP.get(sensorType);
+        
+        // 对于多轴传感器，使用第一个值
+        // 陀螺仪和加速度计有三个轴 (X, Y, Z)
+        if (sensorType == Sensor.TYPE_GYROSCOPE || 
+            sensorType == Sensor.TYPE_ACCELEROMETER) {
+            // 对于多轴传感器，可以发布所有轴的值
+            // 这里简化处理，只发布第一个轴的值
+            value = event.values[0];
+        }
+        
+        // 发布到 MQTT
+        publishSensorData(sensorType, value, unit);
+    }
+    
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // 传感器精度变化回调
+        // 可以在这里处理精度变化事件
+        if (accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
+            Log.w(TAG, "传感器精度不可靠：" + sensor.getName());
+        }
+    }
+    
+    /**
+     * 获取已注册的传感器数量
+     * @return 传感器数量
+     */
+    public int getRegisteredSensorCount() {
+        return registeredSensors.size();
+    }
+    
+    /**
+     * 获取支持的传感器类型列表
+     * @return 传感器类型名称列表
+     */
+    public static List<String> getSupportedSensorTypes() {
+        return new ArrayList<>(SENSOR_TYPE_MAP.values());
+    }
+    
+    /**
+     * 检查是否支持指定类型的传感器
+     * @param context 应用上下文
+     * @param sensorType 传感器类型
+     * @return true 如果支持
+     */
+    public static boolean isSensorAvailable(Context context, int sensorType) {
+        SensorManager sensorManager = (SensorManager) 
+            context.getSystemService(Context.SENSOR_SERVICE);
+        
+        if (sensorManager == null) {
+            return false;
+        }
+        
+        Sensor sensor = sensorManager.getDefaultSensor(sensorType);
+        return sensor != null;
+    }
+    
+    /**
+     * 获取可用传感器列表
+     * @param context 应用上下文
+     * @return 可用传感器类型名称列表
+     */
+    public static List<String> getAvailableSensors(Context context) {
+        List<String> availableSensors = new ArrayList<>();
+        SensorManager sensorManager = (SensorManager) 
+            context.getSystemService(Context.SENSOR_SERVICE);
+        
+        if (sensorManager == null) {
+            return availableSensors;
+        }
+        
+        for (Map.Entry<Integer, String> entry : SENSOR_TYPE_MAP.entrySet()) {
+            Sensor sensor = sensorManager.getDefaultSensor(entry.getKey());
+            if (sensor != null) {
+                availableSensors.add(entry.getValue());
+            }
+        }
+        
+        return availableSensors;
+    }
+}

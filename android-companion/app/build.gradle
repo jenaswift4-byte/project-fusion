@@ -45,4 +45,15 @@ android {
 dependencies {
     implementation 'org.java-websocket:Java-WebSocket:1.5.4'
     implementation 'com.google.code.gson:gson:2.10.1'
+    // MQTT Broker 依赖 - 轻量级实现，支持多客户端连接
+    implementation 'org.eclipse.paho:org.eclipse.paho.broker:4.3.0'
+    implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+    
+    // MNN 推理框架 - 阿里巴巴开源的移动端深度学习引擎
+    // 支持 INT4/INT8 量化，优化内存占用和推理速度
+    implementation 'com.alibaba.mnn:mnn:2.4.0'
+    implementation 'com.alibaba.mnn:mnn-processor:2.4.0'
+    
+    // 可选：MNN OpenGL（GPU 加速）
+    // implementation 'com.alibaba.mnn:mnn-opengl:2.4.0'
 }
