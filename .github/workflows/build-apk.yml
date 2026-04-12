@@ -34,8 +34,13 @@ jobs:
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: '8.5'
+
+    - name: Generate Gradle Wrapper JAR
+      run: |
+        cd android-companion
+        curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
+        unzip -q /tmp/gradle.zip -d /tmp/
+        /tmp/gradle-8.5/bin/gradle wrapper --gradle-version 8.5
 
     - name: Grant Gradle execute permission
       run: chmod +x gradlew
