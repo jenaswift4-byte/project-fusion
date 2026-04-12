@@ -1,74 +1,64 @@
-name: Build Fusion Companion APK
+name: Build Android APK
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main, master ]
-    paths:
-      - 'android-companion/**'
-      - '.github/workflows/build-apk.yml'
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
-    paths:
-      - 'android-companion/**'
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android Licenses
-        run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-
-      - name: Install required SDK components
-        run: |
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
-
-      - name: Generate Gradle Wrapper
-        working-directory: android-companion
-        run: |
-          if [ ! -f gradlew ] || [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Generating Gradle wrapper..."
-            gradle wrapper --gradle-version 8.5
-          fi
-          chmod +x gradlew
-
-      - name: Build Debug APK
-        working-directory: android-companion
-        run: |
-          ./gradlew assembleDebug --stacktrace --no-daemon
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: fusion-companion-debug
-          path: android-companion/app/build/outputs/apk/debug/*.apk
-          retention-days: 30
-
-      - name: Output build info
-        if: always()
-        working-directory: android-companion
-        run: |
-          echo "### Build Result" >> $GITHUB_STEP_SUMMARY
-          if [ -f app/build/outputs/apk/debug/*.apk ]; then
-            echo "✅ APK built successfully!" >> $GITHUB_STEP_SUMMARY
-            ls -la app/build/outputs/apk/debug/*.apk >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
-          else
-            echo "❌ APK build failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> Download from: Actions → This run → Artifacts section" >> $GITHUB_STEP_SUMMARY
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: 9.0
+        build-tools-version: 34.0.0
+        target-version: 34
+    
+    - name: Grant execute permission for gradlew
+      run: chmod +x android-companion/gradlew
+      working-directory: ./
+    
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
+      working-directory: ./android-companion
+    
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: android-companion/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+    
+    - name: Build Release APK
+      run: ./gradlew assembleRelease
+      working-directory: ./android-companion
+    
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: android-companion/app/build/outputs/apk/release/app-release.apk
+        retention-days: 30
+    
+    - name: Create GitHub Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          android-companion/app/build/outputs/apk/release/app-release.apk
+          android-companion/app/build/outputs/apk/debug/app-debug.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
