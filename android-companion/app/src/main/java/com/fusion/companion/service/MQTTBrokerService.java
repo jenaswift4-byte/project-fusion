@@ -335,7 +335,7 @@ public class MQTTBrokerService extends Service {
             }
         }
         // 检查通配符订阅
-        for (Map.Entry<String, java.util.List<MqttMessageCallback>> entry : topicSubscribers.entrySet()) {
+        for (java.util.Map.Entry<String, java.util.List<MqttMessageCallback>> entry : topicSubscribers.entrySet()) {
             String subTopic = entry.getKey();
             if (subTopic.endsWith("#") && topic.startsWith(subTopic.substring(0, subTopic.length() - 1))) {
                 for (MqttMessageCallback cb : entry.getValue()) {
