@@ -32,6 +32,11 @@ jobs:
           "build-tools;34.0.0" \
           --sdk_root=$ANDROID_HOME || true
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.5'
+
     - name: Grant Gradle execute permission
       run: chmod +x gradlew
       working-directory: ./android-companion
