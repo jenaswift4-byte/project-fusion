@@ -35,6 +35,13 @@ from typing import Dict, List, Optional, Callable, Any, Tuple
 from collections import defaultdict
 from enum import IntEnum
 
+# PC 端 MQTT 客户端 (Paho) — 用于桥接手机本地 Broker
+try:
+    import paho.mqtt.client as mqtt
+    HAS_PAHO = True
+except ImportError:
+    HAS_PAHO = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -639,11 +646,15 @@ class MQTTBridge:
         self.daemon = daemon
         self.running = False
 
-        # MQTT Broker
+        # MQTT Broker (PC 端)
         self.broker = MQTTBroker(
             host="0.0.0.0",
             port=daemon.config.get("mqtt", {}).get("port", 1883)
         )
+
+        # 手机数据桥接客户端 (通过 ADB forward 订阅手机本地 Broker)
+        self._phone_bridge_client = None
+        self._phone_bridge_thread = None
 
         # 数据聚合
         self.sensor_data: Dict[str, Dict[str, Any]] = {}  # device_id -> {sensor_type -> {value, unit, timestamp}}
@@ -682,11 +693,132 @@ class MQTTBridge:
 
         self.running = True
         logger.info(f"[MQTT Bridge] 已启动 - Broker 端口: {self.broker.port}")
+
+        # 启动手机数据桥接 (通过 ADB forward 订阅手机本地 Broker)
+        self._start_phone_bridge()
+
         return True
+
+    # ═══════════════════════════════════════════════════════
+    # 手机数据桥接 (ADB forward → 手机本地 Broker → PC Dashboard)
+    # ═══════════════════════════════════════════════════════
+
+    def _start_phone_bridge(self):
+        """启动手机数据桥接客户端
+
+        当手机 MQTTClientService 在 fallback 模式下连本地 Broker (127.0.0.1:1883) 时，
+        PC 端通过 ADB forward tcp:1884 → tcp:1883 订阅手机 Broker 的传感器数据，
+        然后注入到 Dashboard 和 PC Broker。
+        """
+        if not HAS_PAHO:
+            logger.info("[PhoneBridge] paho-mqtt 未安装，跳过手机数据桥接")
+            return
+
+        try:
+            # 设置 ADB forward: PC 1884 → 手机 1883
+            adb_path = self.daemon.config.get("adb", {}).get("path", "adb")
+            device_serial = getattr(self.daemon, "device_serial", None) or self.daemon.config.get("adb", {}).get("device_serial", "")
+
+            # 构建 ADB 命令（如果有多设备需要指定 -s）
+            adb_cmd = [adb_path]
+            if device_serial:
+                adb_cmd.extend(["-s", device_serial])
+            adb_cmd.extend(["forward", "tcp:1884", "tcp:1883"])
+
+            import subprocess
+            result = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                logger.warning(f"[PhoneBridge] ADB forward 设置失败: {result.stderr}")
+                return
+
+            logger.info("[PhoneBridge] ADB forward 已设置: tcp:1884 → phone:1883")
+
+            # 创建 Paho MQTT 客户端连接手机 Broker
+            client = mqtt.Client(client_id="pc-phone-bridge", clean_session=True)
+
+            def on_connect(cli, userdata, flags, rc):
+                if rc == 0:
+                    logger.info("[PhoneBridge] 已连接手机 Broker")
+                    cli.subscribe([("sensors/#", 0), ("devices/#", 0), ("fusion/+/broker", 0)])
+                    logger.info("[PhoneBridge] 已订阅 sensors/#, devices/#")
+                else:
+                    logger.warning(f"[PhoneBridge] 连接手机 Broker 失败: rc={rc}")
+
+            def on_message(cli, userdata, msg):
+                """手机 Broker 的消息转发到 PC Broker 和 Dashboard"""
+                try:
+                    topic = msg.topic
+                    payload = msg.payload.decode("utf-8", errors="replace")
+
+                    # 解析传感器数据
+                    if topic.startswith("sensors/"):
+                        try:
+                            data = json.loads(payload)
+                            device_id = data.get("device_id", "unknown")
+                            sensor_type = data.get("sensor_type", "unknown")
+                            value = data.get("value", 0)
+                            unit = data.get("unit", "")
+
+                            # 注入到 PC Broker (让 Dashboard 能收到)
+                            self.broker.publish(topic, msg.payload, 0)
+
+                            # 触发回调
+                            for cb in self._on_sensor_data_callbacks:
+                                try:
+                                    cb(device_id, sensor_type, value, unit)
+                                except Exception:
+                                    pass
+
+                        except json.JSONDecodeError:
+                            pass
+
+                    # PC Broker 发现消息 — 转发到手机让 MQTTClientService 发现 PC
+                    elif topic.startswith("fusion/") and "broker" in topic:
+                        logger.info(f"[PhoneBridge] 收到 Broker 发现消息: {payload}")
+
+                    # 设备心跳
+                    elif topic.startswith("devices/") and topic.endswith("/heartbeat"):
+                        try:
+                            data = json.loads(payload)
+                            device_id = data.get("device_id", "unknown")
+                            for cb in self._on_device_online_callbacks:
+                                try:
+                                    cb(device_id, data)
+                                except Exception:
+                                    pass
+                        except json.JSONDecodeError:
+                            pass
+
+                except Exception as e:
+                    logger.error(f"[PhoneBridge] 消息处理错误: {e}")
+
+            client.on_connect = on_connect
+            client.on_message = on_message
+
+            # 连接 (通过 ADB forward 的本地端口)
+            client.connect_async("127.0.0.1", 1884, 60)
+            client.loop_start()
+
+            self._phone_bridge_client = client
+            logger.info("[PhoneBridge] 手机数据桥接已启动 (127.0.0.1:1884 → phone:1883)")
+
+        except Exception as e:
+            logger.error(f"[PhoneBridge] 启动失败: {e}")
+
+    def _stop_phone_bridge(self):
+        """停止手机数据桥接"""
+        if self._phone_bridge_client:
+            try:
+                self._phone_bridge_client.loop_stop()
+                self._phone_bridge_client.disconnect()
+            except Exception:
+                pass
+            self._phone_bridge_client = None
 
     def stop(self):
         """停止 MQTT Bridge"""
         self.running = False
+        self._stop_phone_bridge()
         self.broker.stop()
         logger.info("[MQTT Bridge] 已停止")
 

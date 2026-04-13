@@ -108,6 +108,13 @@ DEFAULT_CONFIG = {
         "auto_connect": True,
         "auto_disconnect": False,
     },
+    "devices": {
+        # 设备友好名称映射: ADB序列号/MQTT device_id → 中文标注
+        # 按房间位置标注，方便区分
+        "7254adb5": {"name": "客厅监控", "location": "客厅", "role": "摄像头+传感器+音箱"},
+        # "device_serial_2": {"name": "卧室传感器", "location": "卧室", "role": "传感器+闹钟"},
+        # "device_serial_3": {"name": "门口对讲", "location": "门口", "role": "摄像头+门铃"},
+    },
     "mqtt": {
         "enabled": True,
         "port": 1883,
