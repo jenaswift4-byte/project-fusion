@@ -113,6 +113,11 @@ public class MQTTDataStorageService {
      * 支持所有以 sensors/ 开头的主题
      */
     private void subscribeToSensorTopics() {
+        if (mqttBroker == null) {
+            Log.w(TAG, "MQTT Broker 服务未就绪，延迟订阅传感器主题");
+            return;
+        }
+        
         String topic = "sensors/#";
         
         boolean success = mqttBroker.subscribeTopic(topic, this::onSensorMessageReceived, 1);
@@ -130,6 +135,11 @@ public class MQTTDataStorageService {
      * 支持所有以 devices/ 开头的主题
      */
     private void subscribeToDeviceTopics() {
+        if (mqttBroker == null) {
+            Log.w(TAG, "MQTT Broker 服务未就绪，延迟订阅设备主题");
+            return;
+        }
+        
         String topic = "devices/#";
         
         boolean success = mqttBroker.subscribeTopic(topic, this::onDeviceMessageReceived, 1);
@@ -147,6 +157,7 @@ public class MQTTDataStorageService {
      * @param topic 主题名称
      */
     private void unsubscribeTopic(String topic) {
+        if (mqttBroker == null) return;
         mqttBroker.unsubscribeTopic(topic);
         subscribedTopics.remove(topic);
         Log.d(TAG, "已取消订阅主题：" + topic);
