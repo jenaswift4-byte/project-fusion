@@ -788,10 +788,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
         
         // 传感器数据发布任务（每 5 秒）
         sensorPublishRunnable = () -> {
+            Log.d(TAG, "定时任务: 执行传感器数据发布, 缓存大小=" + sensorDataCache.size());
             publishSensorData();
             handler.postDelayed(sensorPublishRunnable, SENSOR_PUBLISH_INTERVAL);
         };
         handler.post(sensorPublishRunnable);
+        Log.d(TAG, "传感器发布任务已提交到 Handler");
         
         // 心跳发布任务（每 30 秒）
         heartbeatPublishRunnable = () -> {
@@ -822,6 +824,7 @@ public class MQTTClientService extends Service implements SensorEventListener {
      * 发布传感器数据
      */
     private void publishSensorData() {
+        Log.d(TAG, "publishSensorData() 被调用, 缓存大小=" + sensorDataCache.size() + ", 为空=" + sensorDataCache.isEmpty());
         if (sensorDataCache.isEmpty()) {
             Log.d(TAG, "暂无传感器数据，跳过发布");
             return;
