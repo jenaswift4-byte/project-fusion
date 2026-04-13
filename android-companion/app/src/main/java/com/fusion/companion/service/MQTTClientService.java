@@ -64,9 +64,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
     
     // ==================== 配置常量 ====================
     
-    // 默认 Broker 地址（卧室手机 C）
+    // 默认 Broker 地址（先尝试 PC，失败 fallback 本地）
     private static final String DEFAULT_BROKER_HOST = "192.168.1.100";
     private static final int DEFAULT_BROKER_PORT = 1883;
+    private static final String FALLBACK_BROKER_HOST = "127.0.0.1";
+    private static final int FALLBACK_BROKER_PORT = 1883;
+    private boolean usingFallback = false;
     
     // 重连配置（指数退避）
     private static final int INITIAL_RECONNECT_DELAY = 1000;  // 初始重连延迟 1 秒
@@ -91,6 +94,7 @@ public class MQTTClientService extends Service implements SensorEventListener {
     
     // MQTT 客户端
     private MqttClient mqttClient;
+    private MqttCallbackExtended mqttCallback;
     
     // 服务运行状态
     private static AtomicBoolean running = new AtomicBoolean(false);
@@ -314,6 +318,21 @@ public class MQTTClientService extends Service implements SensorEventListener {
             
             Log.i(TAG, "发现 PC Broker: " + host + ":" + port + "，当前: " + brokerHost + ":" + brokerPort);
             
+            // 如果当前在 fallback 模式，立即断开并重连到 PC Broker
+            if (usingFallback) {
+                usingFallback = false;
+                Log.i(TAG, "PC Broker 上线，从 fallback 切回 PC Broker");
+                try {
+                    if (mqttClient != null && mqttClient.isConnected()) {
+                        mqttClient.disconnect();
+                    }
+                } catch (Exception ignored) {}
+                brokerHost = host;
+                brokerPort = port;
+                connectToBroker();
+                return;
+            }
+            
             // 更新 SharedPreferences (SensorCollector 下次读取时生效)
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
             prefs.edit()
@@ -369,7 +388,7 @@ public class MQTTClientService extends Service implements SensorEventListener {
             connOpts.setMaxInflight(100);  // 最大飞行消息数
             
             // 设置回调
-            mqttClient.setCallback(new MqttCallbackExtended() {
+            mqttCallback = new MqttCallbackExtended() {
                 @Override
                 public void connectComplete(boolean reconnect, String serverURI) {
                     Log.i(TAG, "MQTT 连接成功 - 重连：" + reconnect + ", 服务器：" + serverURI);
@@ -396,6 +415,15 @@ public class MQTTClientService extends Service implements SensorEventListener {
                     
                     // 停止定时任务
                     stopPeriodicTasks();
+                    
+                    // 如果当前是 fallback 模式，重置为优先连 PC Broker
+                    if (usingFallback) {
+                        usingFallback = false;
+                        SharedPreferences sp = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                        brokerHost = sp.getString(KEY_BROKER_HOST, DEFAULT_BROKER_HOST);
+                        brokerPort = sp.getInt(KEY_BROKER_PORT, DEFAULT_BROKER_PORT);
+                        Log.i(TAG, "Fallback 断开，恢复 PC Broker 配置: " + brokerHost + ":" + brokerPort);
+                    }
                     
                     // 自动重连
                     if (shouldReconnect.get()) {
@@ -447,15 +475,33 @@ public class MQTTClientService extends Service implements SensorEventListener {
                 public void deliveryComplete(IMqttDeliveryToken token) {
                     Log.d(TAG, "消息投递完成 - ID: " + token.getMessageId());
                 }
-            });
+            };
             
-            // 连接到 Broker
+            mqttClient.setCallback(mqttCallback);
             mqttClient.connect(connOpts);
             Log.i(TAG, "MQTT 连接请求已发送");
             
         } catch (MqttException e) {
-            Log.e(TAG, "MQTT 连接失败：" + e.getMessage(), e);
+            Log.e(TAG, "MQTT 连接失败：" + e.getMessage());
             connected.set(false);
+            
+            // Fallback: 尝试连接本地 Broker
+            if (!usingFallback && !DEFAULT_BROKER_HOST.equals(FALLBACK_BROKER_HOST)) {
+                Log.i(TAG, "PC Broker 不可达，尝试 Fallback 到本地 Broker: " + FALLBACK_BROKER_HOST + ":" + FALLBACK_BROKER_PORT);
+                usingFallback = true;
+                try {
+                    String fallbackUrl = "tcp://" + FALLBACK_BROKER_HOST + ":" + FALLBACK_BROKER_PORT;
+                    mqttClient = new MqttClient(fallbackUrl, deviceId + "-fallback", new MemoryPersistence());
+                    mqttClient.setCallback(mqttCallback);  // 复用同一回调
+                    mqttClient.connect(connOpts);
+                    brokerHost = FALLBACK_BROKER_HOST;
+                    brokerPort = FALLBACK_BROKER_PORT;
+                    Log.i(TAG, "Fallback 本地 Broker 连接成功: " + fallbackUrl);
+                    return;
+                } catch (MqttException e2) {
+                    Log.w(TAG, "Fallback 本地 Broker 也失败: " + e2.getMessage());
+                }
+            }
             
             // 调度重连
             if (shouldReconnect.get()) {
