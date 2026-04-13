@@ -500,7 +500,7 @@ public class SensorCollector implements SensorEventListener {
         };
         
         pollHandler.post(pollTask);
-        Log.i(TAG, "定时轮询任务已启动 (间隔: " + collectionInterval + "ms, 模式: " + (pollMode ? "POLL" : "EVENT"))");
+        Log.i(TAG, "定时轮询任务已启动 (间隔: " + collectionInterval + "ms, 模式: " + (pollMode ? "POLL" : "EVENT") + ")");
     }
     
     /**
