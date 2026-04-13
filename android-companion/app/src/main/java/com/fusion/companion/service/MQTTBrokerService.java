@@ -172,27 +172,62 @@ public class MQTTBrokerService extends Service {
                         Log.d(TAG, "发送 CONNACK 给 " + clientId);
                         break;
                     case 3: // PUBLISH
-                        // 解析 topic
-                        if (len > 4) {
-                            int topicLen = ((buffer[2] & 0xFF) << 8) | (buffer[3] & 0xFF);
-                            if (topicLen > 0 && len > 4 + topicLen) {
-                                String topic = new String(buffer, 4, topicLen);
-                                int payloadLen = len - 4 - topicLen;
-                                String payload = new String(buffer, 4 + topicLen, payloadLen);
-                                Log.d(TAG, "PUBLISH topic=" + topic + " payload=" + payload);
+                        // 解析 MQTT 变长 remaining length
+                        int remainingLen = 0;
+                        int multiplier = 1;
+                        int rlOffset = 1;
+                        while (rlOffset < len) {
+                            byte encodedByte = buffer[rlOffset];
+                            remainingLen += (encodedByte & 0x7F) * multiplier;
+                            multiplier *= 128;
+                            rlOffset++;
+                            if ((encodedByte & 0x80) == 0) break;
+                        }
+                        int headerLen = rlOffset; // fixed header + remaining length 字节数
+                        
+                        Log.d(TAG, "PUBLISH 原始数据: len=" + len + " headerLen=" + headerLen + " remainingLen=" + remainingLen);
+                        
+                        if (len > headerLen + 2) {
+                            int topicLen = ((buffer[headerLen] & 0xFF) << 8) | (buffer[headerLen + 1] & 0xFF);
+                            Log.d(TAG, "PUBLISH topicLen=" + topicLen + " 需要 len > " + (headerLen + 2 + topicLen) + " 实际 len=" + len);
+                            if (topicLen > 0 && len > headerLen + 2 + topicLen) {
+                                String topic = new String(buffer, headerLen + 2, topicLen);
+                                
+                                // QoS > 0 时 topic 后面有 2 字节 msgId
+                                int qosFlag = (buffer[0] >> 1) & 0x03;
+                                int payloadStart = headerLen + 2 + topicLen;
+                                if (qosFlag > 0) payloadStart += 2; // skip msgId
+                                int payloadLen = len - payloadStart;
+                                String payload = payloadLen > 0 ? new String(buffer, payloadStart, payloadLen) : "";
+                                Log.d(TAG, "PUBLISH topic=" + topic + " qos=" + qosFlag + " payload=" + payload);
 
                                 // 转发原始 PUBLISH 包给其他订阅的客户端
-                                byte qosFlag = (byte) ((buffer[0] >> 1) & 0x03);
                                 broadcastToClients(topic, buffer, len, qosFlag, clientId);
+                            } else {
+                                Log.w(TAG, "PUBLISH 解析条件不满足: topicLen=" + topicLen + " len=" + len);
                             }
+                        } else {
+                            Log.w(TAG, "PUBLISH 数据太短: len=" + len + " headerLen=" + headerLen);
                         }
                         break;
                     case 8: // SUBSCRIBE
-                        // 解析并保存订阅关系
-                        if (len > 6) {
-                            int msgId = ((buffer[2] & 0xFF) << 8) | (buffer[3] & 0xFF);
+                        // 解析 MQTT 变长 remaining length
+                        int subRemLen = 0;
+                        int subMultiplier = 1;
+                        int subRlOffset = 1;
+                        while (subRlOffset < len) {
+                            byte encByte = buffer[subRlOffset];
+                            subRemLen += (encByte & 0x7F) * subMultiplier;
+                            subMultiplier *= 128;
+                            subRlOffset++;
+                            if ((encByte & 0x80) == 0) break;
+                        }
+                        int subHeaderLen = subRlOffset;
+                        
+                        if (len > subHeaderLen + 2) {
+                            int msgId = ((buffer[subHeaderLen] & 0xFF) << 8) | (buffer[subHeaderLen + 1] & 0xFF);
                             // 解析 topic filters: 每个是 2-byte length + topic + 1-byte QoS
-                            int offset = 4;
+                            int offset = subHeaderLen + 2;
                             int topicCount = 0;
                             while (offset + 2 < len) {
                                 int tLen = ((buffer[offset] & 0xFF) << 8) | (buffer[offset + 1] & 0xFF);

@@ -1,0 +1,202 @@
+--------- beginning of main
+04-13 12:58:06.456   874   874 W surfaceflinger: type=1400 audit(0.0:2930401): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:58:06.456   874   874 W surfaceflinger: type=1400 audit(0.0:2930402): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:58:06.465   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.465   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.466   874   874 W surfaceflinger: type=1400 audit(0.0:2930403): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:58:06.482   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.482   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.498   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.498   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.515   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.515   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.532   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.532   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.548   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.548   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.565   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.565   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.581   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.582   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.598   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.598   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.615   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.615   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.632   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.632   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.648   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.649   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.665   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.666   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.682   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.682   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.699   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.699   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.716   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.716   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.732   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.733   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.749   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.749   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.766   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.766   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.782   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.783   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.799   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.799   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.816   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.816   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.833   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.833   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.849   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.850   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.866   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.866   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.879   815   815 E FIDOCA : : get_fp_vendor property_get : none
+04-13 12:58:06.884   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.884   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.900   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.900   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.916   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.916   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.933   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.934   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.950   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.950   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.954   774  3253 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+04-13 12:58:06.954   774  3253 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+04-13 12:58:06.967   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.967   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:06.983   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:06.984   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.000   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.000   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.012  2698  2851 D Launcher_ProgressManager: queryProgressByBroadcast:com.xiaomi.market|-1882223298007199263
+04-13 12:58:07.017   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.017   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.033 27113 27277 V MSF.C.MSFCore[@PS]: [Event] MSFPacketStatistics.cpp(300)::DoCheckRequestTimeout->current rtts:0.000
+04-13 12:58:07.034   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.034   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.038  1970  5733 D CompatibilityInfo: mCompatibilityFlags - 0
+04-13 12:58:07.038  1970  5733 D CompatibilityInfo: applicationDensity - 440
+04-13 12:58:07.038  1970  5733 D CompatibilityInfo: applicationScale - 1.0
+04-13 12:58:07.040   556   556 E SELinux : avc:  denied  { find } for interface=vendor.qti.hardware.servicetracker::IServicetracker sid=u:r:system_server:s0 pid=1970 scontext=u:r:system_server:s0 tcontext=u:object_r:default_android_hwservice:s0 tclass=hwservice_manager permissive=0
+04-13 12:58:07.043 19485 19485 I Market-ServiceUtils: startForeground: DownloadControlService
+04-13 12:58:07.044 17636 17653 D MyLog   : -->log(0): [Tid:6365] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.044  4840  4858 D MyLog   : -->log(0): [Tid:311] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.045  5591  5632 D MyLog   : -->log(0): [Tid:355] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.045  4576 23941 D MyLog   : -->log(0): [Tid:650] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.046  6072  6118 D MyLog   : -->log(0): [Tid:381] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.046  1970  2269 I MiuiNetworkPolicy: updateUidState uid = 10133, uidState = 5
+04-13 12:58:07.047   662  2416 D OemNetd : whiteListUid: uid=10133, wmm=add
+04-13 12:58:07.051  1970  2269 I MiuiNetworkPolicy: updateMLUid uid:10133,old:11,new:5
+04-13 12:58:07.051  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:11,uid:10133,connect:DISCONNECTED
+04-13 12:58:07.051  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:5,uid:10133,connect:DISCONNECTED
+04-13 12:58:07.051  1970  2269 I MiuiNetworkPolicy: updateUidState uid = 10117, uidState = 5
+04-13 12:58:07.051   662  2416 D OemNetd : whiteListUid: uid=10117, wmm=add
+04-13 12:58:07.055   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.055   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+--------- beginning of system
+04-13 12:58:07.055  1970  2096 E NotificationService: Suppressing notification from package by user request.
+04-13 12:58:07.056 17636 17653 D MyLog   : -->log(0): [Tid:6365] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=1024
+04-13 12:58:07.056  4576 23941 D MyLog   : -->log(0): [Tid:650] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=1024
+04-13 12:58:07.056  6072  6118 D MyLog   : -->log(0): [Tid:381] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=1024
+04-13 12:58:07.057   662  1309 I netd    : firewallSetUidRule(2, 10117, 1) <8.73ms>
+04-13 12:58:07.058  4840  4858 D MyLog   : -->log(0): [Tid:311] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=1024
+04-13 12:58:07.058  5591  5632 D MyLog   : -->log(0): [Tid:355] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=1024
+04-13 12:58:07.061  1970  2269 I MiuiNetworkPolicy: updateMLUid uid:10117,old:11,new:5
+04-13 12:58:07.061  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:11,uid:10117,connect:DISCONNECTED
+04-13 12:58:07.061  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:5,uid:10117,connect:DISCONNECTED
+04-13 12:58:07.061  1970  2269 I MiuiNetworkPolicy: updateUidState uid = 10098, uidState = 5
+04-13 12:58:07.061  1970  2269 I MiuiNetworkPolicy: updateMLUid uid:10098,old:6,new:5
+04-13 12:58:07.061  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:6,uid:10098,connect:DISCONNECTED
+04-13 12:58:07.062  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:5,uid:10098,connect:DISCONNECTED
+04-13 12:58:07.062  1970  2269 I MiuiNetworkPolicy: updateUidState uid = 10057, uidState = 5
+04-13 12:58:07.062   662  2416 D OemNetd : whiteListUid: uid=10057, wmm=add
+04-13 12:58:07.063   556   556 E SELinux : avc:  denied  { find } for interface=vendor.qti.hardware.servicetracker::IServicetracker sid=u:r:system_server:s0 pid=1970 scontext=u:r:system_server:s0 tcontext=u:object_r:default_android_hwservice:s0 tclass=hwservice_manager permissive=0
+04-13 12:58:07.065  1970  2269 I MiuiNetworkPolicy: updateMLUid uid:10057,old:6,new:5
+04-13 12:58:07.065  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:6,uid:10057,connect:DISCONNECTED
+04-13 12:58:07.065  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:5,uid:10057,connect:DISCONNECTED
+04-13 12:58:07.067  4840  4858 D MyLog   : -->log(0): [Tid:311] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.067  5591  5632 D MyLog   : -->log(0): [Tid:355] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.067 17636 17653 D MyLog   : -->log(0): [Tid:6365] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.068  4576 23941 D MyLog   : -->log(0): [Tid:650] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.068  6072  6118 D MyLog   : -->log(0): [Tid:381] onForegroundServicesChanged:pid = 19485,uid=10133,serviceTypes=0
+04-13 12:58:07.068 19485 19485 I Market-ServiceUtils: stop foreground service: DownloadControlService
+04-13 12:58:07.078  1970  2269 I MiuiNetworkPolicy: updateUidState uid = 10133, uidState = 11
+04-13 12:58:07.078   662  2416 D OemNetd : whiteListUid: uid=10133, wmm=del
+04-13 12:58:07.082  1970  2269 I MiuiNetworkPolicy: updateMLUid uid:10133,old:5,new:11
+04-13 12:58:07.082  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:5,uid:10133,connect:DISCONNECTED
+04-13 12:58:07.083  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:11,uid:10133,connect:DISCONNECTED
+04-13 12:58:07.083  1970  2269 I MiuiNetworkPolicy: updateUidState uid = 10117, uidState = 11
+04-13 12:58:07.083   662  2416 D OemNetd : whiteListUid: uid=10117, wmm=del
+04-13 12:58:07.084   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.084   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.086   662  1309 I netd    : firewallSetUidRule(2, 10117, 2) <5.70ms>
+04-13 12:58:07.090  1970  2269 I MiuiNetworkPolicy: updateMLUid uid:10117,old:5,new:11
+04-13 12:58:07.090  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:5,uid:10117,connect:DISCONNECTED
+04-13 12:58:07.090  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:11,uid:10117,connect:DISCONNECTED
+04-13 12:58:07.090  1970  2269 I MiuiNetworkPolicy: updateUidState uid = 10098, uidState = 6
+04-13 12:58:07.090  1970  2269 I MiuiNetworkPolicy: updateMLUid uid:10098,old:5,new:6
+04-13 12:58:07.090  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:5,uid:10098,connect:DISCONNECTED
+04-13 12:58:07.090  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:6,uid:10098,connect:DISCONNECTED
+04-13 12:58:07.090  1970  2269 I MiuiNetworkPolicy: updateUidState uid = 10057, uidState = 6
+04-13 12:58:07.090   662  2416 D OemNetd : whiteListUid: uid=10057, wmm=del
+04-13 12:58:07.094  1970  2269 I MiuiNetworkPolicy: updateMLUid uid:10057,old:5,new:6
+04-13 12:58:07.094  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:5,uid:10057,connect:DISCONNECTED
+04-13 12:58:07.094  1970  2269 I MiuiNetworkPolicy: isMLEnabled state:6,uid:10057,connect:DISCONNECTED
+04-13 12:58:07.100   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.100   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.105   774  2894 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+04-13 12:58:07.116   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.116   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.134   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.135   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.150   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.151   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.168   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.168   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.185   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.185   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.201   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.201   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.218   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.218   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.235   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.235   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.251   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.251   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.268   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.268   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.285   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.285   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.301   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.301   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.318   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.318   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.326   820  4819 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:58:07.326   820  1234 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:58:07.328   820  4819 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:58:07.328   820  1234 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:58:07.335   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.336   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.352   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.352   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.368   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.369   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.385   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.385   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.402   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.402   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.419   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.419   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.445   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.445   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.446   874   874 W surfaceflinger: type=1400 audit(0.0:2930517): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:58:07.446   874   874 W surfaceflinger: type=1400 audit(0.0:2930518): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:58:07.454   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.454   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:58:07.456   874   874 W surfaceflinger: type=1400 audit(0.0:2930519): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:58:07.456   874   874 W surfaceflinger: type=1400 audit(0.0:2930520): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:58:07.468   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:58:07.468   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"

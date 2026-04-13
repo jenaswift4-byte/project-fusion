@@ -1,0 +1,810 @@
+--------- beginning of main
+04-13 12:56:31.499   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.499   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.501 27113  1030 V MSF.C.MSFCore[@lightQuic]: [0413/125631.501053:ERROR:light_quic_transport_session.cc(147)] OnNewEncryptionKeyAvailable() handshake session:0x7e4d325000 level:ENCRYPTION_FORWARD_SECURE num_sent_client_hellos = 1
+04-13 12:56:31.501 27113  1030 V MSF.C.MSFCore[@lightQuic]: [0413/125631.501485:ERROR:light_quic_transport_session.cc(176)] handshake session:0x7e4d325000 from:OnNewEncryptionKeyAvailable 握手完成，建链成功:{ handshake_count: 1 connect_duration_ms: 46 create_stream_count: 0 reorder_timeout_count: 0 handshake_in_progress_count: 0 } transport_version:43 early_reason:2 callback_task_size:1
+04-13 12:56:31.503 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFQuicConnect.cpp(873)::handleQuicConnectEventImp->## [quic] [conn end] Connect ok(ipv4-->i=434), cost:58, is0RTT:1
+04-13 12:56:31.503 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFQuicConnect.cpp(875)::handleQuicConnectEventImp->## [quic] DNS result(ipv4-->i=434), 119.147.190.138 - 119.147.190.138 port:22000
+04-13 12:56:31.503 27113 27277 V MSF.C.MSFCore[@NC]: [Event] MSFDualEngine.cpp(1306)::onConnectState->onQuicConnect:434, state:2, isSideConn:1, connptr:0x7de585a818
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFQuicConnect.cpp(607)::writePingPacket->## [quic] [read ping begin] start timer(ipv4-->i=434)
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFQuicConnect.cpp(608)::writePingPacket->## [quic] write ping packet, ping_type=2, is_exchange=0, write size = 0, data: 00000016000000c8000000000000000a080010082801
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@NC]: [Event] MSFDualEngine.cpp(1306)::onConnectState->onQuicConnect:434, state:3, isSideConn:1, connptr:0x7de585a818
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@NC]: [Event] MSFDualEngine.cpp(381)::operator()->start sideway tcp detect, current_ip_type: 1, ipv4 have valid ip: 1, ipv6 have valid ip: 1, 
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@SL]: [Event] ServerListData.cpp(1047)::GetConnectWifiAddress->server list fail factor:0.370000, fail rate:0.000000, ip:42.81.193.250:8080, index:6
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@XX]: [Event] ServerListModule.cpp(806)::GetCurrAddressAndRecordIt->GetCurrAddressAndRecordIt, wifi index:6 , 2g3g index:-1, isWifi(y/n):1,ipType:0
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@NC]: [Event] MSFDualEngine.cpp(607)::createAndConnect->start tcp connecting to 42.81.193.250:8080, timeout=8, connId=435, isSide:1
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFTcpConnect_xpng.cpp(90)::connect->## [conn begin] Connecting to sso(ipv4-->i=435)|42.81.193.250|8080|0|,wifi:广东-电信-SocketStreamErrorOccurred-PushIP-435, flag:0
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFTcpConnect_xpng.cpp(368)::logConfig->## [tcp config] enable_check_ping=1, check_ping_timeout=15, foreground_check_ping_interval=45, background_check_ping_interval=300, ping_type=2, is_enable_redirect=1, is_exchange_dual_ping_order=0, is_enable_old_ping_reserve=0, is_enable_new_ping_mock_version=0
+04-13 12:56:31.504 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFQuicConnect.cpp(690)::checkRecvPingPacket->## [quic] [read ping end] ok(ipv4-->i=434), ping version = 200, cost:42
+04-13 12:56:31.505 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFQuicConnect.cpp(692)::checkRecvPingPacket->## [quic] MSF PING recv ipv4: 14.26.204.133, operator:, region:, qdiao:0, schedule_list_key:
+04-13 12:56:31.505 27113 27277 V MSF.C.MSFCore[@NC]: [Event] MSFDualEngine.cpp(1306)::onConnectState->onQuicConnect:434, state:4, isSideConn:1, connptr:0x7de585a818
+04-13 12:56:31.505 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFTcpConnect_xpng.cpp(56)::~MSFTcpConnect_xpng->## destroy tcp Connect(ipv4-->i=435), ip = 42.81.193.250, port = 8080, this = 0x7de585a498
+04-13 12:56:31.505 27113 27290 V MSF.C.MSFCore[@DD]: [Event] MSFDragonDiagno.cpp(338)::operator()->onSideWayConnected, connType:5
+04-13 12:56:31.505 27113 27277 V MSF.C.MSFCore[@NN]: [Event] MSFTcpConnect_xpng.cpp(173)::disConnect->## disConnect(ipv4-->i=435), ip = 42.81.193.250, port = 8080, this = 0x7de585a498
+04-13 12:56:31.505 27113 27277 V MSF.C.MSFCore[@NC]: [Event] MSFDualEngine.cpp(981)::onSideConnReadPingEnd->sideway conn detect end, connType=5, connId=434, addr=119.147.190.138
+04-13 12:56:31.534   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.534   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.568   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.568   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.584   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.584   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.600   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.601   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.617   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.617   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.634   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.635   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.651   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.652   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.668   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.668   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.685   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.685   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.701   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.701   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.718   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.718   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.734   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.735   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.751   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.752   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.768   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.768   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.776  1970  2269 I MiuiNetworkPolicy: bandwidth: 30 KB/s, Max bandwidth: 3401 KB/s
+04-13 12:56:31.785   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.786   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.801   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.802   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.806   874   874 W surfaceflinger: type=1400 audit(0.0:2919252): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:31.818   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.818   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.806   874   874 W surfaceflinger: type=1400 audit(0.0:2919253): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:31.826   874   874 I chatty  : uid=1000(system) /system/bin/surfaceflinger identical 1 line
+04-13 12:56:31.826   874   874 W surfaceflinger: type=1400 audit(0.0:2919255): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:31.835   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.836   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.839   815   815 E FIDOCA : : get_fp_vendor property_get : none
+04-13 12:56:31.836   874   874 W surfaceflinger: type=1400 audit(0.0:2919256): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:31.852   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.852   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.869   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.869   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.886   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.886   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.902   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.902   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.919   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.919   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.936   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.936   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.953   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.953   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.962 27113  1116 D MSF:WakeLock: wakeLock release
+04-13 12:56:31.974   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.974   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:31.987   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:31.987   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.004   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.004   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.020   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.021   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.035   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.035   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.057   820  1234 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:32.057   820  4819 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:32.059   820  4819 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:32.059   820  1234 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:32.071   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.071   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.087   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.087   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.103   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.103   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.120   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.120   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.137   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.137   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.154   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.154   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.170   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.170   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.187   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.187   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.204   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.204   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.220   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.220   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.237   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.237   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.254   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.254   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.270   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.271   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.287   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.288   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.305   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.305   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.321   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.321   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.325 27113 27277 V MSF.C.MSFCore[@PS]: [Event] MSFPacketStatistics.cpp(300)::DoCheckRequestTimeout->current rtts:0.000
+04-13 12:56:32.338   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.338   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.355   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.355   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.371   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.372   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.388   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.388   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.405   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.405   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.421   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.421   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.438   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.438   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.455   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.455   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.472   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.472   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.473 27113 27277 V MSF.C.MSFCore[@SL]: [Event] PacketModule.cpp(3712)::setReserveFields->WiFi BSSID:广东-电信,
+04-13 12:56:32.473 27113 27277 V MSF.C.MSFCore[@PK]: [Event] PacketModule.cpp(3740)::setReserveFields->qimei:45fe77c1c31df99568b6b13b100010518201
+04-13 12:56:32.474 27113 27277 V MSF.C.MSFCore[@PK]: [Event] PacketModule.cpp(3769)::setReserveFields->nt_core_version:100
+04-13 12:56:32.474 27113 27277 V MSF.C.MSFCore[@XX]: [Event] PacketModule.cpp(2337)::CreateRequestBase->seqno:218338, imei:, uid:, ssoHeaderEnc:0, ssoHeaderCompress:0, protocol:v12, newconnFlag:1, isNtReq:0, reserveFieldsLen:95
+04-13 12:56:32.475 27113 27277 V MSF.C.MSFCore[@PK]: [Event] PacketModule.cpp(813)::onToSendPacket->send, pcmd:Client.CorrectTime, seqId:218338, send priority:75, timeout:59, answer flag:1, headerFlag:0, resend num:0, trace:, packet size:211 - 9.2.30.12330, connId:434, compress:0 - 1.00
+04-13 12:56:32.489   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.489   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.505   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.505   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.510 27113 27277 V MSF.C.MSFCore[@PK]: [Event] PacketModule.cpp(1628)::onRecvPacket->recv, pcmd:Client.CorrectTime, time cost:35, sso route cost:-1, seqId:218338, uin:0, retCode:0, packet size:8 - 9.2.30.12330 connId: 434
+04-13 12:56:32.511 27113 27277 V MSF.C.MSFCore[@MD]: [Event] MSFDataAdapter.cpp(86)::onMSFTimeDiffChange->onMSFTimeDiffChange:0
+04-13 12:56:32.511 27113 27279 D MSF.C.NewSender: [onMSFServerTimeUpdated], timeDiff: 0
+04-13 12:56:32.512 27113 27279 D MSF.C.NewSender: [onMSFPacketState], MSFResponse: MSFResponseAdapter{mState=3,mSeq=218338,mUin=0,mUid=,mUinType=0,mCmd=Client.CorrectTime,mRecvData=[B@8988f40,mSendTime=0,mWriteSocketTime=1776056192475,mRecvTime=1776056192510,mRecvWay=12,mIsBadNetwork=false,mTrpcRetcode=0,mTrpcFuncRetCode=0,mTrpcErrMsg=[B@1aae79,mFailReason=0,mTransInfo={},mSecSignFlag=2,mIsSecSigCmd=false,mHasReserveFields=true,mSsoRet=0,mSsoErrTips=,mIsUinDyed=false,mIsRecvFromMainConn=false,}
+04-13 12:56:32.513 27113 27260 D MSF.D.NetCenterNewImpl: set serverTime is 26-04-13 12:56:32
+04-13 12:56:32.514 27113 27260 D MSF.C.NewSender: [onMSFPacketState], cmd:Client.CorrectTime toServiceMsg is null, ignore
+04-13 12:56:32.514 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:mini1, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.514 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:mini1's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.514 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:openSdk, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.514 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:openSdk's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.514 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:plugins, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.514 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:plugins's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:wxa_container0, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:wxa_container0's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:mini3, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:mini3's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:mini4, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:mini4's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:qzone, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:qzone's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.515 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:peak, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:peak's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:qqfav, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:qqfav's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:nearby_video, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:nearby_video's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:video, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:video's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:gameservice, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.516 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:gameservice's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:mini, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:mini's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:tool, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:tool's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:TMAssistantDownloadSDKService, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:TMAssistantDownloadSDKService's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:qlink, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:qlink's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: tryDispatchMsg to process:com.tencent.mobileqq:minibox, IMsfServiceCallbacker:null, needBoot:false, msgCount:1, queueSize:1, Msg:FromServiceMsg serviceCmd:cmd_pushSetConfig, MSFCommand:pushSetConfig, ssoSeq:-1, appSeq:-1, uin:0, failCode:1000, errorMsg:, len:0
+04-13 12:56:32.517  2355  2848 D QSTile.CellularTile: handleUpdateState: airplaneModeEnabled: false, isMobileDataSupported: false
+04-13 12:56:32.517 27113 27261 D MSF.S.AppProcessManager: com.tencent.mobileqq:minibox's callBack is null; cmd_pushSetConfig is cared: false, needBoot: false，needNotifyRegister:false
+04-13 12:56:32.522   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.522   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.524  2355  2848 D QSTile.CellularTile: handleUpdateState: airplaneModeEnabled: false, isMobileDataSupported: false
+04-13 12:56:32.527  2355  2848 D QSTile.CellularTile: handleUpdateState: airplaneModeEnabled: false, isMobileDataSupported: false
+04-13 12:56:32.538  2355  2848 D QSTile.BluetoothTile: handleUpdateState: mTargetEnable = truemController.getBluetoothState() = 12
+04-13 12:56:32.538  2355  2355 D BluetoothController: fireStateChange
+04-13 12:56:32.538   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.538   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.538  2355  2355 D QSTile.BluetoothTile: onBluetoothStateChange: enabled = true
+04-13 12:56:32.539  2355  2848 D QSTile.BluetoothTile: handleUpdateState: mTargetEnable = truemController.getBluetoothState() = 12
+04-13 12:56:32.555   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.555   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.572   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.572   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.586  2355  2848 D QSTile.CellularTile: handleUpdateState: airplaneModeEnabled: false, isMobileDataSupported: false
+04-13 12:56:32.587  2355  2848 I chatty  : uid=1000(system) SysUiBg identical 4 lines
+04-13 12:56:32.588  2355  2848 D QSTile.CellularTile: handleUpdateState: airplaneModeEnabled: false, isMobileDataSupported: false
+04-13 12:56:32.588   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.588   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.592  2355  2848 D QSTile.CellularTile: handleUpdateState: airplaneModeEnabled: false, isMobileDataSupported: false
+04-13 12:56:32.595  2355  2848 I chatty  : uid=1000(system) SysUiBg identical 2 lines
+04-13 12:56:32.595  2355  2848 D QSTile.CellularTile: handleUpdateState: airplaneModeEnabled: false, isMobileDataSupported: false
+04-13 12:56:32.605   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.605   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.621   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.622   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.656   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.656   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.689   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.690   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.706   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.706   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.723   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.723   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.740  2666  2666 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+04-13 12:56:32.741  4049  4049 D NfcService: Received android.intent.action.BATTERY_CHANGED
+04-13 12:56:32.742  4821  5626 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 2, scale = 100
+04-13 12:56:32.744  4497  4497 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+04-13 12:56:32.744  4497  4497 I PowerSaveService: onReceive: android.intent.action.BATTERY_CHANGED
+04-13 12:56:32.746  2355  2355 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+04-13 12:56:32.746  4497  4497 I PowerNoticeUI: handleBatteryChanged oldPlugType 2 mPlugType 2 oldBatteryLevel 100 mBatteryLevel 100 temperature 360
+04-13 12:56:32.756   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.756   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.773   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.773   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.808   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.808   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.816   874   874 W surfaceflinger: type=1400 audit(0.0:2919362): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:32.816   874   874 W surfaceflinger: type=1400 audit(0.0:2919363): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:32.824   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.825   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.826   874   874 W surfaceflinger: type=1400 audit(0.0:2919364): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:32.826   874   874 W surfaceflinger: type=1400 audit(0.0:2919365): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:32.840   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.840   815   815 E FIDOCA : : get_fp_vendor property_get : none
+04-13 12:56:32.840   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.856   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.856   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.846   874   874 W surfaceflinger: type=1400 audit(0.0:2919366): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:32.874   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.874   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.890   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.891   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.907   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.908   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.924   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.924   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.940   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.940   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.957   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.957   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.974   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.974   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:32.990   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:32.991   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.007   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.007   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.024   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.024   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.041   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.041   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.057   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.057   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.060   820  4819 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:33.060   820  1234 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:33.062   820  4819 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:33.062   820  1234 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:33.075   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.076   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.086 18481 18578 D MQTTBroker: 收到来自 127.0.0.1:41774 的数据，长度：2, 类型：12
+04-13 12:56:33.091   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.092   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]: [Event] MSFDDNetworkEngine.cpp(179)::onTcpInfoUpdate->onTcpInfoUpdate:
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_state = 1;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_ca_state = 0;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_rto = 270 ms;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_unacked = 0;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_rttcur = 62 ms;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_rttvar = 25 ms;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_bytes_retrans = 0 bytes;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_notsent_bytes = 0 bytes;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_bytes_received = 33 bytes;
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_bytes_sent = 0 bytes 
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_last_data_sent = 1740 ms 
+04-13 12:56:33.094 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_last_data_recv = 1660 ms 
+04-13 12:56:33.108   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.108   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.124   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.125   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.141   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.141   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.158   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.158   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.175   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.175   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.191   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.191   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.208   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.208   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.225   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.226   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.243   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.244   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.259   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.259   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.275   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.275   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.291   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.292   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.308   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.309   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.325   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.325   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.342   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.342   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.346 27113 27277 V MSF.C.MSFCore[@PS]: [Event] MSFPacketStatistics.cpp(300)::DoCheckRequestTimeout->current rtts:0.000
+04-13 12:56:33.359   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.359   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.376   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.376   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.392   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.392   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.409   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.409   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.426   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.426   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.442   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.443   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.460   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.460   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.476   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.476   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.492   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.493   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.509   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.510   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.527   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.527   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.543   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.544   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.560   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.560   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.577   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.577   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.593   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.594   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.611   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.611   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.627   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.627   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.644   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.644   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.660   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.661   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.677   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.677   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.694   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.694   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.711   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.711   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.728   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.728   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.745   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.745   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.761   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.761   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.778   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.778   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.795   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.795   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.811   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.812   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.828   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.828   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.841   815   815 E FIDOCA : : get_fp_vendor property_get : none
+04-13 12:56:33.836   874   874 W surfaceflinger: type=1400 audit(0.0:2919484): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:33.836   874   874 W surfaceflinger: type=1400 audit(0.0:2919485): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:33.846   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.846   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.861   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.862   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.846   874   874 W surfaceflinger: type=1400 audit(0.0:2919486): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:33.846   874   874 I chatty  : uid=1000(system) /system/bin/surfaceflinger identical 1 line
+04-13 12:56:33.866   874   874 W surfaceflinger: type=1400 audit(0.0:2919488): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:33.878   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.878   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.895   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.895   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.912   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.912   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.929   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.929   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.946   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.946   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.963   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.963   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.979   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.979   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:33.996   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:33.996   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.013   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.013   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.029   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.029   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.046   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.047   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.063   820  1234 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:34.063   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.063   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.063   820  4819 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:34.066   820  1234 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:34.066   820  4819 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:34.080   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.081   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.097   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.097   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.113   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.113   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.129   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.130   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.147   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.147   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.163   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.163   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.180   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.180   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.197   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.197   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.213   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.214   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.230   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.230   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.247   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.248   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.264   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.264   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.297   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.298   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.314   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.314   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.330   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.330   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.347   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.347   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.364   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.364   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.377 27113 27277 V MSF.C.MSFCore[@PS]: [Event] MSFPacketStatistics.cpp(300)::DoCheckRequestTimeout->current rtts:0.000
+04-13 12:56:34.380   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.381   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.397   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.397   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.414   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.414   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.431   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.431   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.448   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.448   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.465   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.465   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.481   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.481   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.497   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.498   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.515   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.515   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.531   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.532   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.548   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.548   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.565   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.565   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.581   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.582   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.598   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.598   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.615   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.615   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.631   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.632   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.635 20997 21031 V com.miui.mishare.connectivity:new_milink:ipc: milink::ipc::PacketHandleImpl<milink::ipc::PacketClient>::request finish, request.domain=runtime_manager, client=, action=subscribe_runtime_callback, sequence=7, code=7, msg=timeout (packet_handle_impl.cpp:104)
+04-13 12:56:34.635 20997 21031 D com.miui.mishare.connectivity:new_milink:trace: milink::dfx::traceTracepoint <process, client_send_end, [5205777417c5de, 248084, 0]> request.domain=runtime_manager, client=, action=subscribe_runtime_callback, sequence=7 (mitrace.cpp:290)
+04-13 12:56:34.635 20997 21031 I com.miui.mishare.connectivity:new_milink:runtime_manager: milink::runtime::RuntimeManagerProxy::subscribeRuntimeCallback finish, session_id=com.miui.mishare.connectivity/com.miui.mishare.connectivity, callback=0x7ecde25ac0, code=7, msg=timeout (runtime_manager_proxy.cpp:106)
+04-13 12:56:34.636 20997 21031 E com.miui.mishare.connectivity:new_milink:kit: milink::kit::MilinkImpl::installInner subscribe callback failed, code=7, msg=timeout (milink_impl.cpp:130)
+04-13 12:56:34.636 20997 21031 D com.miui.mishare.connectivity:new_milink:kit: milink::kit::MilinkImpl::runReinstall retry=2, code=7, msg=timeout (milink_impl.cpp:224)
+04-13 12:56:34.648   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.649   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.666   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.666   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.682   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.682   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.699   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.699   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.715   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.716   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.732   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.733   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.749   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.749   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.766   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.766   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.780  1970  2269 I MiuiNetworkPolicy: bandwidth: 1 KB/s, Max bandwidth: 3401 KB/s
+04-13 12:56:34.783   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.784   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.799   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.800   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.816   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.816   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.833   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.834   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.841   815   815 E FIDOCA : : get_fp_vendor property_get : none
+04-13 12:56:34.849   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.850   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.856   874   874 W surfaceflinger: type=1400 audit(0.0:2919604): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:34.856   874   874 W surfaceflinger: type=1400 audit(0.0:2919605): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:34.866   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.867   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.876   874   874 W surfaceflinger: type=1400 audit(0.0:2919606): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:34.876   874   874 W surfaceflinger: type=1400 audit(0.0:2919607): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:34.884   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.884   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.900   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.900   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.886   874   874 W surfaceflinger: type=1400 audit(0.0:2919608): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:34.917   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.917   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.933   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.933   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.950   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.950   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.967   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.967   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:34.983   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:34.984   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.000   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.000   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.017   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.017   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.035   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.035   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.051   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.052   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.066   820  1234 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:35.067   820  4819 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:35.067   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.067   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.068   820  1234 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:35.068   820  4819 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:35.084   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.085   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.100   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.100   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.135   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.135   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.151   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.151   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.168   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.168   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.184   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.184   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.201   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.201   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.218   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.219   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.236   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.236   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.251   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.252   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.268   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.268   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.285   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.286   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.302   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.302   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.303 12498 12532 E ipc     : milink::ipc::PacketServerInitializerImpl::onReceiveData failed, client=10088-20997, data=2060615269, length=152, code=8, msg=no handler (packet_server_initializer_impl.cpp:275)
+04-13 12:56:35.304 12498 12532 I com.milink.runtime:new_milink:MessengerService: receive data hash-id: -137626267
+--------- beginning of system
+04-13 12:56:35.305 20997 21123 W BpBinder: Slow Binder: BpBinder transact took 10706 ms, interface=android.content.IContentProvider, code=21 oneway=false
+04-13 12:56:35.318   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.319   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.335   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.336   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.352   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.352   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.368   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.369   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.386   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.386   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.402   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.403   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.416 27113 27277 V MSF.C.MSFCore[@PS]: [Event] MSFPacketStatistics.cpp(300)::DoCheckRequestTimeout->current rtts:0.000
+04-13 12:56:35.419   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.419   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.436   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.437   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.453   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.453   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.469   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.469   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.486   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.486   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.503   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.503   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.519   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.520   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.536   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.536   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.553   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.553   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.569   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.570   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.586   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.587   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.603   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.603   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.620   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.620   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.637   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.637   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.640 20997 21031 I com.miui.mishare.connectivity:new_milink:runtime_manager: milink::runtime::RuntimeManagerProxy::subscribeRuntimeCallback app_id=com.miui.mishare.connectivity/com.miui.mishare.connectivity, callback=0x7ecde25ac0 (runtime_manager_proxy.cpp:67)
+04-13 12:56:35.640 20997 21031 I com.miui.mishare.connectivity:new_milink:runtime_manager: milink::runtime::RuntimeCallbackProxy::subscribeRuntimeCallback app_id=com.miui.mishare.connectivity/com.miui.mishare.connectivity, callback=0x7ecde25ac0 (runtime_callback_proxy.cpp:23)
+04-13 12:56:35.640 20997 21031 D com.miui.mishare.connectivity:new_milink:trace: milink::dfx::traceTracepoint <process, client_send_begin, [5205777417c5de, 2eb1b30, 0]> request.domain=runtime_manager, client=, action=subscribe_runtime_callback, sequence=8, option.async=0, timeout=10000 (mitrace.cpp:290)
+04-13 12:56:35.641 20997 21031 V com.miui.mishare.connectivity:new_milink:ipc: milink::ipc::PacketHandleImpl<milink::ipc::PacketClient>::request request.domain=runtime_manager, client=, action=subscribe_runtime_callback, sequence=8, response=0x7e658028c0, option.async=0, timeout=10000 (packet_handle_impl.cpp:71)
+04-13 12:56:35.641 20997 21031 V com.miui.mishare.connectivity:new_milink:ipc: milink::ipc::PacketClientInitializerImpl::sendData data=-589333102, length=152 (packet_client_initializer_impl.cpp:154)
+04-13 12:56:35.641 20997 21031 V com.miui.mishare.connectivity:new_milink:ipc: milink::ipc::PacketClientInitializerImpl::sendData finish, data=-589333102, length=152, code=0, msg= (packet_client_initializer_impl.cpp:196)
+04-13 12:56:35.646 12498 12532 I com.milink.runtime:new_milink:DataContentProvider: Call content://provider.milink.mi.com/messenger#send from com.miui.mishare.connectivity, content://provider.milink.mi.com/messenger#send
+04-13 12:56:35.654   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.654   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.670   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.671   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.686   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.687   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.704   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.704   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.721   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.721   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.734   774  3248 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+04-13 12:56:35.735   774  3248 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+04-13 12:56:35.736   774  3248 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+04-13 12:56:35.736   774  3248 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+04-13 12:56:35.737   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.737   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.739  2335  3250 V bt_stack: [VERBOSE1:btm_ble_gap.cc(1923)] btm_ble_process_ext_adv_pkt: bda=70:61:ee:74:6c:72
+04-13 12:56:35.740  2335  3250 V bt_stack: [VERBOSE1:btm_ble_gap.cc(1847)] btm_ble_process_adv_addr: bda=70:61:ee:74:6c:72
+04-13 12:56:35.740  2335  3250 V bt_stack: [VERBOSE1:btm_ble_gap.cc(2052)]  Waiting for scan response 70:61:ee:74:6c:72
+04-13 12:56:35.754   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.754   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.771   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.771   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.777   774  3248 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+04-13 12:56:35.777   774  3248 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+04-13 12:56:35.787   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.787   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.805   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.805   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.821   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.821   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.838   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.838   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.841   815   815 E FIDOCA : : get_fp_vendor property_get : none
+04-13 12:56:35.855   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.855   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.871   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.871   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.876   874   874 W surfaceflinger: type=1400 audit(0.0:2919724): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:35.888   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.888   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.876   874   874 W surfaceflinger: type=1400 audit(0.0:2919725): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:35.905   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.905   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.896   874   874 W surfaceflinger: type=1400 audit(0.0:2919726): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:35.896   874   874 W surfaceflinger: type=1400 audit(0.0:2919727): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:35.922   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.922   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.906   874   874 W surfaceflinger: type=1400 audit(0.0:2919728): avc: denied { read } for name="u:object_r:vendor_fp_prop:s0" dev="tmpfs" ino=16948 scontext=u:r:surfaceflinger:s0 tcontext=u:object_r:vendor_fp_prop:s0 tclass=file permissive=0
+04-13 12:56:35.928   774  2894 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+04-13 12:56:35.938   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.938   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.956   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.956   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.972   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.972   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:35.989   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:35.989   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.006   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.006   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.022   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.022   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.039   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.039   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.055   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.056   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.068   820  1234 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:36.068   820  4819 W ServiceManagement: Waited one second for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default
+04-13 12:56:36.070   820  1234 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:36.070   820  4819 I ServiceManagement: getService: Trying again for vendor.xiaomi.hardware.mfidoca@1.0::IFidoService/default...
+04-13 12:56:36.072   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.072   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.089   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.089   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.106   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.106   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.123   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.123   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.139   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.139   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.156   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.156   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.173   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.173   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]: [Event] MSFDDNetworkEngine.cpp(179)::onTcpInfoUpdate->onTcpInfoUpdate:
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_state = 1;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_ca_state = 0;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_rto = 270 ms;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_unacked = 0;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_rttcur = 62 ms;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_rttvar = 25 ms;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_bytes_retrans = 0 bytes;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_notsent_bytes = 0 bytes;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_bytes_received = 33 bytes;
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_bytes_sent = 0 bytes 
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_last_data_sent = 4820 ms 
+04-13 12:56:36.173 27113 27290 V MSF.C.MSFCore[@DD]:                      tcpi_last_data_recv = 4740 ms 
+04-13 12:56:36.189   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.190   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.206   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.206   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.223   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.223   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.240   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.240   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.256   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.256   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.273   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.273   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.290   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.290   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.307   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.307   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.323   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.324   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.340   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.340   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.357   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.357   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.374   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.374   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.391   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.391   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.407   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.407   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.424   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.424   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.441   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.441   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.453 27113 27277 V MSF.C.MSFCore[@PS]: [Event] MSFPacketStatistics.cpp(300)::DoCheckRequestTimeout->current rtts:0.000
+04-13 12:56:36.457   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.458   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.474   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.474   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.491   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.491   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.507   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.508   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.524   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.525   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.541   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.541   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.558   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.558   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.574   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.575   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.591   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.591   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.608   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.608   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.625   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.625   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.641   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.642   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.658   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.658   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.675   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.675   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.692   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.692   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.711   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.711   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.724   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.724   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
+04-13 12:56:36.741   874   874 E libc    : Access denied finding property "ro.hardware.fp.fod"
+04-13 12:56:36.741   874   874 E libc    : Access denied finding property "ro.hardware.fp.sideCap"
