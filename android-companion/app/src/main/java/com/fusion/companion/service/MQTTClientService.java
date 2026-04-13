@@ -798,8 +798,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
         
         // 传感器数据发布任务（每 5 秒）
         sensorPublishRunnable = () -> {
-            Log.d(TAG, "定时任务: 执行传感器数据发布, 缓存大小=" + sensorDataCache.size());
-            publishSensorData();
+            try {
+                Log.d(TAG, "定时任务: 执行传感器数据发布, 缓存大小=" + sensorDataCache.size());
+                publishSensorData();
+            } catch (Exception e) {
+                Log.e(TAG, "传感器发布异常: " + e.getMessage(), e);
+            }
             handler.postDelayed(sensorPublishRunnable, SENSOR_PUBLISH_INTERVAL);
         };
         handler.post(sensorPublishRunnable);
@@ -807,7 +811,11 @@ public class MQTTClientService extends Service implements SensorEventListener {
         
         // 心跳发布任务（每 30 秒）
         heartbeatPublishRunnable = () -> {
-            publishHeartbeat();
+            try {
+                publishHeartbeat();
+            } catch (Exception e) {
+                Log.e(TAG, "心跳发布异常: " + e.getMessage(), e);
+            }
             handler.postDelayed(heartbeatPublishRunnable, HEARTBEAT_PUBLISH_INTERVAL);
         };
         handler.post(heartbeatPublishRunnable);
@@ -834,12 +842,18 @@ public class MQTTClientService extends Service implements SensorEventListener {
      * 发布传感器数据
      */
     private void publishSensorData() {
-        Log.d(TAG, "publishSensorData() 被调用, 缓存大小=" + sensorDataCache.size() + ", 为空=" + sensorDataCache.isEmpty());
+        Log.d(TAG, "publishSensorData() 被调用, 缓存大小=" + sensorDataCache.size() + ", 为空=" + sensorDataCache.isEmpty() + ", 连接=" + connected.get());
         if (sensorDataCache.isEmpty()) {
             Log.d(TAG, "暂无传感器数据，跳过发布");
             return;
         }
         
+        if (!connected.get() || mqttClient == null || !mqttClient.isConnected()) {
+            Log.w(TAG, "MQTT 未连接，跳过传感器发布");
+            return;
+        }
+        
+        int published = 0;
         for (Map.Entry<String, Float> entry : sensorDataCache.entrySet()) {
             String sensorType = entry.getKey();
             float value = entry.getValue();
@@ -856,10 +870,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
             data.timestamp = System.currentTimeMillis();
             
             // 发布 JSON 消息
-            publishJsonMessage(topic, data, 1);
+            boolean ok = publishJsonMessage(topic, data, 1);
+            if (ok) published++;
             
-            Log.d(TAG, "发布传感器数据：" + topic + " - " + value + " " + data.unit);
+            Log.d(TAG, "发布传感器数据：" + topic + " - " + value + " " + data.unit + (ok ? " ✅" : " ❌"));
         }
+        Log.d(TAG, "传感器发布完成: " + published + "/" + sensorDataCache.size() + " 成功");
     }
     
     /**
