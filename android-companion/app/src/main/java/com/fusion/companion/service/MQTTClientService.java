@@ -107,6 +107,7 @@ public class MQTTClientService extends Service implements SensorEventListener {
     
     // 主线程 Handler
     private Handler handler;
+    private HandlerThread handlerThread;
     
     // 传感器管理器
     private SensorManager sensorManager;
@@ -169,7 +170,9 @@ public class MQTTClientService extends Service implements SensorEventListener {
         super.onCreate();
         Log.i(TAG, "MQTT Client Service 创建");
         
-        handler = new Handler(Looper.getMainLooper());
+        handlerThread = new HandlerThread("MQTTClientHandler");
+        handlerThread.start();
+        handler = new Handler(handlerThread.getLooper());
         sensorDataCache = new ConcurrentHashMap<>();
         gson = new Gson();
         currentReconnectDelay = INITIAL_RECONNECT_DELAY;
@@ -221,6 +224,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
         unregisterSensors();
         
         running.set(false);
+        
+        if (handlerThread != null) {
+            handlerThread.quitSafely();
+            handlerThread = null;
+        }
+        
         super.onDestroy();
     }
     
