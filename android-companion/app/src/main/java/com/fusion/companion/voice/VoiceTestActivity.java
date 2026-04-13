@@ -48,8 +48,11 @@ public class VoiceTestActivity extends Activity implements
     // 语音管理器
     private VoiceActivityManager voiceManager;
     
-    // MQTT 客户端（需要从服务获取）
+    // MQTT 客户端服务（需要通过 bindService 获取，测试 Activity 暂不绑定）
     private MQTTClientService mqttClient;
+    
+    // 独立 Eclipse Paho MQTT 客户端（用于直接发布/订阅）
+    private MqttClient directMqttClient;
     
     // AI 引擎
     private LocalAIEngine aiEngine;
@@ -129,14 +132,15 @@ public class VoiceTestActivity extends Activity implements
         // 创建管理器
         voiceManager = new VoiceActivityManager(this);
         
-        // 获取 MQTT 客户端（如果已启动服务）
-        mqttClient = createMQTTClient();
+        // MQTTClientService 是 Service 绑定，测试 Activity 不绑定 → 传 null
+        // 独立创建 Eclipse Paho 客户端用于直接 MQTT 操作
+        directMqttClient = createMQTTClient();
         
         // 获取 AI 引擎
         aiEngine = LocalAIEngine.getInstance(this);
         
-        // 初始化（如果 MQTT 和 AI 可用）
-        voiceManager.initialize(mqttClient, aiEngine);
+        // 初始化（MQTT 服务为 null，语音测试仍可用）
+        voiceManager.initialize(null, aiEngine);
         voiceManager.setVoiceInteractionListener(this);
         
         Log.i(TAG, "语音管理器初始化完成");

@@ -129,7 +129,7 @@ public class MediaCenter {
                 
                 try {
                     DeviceManager dm = DeviceManager.getInstance(context);
-                    if (dm != null && dm.isInitialized) {
+                    if (dm != null && dm.isInitialized()) {
                         // 遍历已注册设备，找到 sensor 类型的设备获取数据
                         List<Device> devices = dm.listDevices();
                         for (Device d : devices) {
@@ -166,7 +166,7 @@ public class MediaCenter {
                 
                 try {
                     DeviceManager dm = DeviceManager.getInstance(context);
-                    if (dm != null && dm.isInitialized) {
+                    if (dm != null && dm.isInitialized()) {
                         List<Device> devices = dm.listDevices();
                         int roomIndex = 0;
                         for (Device d : devices) {
@@ -227,7 +227,7 @@ public class MediaCenter {
                 MusicFollower.PlaybackState state = new MusicFollower.PlaybackState();
                 try {
                     DeviceManager dm = DeviceManager.getInstance(context);
-                    if (dm != null && dm.isInitialized) {
+                    if (dm != null && dm.isInitialized()) {
                         DeviceStatus status = dm.getDeviceStatus(deviceId);
                         if (status != null && status.data != null) {
                             state.isPlaying = status.data.optBoolean("is_playing", false);
@@ -274,7 +274,7 @@ public class MediaCenter {
                 List<MusicFollower.DeviceInfo> devices = new ArrayList<>();
                 try {
                     DeviceManager dm = DeviceManager.getInstance(context);
-                    if (dm != null && dm.isInitialized) {
+                    if (dm != null && dm.isInitialized()) {
                         List<Device> allDevices = dm.listDevices();
                         for (Device d : allDevices) {
                             MusicFollower.DeviceInfo info = new MusicFollower.DeviceInfo();
@@ -296,7 +296,7 @@ public class MediaCenter {
                 MusicFollower.DeviceInfo info = new MusicFollower.DeviceInfo();
                 try {
                     DeviceManager dm = DeviceManager.getInstance(context);
-                    if (dm != null && dm.isInitialized) {
+                    if (dm != null && dm.isInitialized()) {
                         Device d = dm.getDevice(deviceId);
                         if (d != null) {
                             info.deviceId = d.deviceId;

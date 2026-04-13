@@ -76,7 +76,7 @@ public class PCOnlineDetectionService extends Service {
                 // 2. 通知 DeviceManager PC 在线（可连接 MQTT Broker）
                 try {
                     DeviceManager deviceManager = DeviceManager.getInstance(PCOnlineDetectionService.this);
-                    if (!deviceManager.isInitialized) {
+                    if (!deviceManager.isInitialized()) {
                         deviceManager.init();
                     }
                 } catch (Exception e) {

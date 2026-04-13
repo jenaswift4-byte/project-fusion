@@ -985,6 +985,13 @@ public class DeviceManager {
     }
     
     /**
+     * 检查是否已初始化
+     */
+    public boolean isInitialized() {
+        return initialized;
+    }
+    
+    /**
      * 检查 MQTT 是否已连接
      */
     public boolean isMQTTConnected() {
