@@ -1303,27 +1303,21 @@ public class MQTTClientService extends Service implements SensorEventListener {
     
     private void playSound(String type, org.json.JSONObject params) {
         try {
-            // 播放提示音 (让手机发出声音)
-            android.media.AudioManager am = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            if (am != null) {
-                // 使用 ToneGenerator 播放简单音调 (不需要音频文件)
-                int toneType = android.media.AudioManager.TONE_PROP_BEEP;
-                switch (type) {
-                    case "alarm": toneType = android.media.AudioManager.TONE_ALARM; break;
-                    case "beep": toneType = android.media.AudioManager.TONE_PROP_BEEP; break;
-                    case "confirm": toneType = android.media.AudioManager.TONE_PROP_ACK; break;
-                    case "error": toneType = android.media.AudioManager.TONE_PROP_NACK; break;
-                    case "ring": toneType = android.media.AudioManager.TONE_RINGTONE; break;
-                }
-                // 确保音量不为 0
-                int currentVol = am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
-                if (currentVol == 0) {
-                    am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 
-                        am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) / 3, 0);
-                }
-                am.playSoundEffect(toneType);
-                Log.i(TAG, "播放声音: " + type);
+            // 使用 ToneGenerator 播放系统音调 (不依赖音频文件，兼容 targetSdk 30)
+            int toneType;
+            switch (type) {
+                case "alarm":   toneType = android.media.ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE; break;
+                case "beep":    toneType = android.media.ToneGenerator.TONE_PROP_BEEP; break;
+                case "confirm": toneType = android.media.ToneGenerator.TONE_PROP_ACK; break;
+                case "error":   toneType = android.media.ToneGenerator.TONE_PROP_NACK; break;
+                case "ring":    toneType = android.media.ToneGenerator.TONE_CDMA_PIP; break;
+                default:        toneType = android.media.ToneGenerator.TONE_PROP_BEEP; break;
             }
+            android.media.ToneGenerator toneGen = new android.media.ToneGenerator(
+                    android.media.AudioManager.STREAM_MUSIC, 50);
+            toneGen.startTone(toneType, 500);
+            handler.postDelayed(toneGen::release, 1000);
+            Log.i(TAG, "播放声音: " + type + " (tone=" + toneType + ")");
         } catch (Exception e) {
             Log.e(TAG, "播放声音失败: " + e.getMessage());
         }
