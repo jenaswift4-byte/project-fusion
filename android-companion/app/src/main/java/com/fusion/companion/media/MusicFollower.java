@@ -107,10 +107,12 @@ public class MusicFollower {
         public String roomName;      // 房间名
         public boolean isOnline;     // 是否在线
         public boolean isActive;     // 是否正在播放
+        public boolean hasSpeaker;   // 是否有扬声器（用于音频跟随判断）
         
         public DeviceInfo() {
             this.isOnline = false;
             this.isActive = false;
+            this.hasSpeaker = false;
         }
     }
     
@@ -123,10 +125,19 @@ public class MusicFollower {
         public String deviceId;      // 设备 ID
         public boolean hasPerson;    // 是否有人
         public int personCount;      // 人数
+        // 环境传感器数据（v2.0 新增，由 DeviceManager 填充）
+        public double temperature;   // 温度
+        public double humidity;      // 湿度
+        public float lightLevel;     // 光照强度
+        public float noiseLevel;     // 噪音水平 (dB)
         
         public RoomInfo() {
             this.hasPerson = false;
             this.personCount = 0;
+            this.temperature = 0;
+            this.humidity = 0;
+            this.lightLevel = 0;
+            this.noiseLevel = 0;
         }
     }
     

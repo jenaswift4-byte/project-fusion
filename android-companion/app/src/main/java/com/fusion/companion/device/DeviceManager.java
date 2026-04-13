@@ -1,27 +1,51 @@
 package com.fusion.companion.device;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import org.json.JSONObject;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
- * ESP32 设备管理器
+ * ESP32 / MCU 设备管理器
  * 
  * 负责设备的注册、状态查询、设备控制等功能
- * 通过 MQTT 协议与 ESP32 设备通信
+ * 通过 MQTT 协议与 ESP32/MCU 设备通信
  * 
- * TODO: 实现 MQTT 客户端集成
- * TODO: 实现设备持久化存储
- * TODO: 实现设备离线检测
+ * 特性：
+ * - MQTT 客户端集成（连接 PC 端 Broker）
+ * - SharedPreferences 持久化存储设备列表
+ * - 命令队列 + 离线设备自动重试
+ * - 设备离线检测（心跳超时）
  * 
- * @author Backend Architect
- * @version 1.0.0
+ * @author Fusion
+ * @version 2.0.0
  */
 public class DeviceManager {
     
@@ -35,15 +59,29 @@ public class DeviceManager {
     private Context context;
     
     // 设备缓存（内存）
-    // TODO: 需要实现持久化存储
     private final Map<String, Device> deviceMap = new ConcurrentHashMap<>();
     
     // 设备状态缓存
     private final Map<String, DeviceStatus> statusMap = new ConcurrentHashMap<>();
     
-    // MQTT 客户端引用
-    // TODO: 需要注入 MQTT 客户端
-    private Object mqttClient;
+    // MQTT 客户端
+    private MqttClient mqttClient;
+    private boolean mqttConnected = false;
+    private MqttConnectOptions connectOptions;
+    
+    // 线程池
+    private ScheduledExecutorService executor;
+    
+    // 主线程 Handler
+    private Handler mainHandler;
+    
+    // 命令队列（离线设备命令缓存）
+    private final Queue<PendingCommand> pendingCommandQueue = new LinkedList<>();
+    private static final int MAX_PENDING_COMMANDS = 50;
+    private static final long OFFLINE_RETRY_INTERVAL = 30; // 秒
+    
+    // 设备心跳超时（毫秒）
+    private static final long HEARTBEAT_TIMEOUT = 120000; // 2 分钟无心跳视为离线
     
     // 设备状态监听器
     private final List<DeviceStatusListener> listeners = new ArrayList<>();
@@ -51,14 +89,51 @@ public class DeviceManager {
     // 是否已初始化
     private boolean initialized = false;
     
+    // SharedPreferences
+    private static final String PREFS_NAME = "fusion_device_manager";
+    private static final String KEY_DEVICES = "registered_devices";
+    private SharedPreferences prefs;
+    
+    // Gson
+    private Gson gson;
+    
+    // MQTT Broker 配置（与 MQTTClientService 共享）
+    private static final String MQTT_PREFS_NAME = "mqtt_client_prefs";
+    private static final String KEY_BROKER_HOST = "broker_host";
+    private static final String KEY_BROKER_PORT = "broker_port";
+    private String brokerHost;
+    private int brokerPort;
+    
+    // 待处理命令
+    private static class PendingCommand {
+        String deviceId;
+        String command;
+        JSONObject params;
+        long timestamp;
+        int retryCount;
+        
+        PendingCommand(String deviceId, String command, JSONObject params) {
+            this.deviceId = deviceId;
+            this.command = command;
+            this.params = params;
+            this.timestamp = System.currentTimeMillis();
+            this.retryCount = 0;
+        }
+    }
+    
     /**
      * 私有构造函数
      * @param context 应用上下文
      */
     private DeviceManager(Context context) {
         this.context = context.getApplicationContext();
-        // TODO: 初始化 MQTT 客户端
-        // TODO: 从数据库加载已注册的设备
+        this.mainHandler = new Handler(Looper.getMainLooper());
+        this.executor = Executors.newScheduledThreadPool(2);
+        this.gson = new GsonBuilder().setPrettyPrinting().create();
+        this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        
+        // 从 SharedPreferences 加载 Broker 配置
+        loadBrokerConfig();
     }
     
     /**
@@ -79,10 +154,7 @@ public class DeviceManager {
     
     /**
      * 初始化设备管理器
-     * 
-     * TODO: 连接 MQTT Broker
-     * TODO: 订阅设备主题
-     * TODO: 加载持久化的设备列表
+     * 连接 MQTT Broker，订阅设备主题，加载持久化的设备列表
      */
     public void init() {
         if (initialized) {
@@ -90,20 +162,26 @@ public class DeviceManager {
             return;
         }
         
-        Log.d(TAG, LOG_PREFIX + "初始化设备管理器");
+        Log.i(TAG, LOG_PREFIX + "初始化设备管理器");
         
         try {
-            // TODO: 初始化 MQTT 客户端
-            // mqttClient = MQTTClientService.getInstance(context).getClient();
+            // 1. 连接 MQTT Broker
+            connectMQTT();
             
-            // TODO: 订阅所有设备主题
-            // subscribeToDeviceTopics();
+            // 2. 从数据库加载设备
+            loadDevicesFromDatabase();
             
-            // TODO: 从数据库加载设备
-            // loadDevicesFromDatabase();
+            // 3. 订阅所有设备主题
+            subscribeToDeviceTopics();
+            
+            // 4. 启动离线命令重试定时器
+            startPendingCommandRetry();
+            
+            // 5. 启动心跳超时检测
+            startHeartbeatMonitor();
             
             initialized = true;
-            Log.i(TAG, LOG_PREFIX + "设备管理器初始化完成");
+            Log.i(TAG, LOG_PREFIX + "设备管理器初始化完成 (设备数: " + deviceMap.size() + ")");
             
         } catch (Exception e) {
             Log.e(TAG, LOG_PREFIX + "初始化失败", e);
@@ -112,25 +190,26 @@ public class DeviceManager {
     
     /**
      * 释放资源
-     * 
-     * TODO: 断开 MQTT 连接
-     * TODO: 取消订阅
-     * TODO: 保存设备状态
      */
     public void destroy() {
         Log.d(TAG, LOG_PREFIX + "释放设备管理器资源");
         
         try {
-            // TODO: 保存所有设备状态到数据库
-            // saveAllDevicesToDatabase();
+            // 保存所有设备状态到数据库
+            saveAllDevicesToDatabase();
             
-            // TODO: 断开 MQTT 连接
-            // if (mqttClient != null) {
-            //     mqttClient.disconnect();
-            // }
+            // 断开 MQTT 连接
+            disconnectMQTT();
+            
+            // 停止线程池
+            if (executor != null) {
+                executor.shutdownNow();
+                executor = null;
+            }
             
             deviceMap.clear();
             statusMap.clear();
+            pendingCommandQueue.clear();
             listeners.clear();
             initialized = false;
             
@@ -141,6 +220,314 @@ public class DeviceManager {
         }
     }
     
+    // ==================== MQTT 连接管理 ====================
+    
+    private void loadBrokerConfig() {
+        SharedPreferences mqttPrefs = context.getSharedPreferences(MQTT_PREFS_NAME, Context.MODE_PRIVATE);
+        this.brokerHost = mqttPrefs.getString(KEY_BROKER_HOST, "192.168.1.100");
+        this.brokerPort = mqttPrefs.getInt(KEY_BROKER_PORT, 1883);
+        Log.i(TAG, LOG_PREFIX + "Broker 配置: " + brokerHost + ":" + brokerPort);
+    }
+    
+    private void connectMQTT() {
+        executor.execute(() -> {
+            try {
+                String brokerUrl = "tcp://" + brokerHost + ":" + brokerPort;
+                String clientId = "DeviceManager-" + android.os.Build.SERIAL;
+                
+                mqttClient = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
+                connectOptions = new MqttConnectOptions();
+                connectOptions.setAutomaticReconnect(true);
+                connectOptions.setCleanSession(true);
+                connectOptions.setConnectionTimeout(10);
+                connectOptions.setKeepAliveInterval(60);
+                
+                mqttClient.setCallback(new MqttCallbackExtended() {
+                    @Override
+                    public void connectComplete(boolean reconnect, String serverURI) {
+                        mqttConnected = true;
+                        Log.i(TAG, LOG_PREFIX + "MQTT 连接成功" + (reconnect ? " (重连)" : ""));
+                        // 重连后重新订阅
+                        subscribeToDeviceTopics();
+                    }
+                    
+                    @Override
+                    public void connectionLost(Throwable cause) {
+                        mqttConnected = false;
+                        Log.w(TAG, LOG_PREFIX + "MQTT 连接断开: " + cause.getMessage());
+                    }
+                    
+                    @Override
+                    public void messageArrived(String topic, MqttMessage message) {
+                        handleMQTTMessage(topic, new String(message.getPayload()));
+                    }
+                    
+                    @Override
+                    public void deliveryComplete(IMqttDeliveryToken token) {
+                        // 消息投递完成
+                    }
+                });
+                
+                mqttClient.connect(connectOptions);
+                Log.i(TAG, LOG_PREFIX + "正在连接 MQTT Broker: " + brokerUrl);
+                
+            } catch (MqttException e) {
+                Log.e(TAG, LOG_PREFIX + "MQTT 连接失败", e);
+                mqttConnected = false;
+            }
+        });
+    }
+    
+    private void disconnectMQTT() {
+        try {
+            if (mqttClient != null && mqttClient.isConnected()) {
+                mqttClient.disconnect();
+                mqttClient.close();
+            }
+        } catch (MqttException e) {
+            Log.w(TAG, LOG_PREFIX + "MQTT 断开异常", e);
+        }
+        mqttConnected = false;
+        mqttClient = null;
+    }
+    
+    private boolean publishMQTT(String topic, String payload) {
+        if (!mqttConnected || mqttClient == null || !mqttClient.isConnected()) {
+            Log.w(TAG, LOG_PREFIX + "MQTT 未连接，无法发布: " + topic);
+            return false;
+        }
+        try {
+            MqttMessage msg = new MqttMessage(payload.getBytes());
+            msg.setQos(1);
+            msg.setRetained(false);
+            mqttClient.publish(topic, msg);
+            return true;
+        } catch (MqttException e) {
+            Log.e(TAG, LOG_PREFIX + "MQTT 发布失败: " + topic, e);
+            return false;
+        }
+    }
+    
+    private boolean subscribeMQTT(String topic) {
+        if (!mqttConnected || mqttClient == null || !mqttClient.isConnected()) {
+            return false;
+        }
+        try {
+            mqttClient.subscribe(topic, 1);
+            Log.d(TAG, LOG_PREFIX + "已订阅: " + topic);
+            return true;
+        } catch (MqttException e) {
+            Log.e(TAG, LOG_PREFIX + "MQTT 订阅失败: " + topic, e);
+            return false;
+        }
+    }
+    
+    private void handleMQTTMessage(String topic, String payload) {
+        Log.d(TAG, LOG_PREFIX + "收到 MQTT 消息: " + topic);
+        
+        try {
+            // 设备状态上报
+            if (topic.contains("/status")) {
+                String deviceId = extractDeviceIdFromTopic(topic, "/status");
+                if (deviceId != null) {
+                    DeviceStatus status = DeviceStatus.fromJson(payload);
+                    if (status != null) {
+                        updateDeviceStatus(deviceId, status);
+                    }
+                }
+            }
+            
+            // 设备响应
+            if (topic.contains("/response")) {
+                String deviceId = extractDeviceIdFromTopic(topic, "/response");
+                if (deviceId != null) {
+                    handleDeviceResponse(deviceId, payload);
+                }
+            }
+            
+            // 设备心跳
+            if (topic.contains("/heartbeat")) {
+                String deviceId = extractDeviceIdFromTopic(topic, "/heartbeat");
+                if (deviceId != null && deviceMap.containsKey(deviceId)) {
+                    Device device = deviceMap.get(deviceId);
+                    if (!device.isOnline) {
+                        updateDeviceOnlineStatus(deviceId, true);
+                    }
+                    device.lastSeenAt = System.currentTimeMillis();
+                }
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, LOG_PREFIX + "处理 MQTT 消息失败", e);
+        }
+    }
+    
+    private String extractDeviceIdFromTopic(String topic, String suffix) {
+        // topic 格式: devices/{deviceId}/status
+        String prefix = "devices/";
+        int start = topic.indexOf(prefix);
+        if (start < 0) return null;
+        start += prefix.length();
+        int end = topic.indexOf(suffix, start);
+        if (end < 0) return null;
+        return topic.substring(start, end);
+    }
+    
+    private void subscribeToDeviceTopics() {
+        if (!mqttConnected) return;
+        
+        // 订阅所有设备的状态和响应主题
+        for (String deviceId : deviceMap.keySet()) {
+            subscribeToDevice(deviceId);
+        }
+        
+        // 订阅广播主题，自动发现新设备
+        subscribeMQTT("devices/+/status");
+        subscribeMQTT("devices/+/response");
+        subscribeMQTT("devices/+/heartbeat");
+    }
+    
+    private void subscribeToDevice(String deviceId) {
+        String statusTopic = DeviceProtocol.ControlTopics.getStatusTopic(deviceId);
+        String responseTopic = DeviceProtocol.ControlTopics.getResponseTopic(deviceId);
+        
+        subscribeMQTT(statusTopic);
+        subscribeMQTT(responseTopic);
+        
+        // 也订阅心跳
+        subscribeMQTT("devices/" + deviceId + "/heartbeat");
+    }
+    
+    // ==================== 持久化存储 ====================
+    
+    private void loadDevicesFromDatabase() {
+        String json = prefs.getString(KEY_DEVICES, null);
+        if (json == null || json.isEmpty()) {
+            Log.i(TAG, LOG_PREFIX + "无持久化设备数据");
+            return;
+        }
+        
+        try {
+            Type listType = new TypeToken<List<Device>>() {}.getType();
+            List<Device> savedDevices = gson.fromJson(json, listType);
+            
+            if (savedDevices != null) {
+                for (Device device : savedDevices) {
+                    deviceMap.put(device.deviceId, device);
+                    
+                    // 初始化空状态
+                    if (!statusMap.containsKey(device.deviceId)) {
+                        DeviceStatus status = new DeviceStatus();
+                        status.deviceId = device.deviceId;
+                        status.status = "unknown";
+                        status.lastUpdate = System.currentTimeMillis();
+                        statusMap.put(device.deviceId, status);
+                    }
+                }
+                Log.i(TAG, LOG_PREFIX + "从数据库加载 " + savedDevices.size() + " 个设备");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, LOG_PREFIX + "加载设备数据失败", e);
+        }
+    }
+    
+    private void saveDeviceToDatabase(String deviceId) {
+        try {
+            Device device = deviceMap.get(deviceId);
+            if (device == null) return;
+            
+            List<Device> allDevices = new ArrayList<>(deviceMap.values());
+            String json = gson.toJson(allDevices);
+            prefs.edit().putString(KEY_DEVICES, json).apply();
+            
+        } catch (Exception e) {
+            Log.e(TAG, LOG_PREFIX + "保存设备数据失败: " + deviceId, e);
+        }
+    }
+    
+    private void saveAllDevicesToDatabase() {
+        try {
+            List<Device> allDevices = new ArrayList<>(deviceMap.values());
+            String json = gson.toJson(allDevices);
+            prefs.edit().putString(KEY_DEVICES, json).apply();
+            Log.i(TAG, LOG_PREFIX + "已保存 " + allDevices.size() + " 个设备到数据库");
+        } catch (Exception e) {
+            Log.e(TAG, LOG_PREFIX + "保存所有设备数据失败", e);
+        }
+    }
+    
+    // ==================== 命令队列 + 离线重试 ====================
+    
+    private void startPendingCommandRetry() {
+        executor.scheduleAtFixedRate(() -> {
+            try {
+                processPendingCommands();
+            } catch (Exception e) {
+                Log.e(TAG, LOG_PREFIX + "处理待发送命令失败", e);
+            }
+        }, OFFLINE_RETRY_INTERVAL, OFFLINE_RETRY_INTERVAL, TimeUnit.SECONDS);
+    }
+    
+    private void processPendingCommands() {
+        Iterator<PendingCommand> it = pendingCommandQueue.iterator();
+        while (it.hasNext()) {
+            PendingCommand cmd = it.next();
+            
+            Device device = deviceMap.get(cmd.deviceId);
+            if (device == null) {
+                // 设备已注销，丢弃命令
+                it.remove();
+                continue;
+            }
+            
+            if (device.isOnline) {
+                // 设备在线，尝试发送
+                if (executeCommand(cmd)) {
+                    it.remove();
+                    Log.i(TAG, LOG_PREFIX + "离线命令重发成功: " + cmd.deviceId + " -> " + cmd.command);
+                } else {
+                    cmd.retryCount++;
+                    if (cmd.retryCount > 5) {
+                        it.remove();
+                        Log.w(TAG, LOG_PREFIX + "离线命令重试超限，丢弃: " + cmd.command);
+                    }
+                }
+            } else if (System.currentTimeMillis() - cmd.timestamp > 3600000) {
+                // 超过 1 小时的命令丢弃
+                it.remove();
+                Log.w(TAG, LOG_PREFIX + "离线命令过期，丢弃: " + cmd.command);
+            }
+        }
+    }
+    
+    private boolean executeCommand(PendingCommand cmd) {
+        try {
+            String message = DeviceProtocol.ControlMessage.createMessage(cmd.command, cmd.params);
+            String topic = DeviceProtocol.ControlTopics.getControlTopic(cmd.deviceId);
+            return publishMQTT(topic, message);
+        } catch (Exception e) {
+            Log.e(TAG, LOG_PREFIX + "执行命令失败", e);
+            return false;
+        }
+    }
+    
+    // ==================== 心跳超时检测 ====================
+    
+    private void startHeartbeatMonitor() {
+        executor.scheduleAtFixedRate(() -> {
+            long now = System.currentTimeMillis();
+            for (Map.Entry<String, Device> entry : deviceMap.entrySet()) {
+                Device device = entry.getValue();
+                if (device.isOnline && device.lastSeenAt > 0) {
+                    if (now - device.lastSeenAt > HEARTBEAT_TIMEOUT) {
+                        Log.w(TAG, LOG_PREFIX + "设备心跳超时: " + entry.getKey());
+                        updateDeviceOnlineStatus(entry.getKey(), false);
+                    }
+                }
+            }
+        }, HEARTBEAT_TIMEOUT, HEARTBEAT_TIMEOUT / 2, TimeUnit.MILLISECONDS);
+    }
+    
     // ==================== 设备注册管理 ====================
     
     /**
@@ -149,9 +536,6 @@ public class DeviceManager {
      * @param deviceId 设备 ID（唯一标识）
      * @param deviceType 设备类型（curtain, light, socket 等）
      * @return 是否注册成功
-     * 
-     * TODO: 持久化到数据库
-     * TODO: 订阅设备 MQTT 主题
      */
     public boolean registerDevice(String deviceId, String deviceType) {
         if (deviceId == null || deviceId.isEmpty()) {
@@ -177,7 +561,7 @@ public class DeviceManager {
             device.deviceType = deviceType;
             device.name = generateDeviceName(deviceType, deviceId);
             device.registeredAt = System.currentTimeMillis();
-            device.isOnline = false; // 初始为离线状态
+            device.isOnline = false;
             device.lastSeenAt = 0;
             
             // 添加到缓存
@@ -190,11 +574,11 @@ public class DeviceManager {
             status.lastUpdate = System.currentTimeMillis();
             statusMap.put(deviceId, status);
             
-            // TODO: 订阅设备 MQTT 主题
-            // subscribeToDevice(deviceId, deviceType);
+            // 订阅设备 MQTT 主题
+            subscribeToDevice(deviceId);
             
-            // TODO: 保存到数据库
-            // DeviceDatabase.saveDevice(device);
+            // 保存到数据库
+            saveDeviceToDatabase(deviceId);
             
             Log.i(TAG, LOG_PREFIX + "设备注册成功：" + deviceId + " (" + deviceType + ")");
             return true;
@@ -210,9 +594,6 @@ public class DeviceManager {
      * 
      * @param deviceId 设备 ID
      * @return 是否注销成功
-     * 
-     * TODO: 从数据库删除
-     * TODO: 取消订阅 MQTT 主题
      */
     public boolean unregisterDevice(String deviceId) {
         if (deviceId == null || deviceId.isEmpty()) {
@@ -231,11 +612,11 @@ public class DeviceManager {
             deviceMap.remove(deviceId);
             statusMap.remove(deviceId);
             
-            // TODO: 取消订阅设备 MQTT 主题
-            // unsubscribeFromDevice(deviceId);
+            // 清除该设备的待发送命令
+            pendingCommandQueue.removeIf(cmd -> cmd.deviceId.equals(deviceId));
             
-            // TODO: 从数据库删除
-            // DeviceDatabase.deleteDevice(deviceId);
+            // 保存到数据库（移除后保存全部）
+            saveAllDevicesToDatabase();
             
             Log.i(TAG, LOG_PREFIX + "设备注销成功：" + deviceId);
             return true;
@@ -255,26 +636,23 @@ public class DeviceManager {
     public void updateDeviceOnlineStatus(String deviceId, boolean isOnline) {
         Device device = deviceMap.get(deviceId);
         if (device != null) {
+            boolean wasOnline = device.isOnline;
             device.isOnline = isOnline;
             if (isOnline) {
                 device.lastSeenAt = System.currentTimeMillis();
             }
             
-            // TODO: 更新到数据库
-            // DeviceDatabase.updateDevice(device);
+            // 更新到数据库
+            saveDeviceToDatabase(deviceId);
             
-            Log.d(TAG, LOG_PREFIX + "设备在线状态更新：" + deviceId + " -> " + isOnline);
+            if (wasOnline != isOnline) {
+                Log.i(TAG, LOG_PREFIX + "设备在线状态变更：" + deviceId + " -> " + (isOnline ? "在线" : "离线"));
+            }
         }
     }
     
     // ==================== 设备状态查询 ====================
     
-    /**
-     * 获取设备状态
-     * 
-     * @param deviceId 设备 ID
-     * @return 设备状态对象
-     */
     public DeviceStatus getDeviceStatus(String deviceId) {
         if (deviceId == null || deviceId.isEmpty()) {
             Log.e(TAG, LOG_PREFIX + "设备 ID 不能为空");
@@ -290,12 +668,6 @@ public class DeviceManager {
         return status;
     }
     
-    /**
-     * 获取设备信息
-     * 
-     * @param deviceId 设备 ID
-     * @return 设备对象
-     */
     public Device getDevice(String deviceId) {
         if (deviceId == null || deviceId.isEmpty()) {
             Log.e(TAG, LOG_PREFIX + "设备 ID 不能为空");
@@ -311,32 +683,15 @@ public class DeviceManager {
         return device;
     }
     
-    /**
-     * 检查设备是否在线
-     * 
-     * @param deviceId 设备 ID
-     * @return 是否在线
-     */
     public boolean isDeviceOnline(String deviceId) {
         Device device = deviceMap.get(deviceId);
         return device != null && device.isOnline;
     }
     
-    /**
-     * 列出所有设备
-     * 
-     * @return 设备列表
-     */
     public List<Device> listDevices() {
         return new ArrayList<>(deviceMap.values());
     }
     
-    /**
-     * 按类型列出设备
-     * 
-     * @param deviceType 设备类型
-     * @return 设备列表
-     */
     public List<Device> listDevicesByType(String deviceType) {
         List<Device> result = new ArrayList<>();
         for (Device device : deviceMap.values()) {
@@ -347,11 +702,6 @@ public class DeviceManager {
         return result;
     }
     
-    /**
-     * 列出在线设备
-     * 
-     * @return 在线设备列表
-     */
     public List<Device> listOnlineDevices() {
         List<Device> result = new ArrayList<>();
         for (Device device : deviceMap.values()) {
@@ -362,20 +712,10 @@ public class DeviceManager {
         return result;
     }
     
-    /**
-     * 获取设备数量
-     * 
-     * @return 设备总数
-     */
     public int getDeviceCount() {
         return deviceMap.size();
     }
     
-    /**
-     * 获取在线设备数量
-     * 
-     * @return 在线设备数
-     */
     public int getOnlineDeviceCount() {
         int count = 0;
         for (Device device : deviceMap.values()) {
@@ -394,11 +734,7 @@ public class DeviceManager {
      * @param deviceId 设备 ID
      * @param command 命令类型
      * @param params 命令参数
-     * @return 是否发送成功
-     * 
-     * TODO: 实现 MQTT 消息发送
-     * TODO: 实现命令队列
-     * TODO: 实现超时重试
+     * @return 是否发送成功（或已加入离线队列）
      */
     public boolean sendCommand(String deviceId, String command, JSONObject params) {
         if (deviceId == null || deviceId.isEmpty()) {
@@ -420,9 +756,8 @@ public class DeviceManager {
         
         // 检查设备是否在线
         if (!device.isOnline) {
-            Log.w(TAG, LOG_PREFIX + "设备离线，无法发送命令：" + deviceId);
-            // TODO: 可以将命令加入队列，等待设备上线后执行
-            return false;
+            Log.w(TAG, LOG_PREFIX + "设备离线，加入命令队列：" + deviceId);
+            return enqueuePendingCommand(deviceId, command, params);
         }
         
         try {
@@ -432,17 +767,20 @@ public class DeviceManager {
             // 获取设备控制主题
             String topic = DeviceProtocol.ControlTopics.getControlTopic(deviceId);
             
-            // TODO: 通过 MQTT 发送命令
-            // mqttClient.publish(topic, message.getBytes(), QoS.AT_LEAST_ONCE);
+            // 通过 MQTT 发送命令
+            boolean success = publishMQTT(topic, message);
             
-            Log.d(TAG, LOG_PREFIX + "发送命令：" + deviceId + " -> " + command);
-            Log.d(TAG, LOG_PREFIX + "主题：" + topic);
-            Log.d(TAG, LOG_PREFIX + "消息：" + message);
+            if (success) {
+                Log.d(TAG, LOG_PREFIX + "发送命令：" + deviceId + " -> " + command);
+                Log.d(TAG, LOG_PREFIX + "主题：" + topic);
+                Log.d(TAG, LOG_PREFIX + "消息：" + message);
+            } else {
+                // MQTT 发送失败，加入队列
+                Log.w(TAG, LOG_PREFIX + "MQTT 发送失败，加入队列：" + command);
+                return enqueuePendingCommand(deviceId, command, params);
+            }
             
-            // TODO: 记录命令历史
-            // CommandHistory.save(deviceId, command, params, true);
-            
-            return true;
+            return success;
             
         } catch (Exception e) {
             Log.e(TAG, LOG_PREFIX + "发送命令失败", e);
@@ -451,75 +789,50 @@ public class DeviceManager {
     }
     
     /**
+     * 将命令加入待发送队列
+     */
+    private boolean enqueuePendingCommand(String deviceId, String command, JSONObject params) {
+        if (pendingCommandQueue.size() >= MAX_PENDING_COMMANDS) {
+            // 队列满，丢弃最旧的命令
+            PendingCommand oldest = pendingCommandQueue.poll();
+            if (oldest != null) {
+                Log.w(TAG, LOG_PREFIX + "命令队列已满，丢弃旧命令: " + oldest.command);
+            }
+        }
+        pendingCommandQueue.add(new PendingCommand(deviceId, command, params));
+        Log.d(TAG, LOG_PREFIX + "命令已入队: " + command + " (队列: " + pendingCommandQueue.size() + ")");
+        return true; // 返回 true 表示已接受命令
+    }
+    
+    /**
      * 发送控制命令（无参数）
-     * 
-     * @param deviceId 设备 ID
-     * @param command 命令类型
-     * @return 是否发送成功
      */
     public boolean sendCommand(String deviceId, String command) {
         return sendCommand(deviceId, command, null);
     }
     
-    /**
-     * 打开设备
-     * 
-     * @param deviceId 设备 ID
-     * @return 是否发送成功
-     */
     public boolean openDevice(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.CommandTypes.OPEN);
     }
     
-    /**
-     * 关闭设备
-     * 
-     * @param deviceId 设备 ID
-     * @return 是否发送成功
-     */
     public boolean closeDevice(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.CommandTypes.CLOSE);
     }
     
     // ==================== 窗帘控制 ====================
     
-    /**
-     * 打开窗帘
-     * 
-     * @param deviceId 窗帘设备 ID
-     * @return 是否发送成功
-     */
     public boolean openCurtain(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.CurtainCommands.OPEN);
     }
     
-    /**
-     * 关闭窗帘
-     * 
-     * @param deviceId 窗帘设备 ID
-     * @return 是否发送成功
-     */
     public boolean closeCurtain(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.CurtainCommands.CLOSE);
     }
     
-    /**
-     * 停止窗帘
-     * 
-     * @param deviceId 窗帘设备 ID
-     * @return 是否发送成功
-     */
     public boolean stopCurtain(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.CurtainCommands.STOP);
     }
     
-    /**
-     * 设置窗帘位置
-     * 
-     * @param deviceId 窗帘设备 ID
-     * @param position 位置（0-100）
-     * @return 是否发送成功
-     */
     public boolean setCurtainPosition(String deviceId, int position) {
         if (position < 0 || position > 100) {
             Log.e(TAG, LOG_PREFIX + "窗帘位置必须在 0-100 之间");
@@ -538,33 +851,14 @@ public class DeviceManager {
     
     // ==================== 灯光控制 ====================
     
-    /**
-     * 打开灯光
-     * 
-     * @param deviceId 灯光设备 ID
-     * @return 是否发送成功
-     */
     public boolean turnOnLight(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.LightCommands.ON);
     }
     
-    /**
-     * 关闭灯光
-     * 
-     * @param deviceId 灯光设备 ID
-     * @return 是否发送成功
-     */
     public boolean turnOffLight(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.LightCommands.OFF);
     }
     
-    /**
-     * 调节灯光亮度
-     * 
-     * @param deviceId 灯光设备 ID
-     * @param brightness 亮度（0-100）
-     * @return 是否发送成功
-     */
     public boolean dimLight(String deviceId, int brightness) {
         if (brightness < 0 || brightness > 100) {
             Log.e(TAG, LOG_PREFIX + "亮度必须在 0-100 之间");
@@ -581,15 +875,6 @@ public class DeviceManager {
         }
     }
     
-    /**
-     * 设置灯光颜色
-     * 
-     * @param deviceId 灯光设备 ID
-     * @param r 红色（0-255）
-     * @param g 绿色（0-255）
-     * @param b 蓝色（0-255）
-     * @return 是否发送成功
-     */
     public boolean setLightColor(String deviceId, int r, int g, int b) {
         if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
             Log.e(TAG, LOG_PREFIX + "RGB 值必须在 0-255 之间");
@@ -610,22 +895,10 @@ public class DeviceManager {
     
     // ==================== 插座控制 ====================
     
-    /**
-     * 打开插座
-     * 
-     * @param deviceId 插座设备 ID
-     * @return 是否发送成功
-     */
     public boolean turnOnSocket(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.SocketCommands.ON);
     }
     
-    /**
-     * 关闭插座
-     * 
-     * @param deviceId 插座设备 ID
-     * @return 是否发送成功
-     */
     public boolean turnOffSocket(String deviceId) {
         return sendCommand(deviceId, DeviceProtocol.SocketCommands.OFF);
     }
@@ -637,9 +910,6 @@ public class DeviceManager {
      * 
      * @param deviceId 设备 ID
      * @param status 状态对象
-     * 
-     * TODO: 触发状态监听器
-     * TODO: 保存到数据库
      */
     public void updateDeviceStatus(String deviceId, DeviceStatus status) {
         if (deviceId == null || status == null) {
@@ -652,8 +922,8 @@ public class DeviceManager {
         // 更新缓存
         statusMap.put(deviceId, status);
         
-        // TODO: 保存到数据库
-        // DeviceDatabase.updateStatus(status);
+        // 保存到数据库
+        saveDeviceToDatabase(deviceId);
         
         // 通知监听器
         notifyStatusChanged(deviceId, status);
@@ -675,40 +945,21 @@ public class DeviceManager {
             } else {
                 Log.e(TAG, LOG_PREFIX + "设备响应失败：" + deviceId + " - " + response.message);
             }
-            
-            // TODO: 更新命令历史
-            // CommandHistory.updateResponse(deviceId, response);
         }
     }
     
     // ==================== 设备状态监听器 ====================
     
-    /**
-     * 添加设备状态监听器
-     * 
-     * @param listener 监听器
-     */
     public void addStatusListener(DeviceStatusListener listener) {
         if (!listeners.contains(listener)) {
             listeners.add(listener);
         }
     }
     
-    /**
-     * 移除设备状态监听器
-     * 
-     * @param listener 监听器
-     */
     public void removeStatusListener(DeviceStatusListener listener) {
         listeners.remove(listener);
     }
     
-    /**
-     * 通知状态变化
-     * 
-     * @param deviceId 设备 ID
-     * @param status 新状态
-     */
     private void notifyStatusChanged(String deviceId, DeviceStatus status) {
         for (DeviceStatusListener listener : listeners) {
             try {
@@ -721,34 +972,23 @@ public class DeviceManager {
     
     // ==================== 辅助方法 ====================
     
-    /**
-     * 生成设备名称
-     * 
-     * @param deviceType 设备类型
-     * @param deviceId 设备 ID
-     * @return 设备名称
-     */
     private String generateDeviceName(String deviceType, String deviceId) {
-        // TODO: 可以从配置文件读取设备名称映射
         String typeNames = deviceType.substring(0, 1).toUpperCase() + deviceType.substring(1);
         return typeNames + " - " + deviceId;
     }
     
     /**
-     * 订阅设备主题
-     * 
-     * TODO: 实现 MQTT 主题订阅
+     * 获取待发送命令队列大小
      */
-    private void subscribeToDevice(String deviceId, String deviceType) {
-        // TODO: 订阅设备状态主题
-        // String statusTopic = DeviceProtocol.ControlTopics.getStatusTopic(deviceId);
-        // mqttClient.subscribe(statusTopic, QoS.AT_LEAST_ONCE);
-        
-        // TODO: 订阅设备响应主题
-        // String responseTopic = DeviceProtocol.ControlTopics.getResponseTopic(deviceId);
-        // mqttClient.subscribe(responseTopic, QoS.AT_LEAST_ONCE);
-        
-        Log.d(TAG, LOG_PREFIX + "订阅设备主题：" + deviceId);
+    public int getPendingCommandCount() {
+        return pendingCommandQueue.size();
+    }
+    
+    /**
+     * 检查 MQTT 是否已连接
+     */
+    public boolean isMQTTConnected() {
+        return mqttConnected;
     }
     
     // ==================== 接口定义 ====================
@@ -757,12 +997,6 @@ public class DeviceManager {
      * 设备状态监听器接口
      */
     public interface DeviceStatusListener {
-        /**
-         * 设备状态变化回调
-         * 
-         * @param deviceId 设备 ID
-         * @param status 新状态
-         */
         void onStatusChanged(String deviceId, DeviceStatus status);
     }
 }

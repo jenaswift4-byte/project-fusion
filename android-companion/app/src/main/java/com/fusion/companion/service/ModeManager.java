@@ -1,6 +1,7 @@
 package com.fusion.companion.service;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -13,7 +14,12 @@ import android.util.Log;
 import com.fusion.companion.ai.LocalAIEngine;
 import com.fusion.companion.ai.ModelDownloader;
 import com.fusion.companion.FusionWebSocketServer;
+import com.fusion.companion.device.DeviceManager;
 
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -99,6 +105,10 @@ public class ModeManager {
     
     // 是否正在切换中
     private boolean isSwitching;
+    
+    // MQTT 客户端（用于发布模式切换通知）
+    private MqttClient modeMqttClient;
+    private boolean mqttConnected = false;
     
     /**
      * 模式切换监听器接口
@@ -442,17 +452,13 @@ public class ModeManager {
             message.put("reason", reason.name().toLowerCase());
             message.put("timestamp", System.currentTimeMillis() / 1000);
             message.put("previous_mode", previousMode.name().toLowerCase());
+            message.put("device_id", android.os.Build.SERIAL);
             
             String messageStr = message.toString();
             Log.i(TAG, "发布模式切换通知：" + messageStr);
             
-            // 通过 MQTT 发布到 fusion/mode 主题
-            // 注意：这里需要获取 MQTTBrokerService 实例
-            // 简化实现，实际应该通过服务绑定获取
-            // MQTTBrokerService broker = ...;
-            // broker.publish("fusion/mode", messageStr);
-            
-            // TODO: 实现 MQTT 发布
+            // 通过 MQTT 发布到 fusion/mode 主题（PC 端 Dashboard 订阅此主题）
+            publishToMQTT("fusion/mode", messageStr);
             
         } catch (Exception e) {
             Log.e(TAG, "发布模式切换通知失败", e);
@@ -539,6 +545,66 @@ public class ModeManager {
      */
     public boolean isPCOnline() {
         return pcOnline;
+    }
+    
+    /**
+     * 外部设置 PC 在线状态（供 PCOnlineDetectionService 调用）
+     */
+    public void setPcOnline(boolean online) {
+        if (this.pcOnline == online) return;
+        this.pcOnline = online;
+        Log.i(TAG, "PC 在线状态外部更新: " + (online ? "在线" : "离线"));
+        if (online) {
+            onPCOnline();
+        } else {
+            onPCOffline();
+        }
+    }
+    
+    /**
+     * 连接 MQTT Broker 用于发布模式切换通知
+     */
+    private synchronized void connectMQTT() {
+        if (mqttConnected && modeMqttClient != null && modeMqttClient.isConnected()) return;
+        
+        try {
+            // 从 SharedPreferences 读取 Broker URL（与 SensorCollector / DeviceManager 一致）
+            SharedPreferences fusionPrefs = context.getSharedPreferences("fusion_prefs", Context.MODE_PRIVATE);
+            String brokerUrl = fusionPrefs.getString("mqtt_broker_url", "tcp://127.0.0.1:1883");
+            String clientId = "mode-manager-" + android.os.Build.SERIAL;
+            
+            modeMqttClient = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
+            MqttConnectOptions opts = new MqttConnectOptions();
+            opts.setCleanSession(true);
+            opts.setConnectionTimeout(5);
+            opts.setKeepAliveInterval(30);
+            
+            modeMqttClient.connect(opts);
+            mqttConnected = true;
+            Log.i(TAG, "ModeManager MQTT 已连接: " + brokerUrl);
+            
+        } catch (MqttException e) {
+            Log.w(TAG, "ModeManager MQTT 连接失败（非关键）: " + e.getMessage());
+            mqttConnected = false;
+        }
+    }
+    
+    /**
+     * 通过 MQTT 发布消息
+     */
+    private void publishToMQTT(String topic, String payload) {
+        if (modeMqttClient == null || !mqttConnected) {
+            connectMQTT();
+        }
+        if (modeMqttClient != null && mqttConnected) {
+            try {
+                modeMqttClient.publish(topic, payload.getBytes(), 1, false);
+                Log.d(TAG, "MQTT 发布 [" + topic + "]: " + payload);
+            } catch (MqttException e) {
+                Log.w(TAG, "MQTT 发布失败: " + e.getMessage());
+                mqttConnected = false;
+            }
+        }
     }
     
     /**
@@ -829,10 +895,21 @@ public class ModeManager {
             Log.i(TAG, "切换到本地音乐库");
             currentLibrary = LIBRARY_LOCAL;
             
-            // TODO: 实现实际的媒体库切换逻辑
-            // 1. 断开与 PC 音乐库的连接
-            // 2. 连接到本地音乐库
-            // 3. 刷新媒体播放器
+            // 通过 MQTT 通知 PC 端设备已切到本地库
+            try {
+                org.eclipse.paho.client.mqttv3.MqttClient client = createQuickMQTT("media-lib-local");
+                if (client != null) {
+                    org.json.JSONObject msg = new org.json.JSONObject();
+                    msg.put("library", "local");
+                    msg.put("device_id", android.os.Build.SERIAL);
+                    msg.put("timestamp", System.currentTimeMillis() / 1000);
+                    client.publish("fusion/media/library", msg.toString().getBytes(), 1, false);
+                    client.disconnect();
+                    client.close();
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "MQTT 通知媒体库切换失败", e);
+            }
         }
         
         /**
@@ -847,10 +924,44 @@ public class ModeManager {
             Log.i(TAG, "切换到 PC 音乐库");
             currentLibrary = LIBRARY_PC;
             
-            // TODO: 实现实际的媒体库切换逻辑
-            // 1. 断开与本地音乐库的连接
-            // 2. 连接到 PC 音乐库（通过网络）
-            // 3. 刷新媒体播放器
+            // 通过 MQTT 通知 PC 端设备需要 PC 媒体库索引
+            try {
+                org.eclipse.paho.client.mqttv3.MqttClient client = createQuickMQTT("media-lib-pc");
+                if (client != null) {
+                    org.json.JSONObject msg = new org.json.JSONObject();
+                    msg.put("library", "pc");
+                    msg.put("device_id", android.os.Build.SERIAL);
+                    msg.put("timestamp", System.currentTimeMillis() / 1000);
+                    client.publish("fusion/media/library", msg.toString().getBytes(), 1, false);
+                    client.disconnect();
+                    client.close();
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "MQTT 通知媒体库切换失败", e);
+            }
+        }
+        
+        /**
+         * 快速创建一次性 MQTT 客户端（用于内部类静态上下文）
+         */
+        private org.eclipse.paho.client.mqttv3.MqttClient createQuickMQTT(String suffix) {
+            try {
+                String brokerUrl = context.getSharedPreferences("fusion_prefs", Context.MODE_PRIVATE)
+                    .getString("mqtt_broker_url", "tcp://127.0.0.1:1883");
+                String clientId = suffix + "-" + android.os.Build.SERIAL;
+                org.eclipse.paho.client.mqttv3.MqttClient client = 
+                    new org.eclipse.paho.client.mqttv3.MqttClient(brokerUrl, clientId, 
+                        new org.eclipse.paho.client.mqttv3.persist.MemoryPersistence());
+                org.eclipse.paho.client.mqttv3.MqttConnectOptions opts = 
+                    new org.eclipse.paho.client.mqttv3.MqttConnectOptions();
+                opts.setCleanSession(true);
+                opts.setConnectionTimeout(5);
+                client.connect(opts);
+                return client;
+            } catch (Exception e) {
+                Log.w(TAG, "快速 MQTT 连接失败: " + e.getMessage());
+                return null;
+            }
         }
         
         /**

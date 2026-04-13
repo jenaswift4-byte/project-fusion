@@ -10,6 +10,8 @@ import android.util.Log;
 import java.util.List;
 import java.util.Map;
 
+import com.fusion.companion.device.DeviceManager;
+
 /**
  * PC 在线检测服务
  * 
@@ -62,15 +64,85 @@ public class PCOnlineDetectionService extends Service {
             @Override
             public void onPCOnline(String pcId, String ipAddress) {
                 Log.i(TAG, "🟢 PC 上线：" + pcId + " - " + ipAddress);
-                // TODO: 在这里处理 PC 上线事件
-                // 例如：发送广播、更新 UI、触发其他业务逻辑
+                
+                // 1. 通知 ModeManager PC 在线
+                try {
+                    ModeManager modeManager = ModeManager.getInstance(PCOnlineDetectionService.this);
+                    modeManager.setPcOnline(true);
+                } catch (Exception e) {
+                    Log.w(TAG, "通知 ModeManager 失败", e);
+                }
+                
+                // 2. 通知 DeviceManager PC 在线（可连接 MQTT Broker）
+                try {
+                    DeviceManager deviceManager = DeviceManager.getInstance(PCOnlineDetectionService.this);
+                    if (!deviceManager.isInitialized) {
+                        deviceManager.init();
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "通知 DeviceManager 失败", e);
+                }
+                
+                // 3. 发送广播，通知 UI 层
+                Intent broadcast = new Intent("com.fusion.companion.PC_STATUS_CHANGED");
+                broadcast.putExtra("pc_id", pcId);
+                broadcast.putExtra("ip_address", ipAddress);
+                broadcast.putExtra("online", true);
+                sendBroadcast(broadcast);
+                
+                Log.i(TAG, "PC 上线事件处理完成：已通知 ModeManager + DeviceManager + 广播");
             }
             
             @Override
             public void onPCOffline(String pcId, String ipAddress) {
                 Log.i(TAG, "🔴 PC 离线：" + pcId + " - " + ipAddress);
-                // TODO: 在这里处理 PC 离线事件
-                // 例如：发送通知、切换备用 PC、记录日志
+                
+                // 1. 通知 ModeManager PC 离线
+                try {
+                    ModeManager modeManager = ModeManager.getInstance(PCOnlineDetectionService.this);
+                    modeManager.setPcOnline(false);
+                } catch (Exception e) {
+                    Log.w(TAG, "通知 ModeManager 失败", e);
+                }
+                
+                // 2. 保存 DeviceManager 当前状态
+                try {
+                    DeviceManager deviceManager = DeviceManager.getInstance(PCOnlineDetectionService.this);
+                    // DeviceManager 会在 destroy() 中保存，这里不主动销毁
+                } catch (Exception e) {
+                    Log.w(TAG, "通知 DeviceManager 失败", e);
+                }
+                
+                // 3. 发送广播，通知 UI 层
+                Intent broadcast = new Intent("com.fusion.companion.PC_STATUS_CHANGED");
+                broadcast.putExtra("pc_id", pcId);
+                broadcast.putExtra("ip_address", ipAddress);
+                broadcast.putExtra("online", false);
+                sendBroadcast(broadcast);
+                
+                // 4. 发送通知告知用户 PC 已离线
+                try {
+                    android.app.NotificationManager nm = 
+                        (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                    if (nm != null) {
+                        android.app.NotificationChannel channel = new android.app.NotificationChannel(
+                            "pc_status", "PC 状态", android.app.NotificationManager.IMPORTANCE_LOW);
+                        nm.createNotificationChannel(channel);
+                        
+                        android.app.Notification notification = 
+                            new android.app.Notification.Builder(PCOnlineDetectionService.this, "pc_status")
+                            .setContentTitle("PC 已离线")
+                            .setContentText(pcId + " (" + ipAddress + ") 已断开连接")
+                            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                            .setAutoCancel(true)
+                            .build();
+                        nm.notify(2001, notification);
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "发送离线通知失败", e);
+                }
+                
+                Log.i(TAG, "PC 离线事件处理完成：已通知 ModeManager + DeviceManager + 广播 + 通知");
             }
         };
         

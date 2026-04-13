@@ -14,6 +14,11 @@ import com.fusion.companion.ai.LocalAIEngine;
 import com.fusion.companion.service.MQTTClientService;
 import com.fusion.companion.R;
 
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+
 /**
  * 语音识别测试 Activity
  * 
@@ -125,7 +130,7 @@ public class VoiceTestActivity extends Activity implements
         voiceManager = new VoiceActivityManager(this);
         
         // 获取 MQTT 客户端（如果已启动服务）
-        mqttClient = null;  // TODO: 从服务获取
+        mqttClient = createMQTTClient();
         
         // 获取 AI 引擎
         aiEngine = LocalAIEngine.getInstance(this);
@@ -135,6 +140,28 @@ public class VoiceTestActivity extends Activity implements
         voiceManager.setVoiceInteractionListener(this);
         
         Log.i(TAG, "语音管理器初始化完成");
+    }
+    
+    /**
+     * 创建 MQTT 客户端连接（从 SharedPreferences 读取 Broker 地址）
+     */
+    private MqttClient createMQTTClient() {
+        try {
+            String brokerUrl = getSharedPreferences("fusion_prefs", MODE_PRIVATE)
+                .getString("mqtt_broker_url", "tcp://127.0.0.1:1883");
+            String clientId = "voice-test-" + android.os.Build.SERIAL;
+            MqttClient client = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
+            MqttConnectOptions opts = new MqttConnectOptions();
+            opts.setCleanSession(true);
+            opts.setConnectionTimeout(5);
+            opts.setKeepAliveInterval(30);
+            client.connect(opts);
+            Log.i(TAG, "MQTT 客户端已连接: " + brokerUrl);
+            return client;
+        } catch (MqttException e) {
+            Log.w(TAG, "MQTT 连接失败（非关键，语音测试仍可用）: " + e.getMessage());
+            return null;
+        }
     }
     
     /**
