@@ -371,6 +371,13 @@ public class MQTTClientService extends Service implements SensorEventListener {
         String brokerUrl = "tcp://" + brokerHost + ":" + brokerPort;
         Log.i(TAG, "开始连接 MQTT Broker: " + brokerUrl);
         
+        MqttConnectOptions connOpts = new MqttConnectOptions();
+        connOpts.setCleanSession(true);
+        connOpts.setConnectionTimeout(30);
+        connOpts.setKeepAliveInterval(60);
+        connOpts.setAutomaticReconnect(false);
+        connOpts.setMaxInflight(100);
+        
         try {
             // 创建 MQTT 客户端
             mqttClient = new MqttClient(
@@ -378,14 +385,6 @@ public class MQTTClientService extends Service implements SensorEventListener {
                 deviceId,
                 new MemoryPersistence()  // 使用内存持久化（轻量级）
             );
-            
-            // 配置连接选项
-            MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setCleanSession(true);  // 清洁会话（断开后清除）
-            connOpts.setConnectionTimeout(30);  // 连接超时 30 秒
-            connOpts.setKeepAliveInterval(60);  // KeepAlive 60 秒
-            connOpts.setAutomaticReconnect(false);  // 使用自定义重连逻辑
-            connOpts.setMaxInflight(100);  // 最大飞行消息数
             
             // 设置回调
             mqttCallback = new MqttCallbackExtended() {
