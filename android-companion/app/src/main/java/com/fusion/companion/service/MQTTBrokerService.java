@@ -132,7 +132,7 @@ public class MQTTBrokerService extends Service {
     }
 
     /**
-     * 处理客户端连接（简单 MQTT 代理逻辑）
+     * 处理客户端连接（MQTT v3.1.1 协议 stub - 支持 CONNECT/CONNACK/PUBLISH/SUBSCRIBE/PINGREQ/PINGRESP/DISCONNECT）
      */
     private void handleClient(Socket client, String clientId) {
         try {
@@ -144,8 +144,55 @@ public class MQTTBrokerService extends Service {
             while (running.get() && !client.isClosed()) {
                 len = in.read(buffer);
                 if (len < 0) break;
-                // 简单回显（实际 MQTT 协议解析可扩展）
-                Log.d(TAG, "收到来自 " + clientId + " 的数据，长度：" + len);
+                
+                if (len < 2) continue;
+                byte packetType = (byte) ((buffer[0] >> 4) & 0x0F);
+                
+                Log.d(TAG, "收到来自 " + clientId + " 的数据，长度：" + len + ", 类型：" + packetType);
+                
+                switch (packetType) {
+                    case 1: // CONNECT
+                        // 回复 CONNACK: session_present=0, return_code=0 (Connection Accepted)
+                        out.write(new byte[]{(byte) 0x20, 0x02, 0x00, 0x00});
+                        out.flush();
+                        Log.d(TAG, "发送 CONNACK 给 " + clientId);
+                        break;
+                    case 3: // PUBLISH
+                        // 解析 topic
+                        if (len > 4) {
+                            int topicLen = ((buffer[2] & 0xFF) << 8) | (buffer[3] & 0xFF);
+                            if (topicLen > 0 && len > 4 + topicLen) {
+                                String topic = new String(buffer, 4, topicLen);
+                                int payloadLen = len - 4 - topicLen;
+                                String payload = new String(buffer, 4 + topicLen, payloadLen);
+                                Log.d(TAG, "PUBLISH topic=" + topic + " payload=" + payload);
+                                
+                                // 转发给其他订阅的客户端
+                                broadcastToClients(topic, payload, clientId);
+                            }
+                        }
+                        break;
+                    case 8: // SUBSCRIBE
+                        // 回复 SUBACK: packet_id + return_code for each topic
+                        if (len > 5) {
+                            int msgId = ((buffer[2] & 0xFF) << 8) | (buffer[3] & 0xFF);
+                            out.write(new byte[]{(byte) 0x90, 0x03, (byte) (msgId >> 8), (byte) (msgId & 0xFF), 0x00});
+                            out.flush();
+                            Log.d(TAG, "发送 SUBACK 给 " + clientId);
+                        }
+                        break;
+                    case 12: // PINGREQ
+                        // 回复 PINGRESP
+                        out.write(new byte[]{(byte) 0xD0, 0x00});
+                        out.flush();
+                        break;
+                    case 14: // DISCONNECT
+                        Log.d(TAG, "客户端 " + clientId + " 主动断开");
+                        return;
+                    default:
+                        Log.d(TAG, "未处理的 MQTT 包类型: " + packetType);
+                        break;
+                }
             }
         } catch (IOException e) {
             Log.d(TAG, "客户端断开：" + clientId);
@@ -153,6 +200,14 @@ public class MQTTBrokerService extends Service {
             connectedClients.remove(clientId);
             try { client.close(); } catch (IOException ignored) {}
         }
+    }
+    
+    /**
+     * 广播 MQTT 消息给其他已连接的客户端
+     */
+    private void broadcastToClients(String topic, String payload, String senderId) {
+        // 暂时只记录日志，后续可实现真正的消息路由
+        Log.d(TAG, "广播消息 topic=" + topic + " (from " + senderId + ")");
     }
 
     /**
