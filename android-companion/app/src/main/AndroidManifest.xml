@@ -74,5 +74,10 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 
+        <!-- MQTT 客户端服务 (连接 PC Broker) -->
+        <service
+            android:name=".service.MQTTClientService"
+            android:exported="false" />
+
     </application>
 </manifest>

@@ -6,7 +6,6 @@
     <title>Fusion Dashboard - 万物互联控制中心</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         :root {
             --bg-primary: #0f1117;
             --bg-secondary: #1a1d27;
@@ -33,553 +32,109 @@
             --orange: #fb923c;
             --orange-dim: rgba(251, 146, 60, 0.15);
         }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
 
         /* Header */
-        .header {
-            padding: 12px 24px;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+        .header { padding: 12px 24px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
         .header-left { display: flex; align-items: center; gap: 12px; }
-        .logo {
-            width: 32px; height: 32px;
-            background: linear-gradient(135deg, var(--accent), var(--purple));
-            border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 14px; color: white;
-        }
+        .logo { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--purple)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: white; }
         .header h1 { font-size: 16px; font-weight: 600; }
         .header-right { display: flex; align-items: center; gap: 12px; }
-        .status-badge {
-            display: flex; align-items: center; gap: 6px;
-            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
-        }
+        .status-badge { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
         .status-online { background: var(--green-dim); color: var(--green); }
-        .status-offline { background: var(--red-dim); color: var(--red); }
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .status-online .status-dot { background: var(--green); }
-        .status-offline .status-dot { background: var(--red); }
-        .conn-mode {
-            padding: 4px 10px; border-radius: 6px; font-size: 11px;
-            background: var(--accent-dim); color: var(--accent);
-        }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         /* Tab Navigation */
-        .tab-nav {
-            display: flex;
-            gap: 2px;
-            padding: 8px 24px;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            overflow-x: auto;
-        }
-        .tab-btn {
-            padding: 8px 16px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            font-size: 13px;
-            font-weight: 500;
-            border-radius: 8px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s;
-            display: flex; align-items: center; gap: 6px;
-        }
+        .tab-nav { display: flex; gap: 2px; padding: 8px 24px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .tab-btn { padding: 8px 16px; border: none; background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
         .tab-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
         .tab-btn.active { background: var(--accent-dim); color: var(--accent); }
-        .tab-btn .badge {
-            background: var(--red);
-            color: white;
-            font-size: 10px;
-            padding: 1px 6px;
-            border-radius: 10px;
-            font-weight: 600;
-            min-width: 16px;
-            text-align: center;
-        }
-        .tab-content { display: none; }
+        .tab-content { display: none; padding: 24px; }
         .tab-content.active { display: block; }
 
-        /* Main Layout */
-        .main { padding: 20px; max-width: 1600px; margin: 0 auto; }
-        
-        .grid-devices {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-            gap: 16px;
-            margin-bottom: 20px;
-        }
+        /* Cards */
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .card-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .card-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
 
-        /* Device Card */
-        .device-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-            transition: border-color 0.2s;
-        }
-        .device-card:hover { border-color: var(--accent); }
-        .device-header {
-            padding: 14px 16px;
-            display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-        }
-        .device-name {
-            display: flex; align-items: center; gap: 10px;
-            font-size: 14px; font-weight: 600;
-        }
-        .device-icon {
-            width: 28px; height: 28px;
-            background: var(--accent-dim);
-            border-radius: 6px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px;
-        }
-        .device-meta {
-            display: flex; align-items: center; gap: 10px; font-size: 12px;
-        }
-        .battery { color: var(--green); display: flex; align-items: center; gap: 3px; }
-        .battery.low { color: var(--red); }
-        .last-seen { color: var(--text-muted); }
+        /* Grid */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 
-        .device-sensors {
-            padding: 12px 16px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        
-        /* Sensor Tile */
-        .sensor-tile {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
-            transition: background 0.2s;
-        }
-        .sensor-tile:hover { background: var(--bg-hover); }
-        .sensor-icon { font-size: 20px; margin-bottom: 6px; }
-        .sensor-value {
-            font-size: 20px; font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            margin-bottom: 2px;
-        }
-        .sensor-unit { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .sensor-label { font-size: 11px; color: var(--text-secondary); }
-        .sensor-tile.temperature .sensor-value { color: var(--orange); }
-        .sensor-tile.humidity .sensor-value { color: var(--blue); }
-        .sensor-tile.light .sensor-value { color: var(--yellow); }
-        .sensor-tile.pressure .sensor-value { color: var(--purple); }
-        .sensor-tile.proximity .sensor-value { color: var(--cyan); }
-        .sensor-tile.accelerometer .sensor-value { color: var(--green); }
-        .sensor-tile.gyroscope .sensor-value { color: var(--accent); }
-        .sensor-tile.no-data .sensor-value { color: var(--text-muted); font-size: 12px; }
+        /* Sensor Cards */
+        .sensor-value { font-size: 32px; font-weight: 700; line-height: 1.2; }
+        .sensor-unit { font-size: 14px; color: var(--text-secondary); }
+        .sensor-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+        .sensor-card { position: relative; overflow: hidden; }
+        .sensor-card .bar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; border-radius: 0 0 12px 12px; transition: width 0.5s ease; }
 
-        /* Stats Bar */
-        .stats-bar {
-            display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
-        }
-        .stat-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px 18px;
-            flex: 1; min-width: 140px;
-            display: flex; align-items: center; gap: 12px;
-        }
-        .stat-icon {
-            width: 40px; height: 40px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px;
-        }
-        .stat-icon.devices { background: var(--accent-dim); }
-        .stat-icon.sensors { background: var(--green-dim); }
-        .stat-icon.messages { background: var(--yellow-dim); }
-        .stat-icon.uptime { background: var(--purple-dim); }
-        .stat-value { font-size: 22px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: var(--text-muted); }
+        /* Sound Monitor */
+        .sound-level { font-size: 48px; font-weight: 700; text-align: center; padding: 20px 0; }
+        .sound-bar { height: 8px; border-radius: 4px; background: var(--bg-hover); overflow: hidden; margin: 8px 0; }
+        .sound-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+        .sound-wave { display: flex; align-items: flex-end; gap: 2px; height: 40px; justify-content: center; }
+        .sound-wave-bar { width: 4px; background: var(--accent); border-radius: 2px; transition: height 0.15s ease; min-height: 2px; }
 
-        /* ═══ Compute Tab ═══ */
-        .compute-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-        .compute-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-        }
-        .compute-card h3 {
-            font-size: 14px; font-weight: 600; margin-bottom: 16px;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .metric-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .metric-row:last-child { border-bottom: none; }
-        .metric-label { font-size: 13px; color: var(--text-secondary); }
-        .metric-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-        .score-bar {
-            width: 100%; height: 8px;
-            background: var(--bg-secondary);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 12px;
-        }
-        .score-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-        .score-fill.high { background: linear-gradient(90deg, var(--green), #22d3ee); }
-        .score-fill.medium { background: linear-gradient(90deg, var(--yellow), var(--orange)); }
-        .score-fill.low { background: linear-gradient(90deg, var(--orange), var(--red)); }
+        /* Camera */
+        .camera-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+        .camera-feed { aspect-ratio: 16/9; background: #000; border-radius: 8px; position: relative; overflow: hidden; border: 1px solid var(--border); }
+        .camera-feed img { width: 100%; height: 100%; object-fit: cover; }
+        .camera-label { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.7); padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+        .camera-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 14px; }
 
-        /* Registered Apps */
-        .app-list {
-            display: flex; flex-wrap: wrap; gap: 8px;
-        }
-        .app-tag {
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            display: flex; align-items: center; gap: 6px;
-        }
-        .app-tag .dot {
-            width: 6px; height: 6px; border-radius: 50%;
-        }
-        .app-tag .dot.running { background: var(--green); }
-        .app-tag .dot.stopped { background: var(--text-muted); }
+        /* Audio */
+        .audio-btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+        .audio-btn-primary { background: var(--accent); color: white; }
+        .audio-btn-primary:hover { background: #5a7cee; }
+        .audio-btn-danger { background: var(--red); color: white; }
+        .audio-btn-danger:hover { background: #e05555; }
+        .audio-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
+        .audio-btn-secondary:hover { background: var(--border); }
+        .volume-slider { width: 100%; margin: 8px 0; accent-color: var(--accent); }
 
-        /* ═══ Camera Tab ═══ */
-        .camera-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 16px;
-        }
-        .camera-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .camera-preview {
-            aspect-ratio: 9/16;
-            background: var(--bg-primary);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 48px;
-            color: var(--text-muted);
-            position: relative;
-        }
-        .camera-preview .live-badge {
-            position: absolute; top: 8px; left: 8px;
-            background: var(--red);
-            color: white;
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-weight: 600;
-        }
-        .camera-info {
-            padding: 12px 16px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .camera-name { font-size: 14px; font-weight: 600; }
-        .camera-controls { display: flex; gap: 8px; }
-        .cam-btn {
-            padding: 6px 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .cam-btn:hover { background: var(--bg-hover); border-color: var(--accent); }
-        .cam-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-
-        /* ═══ Sound Tab ═══ */
-        .sound-panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 20px;
-        }
-        .sound-panel h3 { font-size: 16px; margin-bottom: 16px; }
-        .volume-display {
-            text-align: center;
-            padding: 30px 0;
-        }
-        .volume-value {
-            font-size: 56px;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-        }
-        .volume-unit { font-size: 20px; color: var(--text-muted); }
-        .volume-bar-container {
-            width: 100%; max-width: 600px;
-            height: 12px;
-            background: var(--bg-secondary);
-            border-radius: 6px;
-            margin: 20px auto;
-            overflow: hidden;
-        }
-        .volume-bar-fill {
-            height: 100%;
-            border-radius: 6px;
-            transition: width 0.15s ease;
-            background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
-        }
-        .volume-history {
-            width: 100%; max-width: 600px;
-            height: 80px;
-            margin: 16px auto 0;
-            position: relative;
-        }
-        .volume-history canvas {
-            width: 100%; height: 100%;
-        }
-        .sound-config {
-            display: flex; gap: 16px; margin-top: 20px;
-            flex-wrap: wrap;
-        }
-        .config-field {
-            display: flex; align-items: center; gap: 8px;
-        }
-        .config-field label { font-size: 13px; color: var(--text-secondary); }
-        .config-field input {
-            width: 80px; padding: 6px 10px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 13px;
-        }
-        .config-field button {
-            padding: 6px 16px;
-            background: var(--accent-dim);
-            border: 1px solid var(--accent);
-            border-radius: 6px;
-            color: var(--accent);
-            cursor: pointer;
-            font-size: 13px;
-        }
-
-        /* Alert Log */
-        .alert-log {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .alert-log-header {
-            padding: 14px 16px;
-            font-size: 14px; font-weight: 600;
-            border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center;
-        }
-
-        /* ═══ Command Tab ═══ */
-        .cmd-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-        .cmd-panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .cmd-panel-header {
-            padding: 14px 16px;
-            font-size: 14px; font-weight: 600;
-            border-bottom: 1px solid var(--border);
-        }
-        .cmd-form {
-            padding: 16px;
-        }
-        .cmd-form fieldset {
-            border: none; padding: 0 0 12px;
-        }
-        .cmd-form legend {
-            font-size: 12px; color: var(--text-muted);
-            margin-bottom: 6px;
-            font-weight: 500;
-        }
-        .cmd-form select, .cmd-form input, .cmd-form textarea {
-            width: 100%;
-            padding: 8px 12px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 13px;
-            margin-bottom: 12px;
-        }
-        .cmd-form textarea { min-height: 60px; resize: vertical; font-family: monospace; }
-        .cmd-send-btn {
-            width: 100%;
-            padding: 10px;
-            background: var(--accent);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .cmd-send-btn:hover { opacity: 0.9; }
-        .cmd-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        /* Scene Cards */
-        .scene-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 12px;
-            padding: 16px;
-        }
-        .scene-card {
-            padding: 16px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+        /* Scenes */
+        .scene-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; }
         .scene-card:hover { border-color: var(--accent); background: var(--bg-hover); }
-        .scene-card h4 { font-size: 13px; margin-bottom: 4px; }
-        .scene-card p { font-size: 11px; color: var(--text-muted); }
+        .scene-card.active { border-color: var(--green); background: var(--green-dim); }
+        .scene-icon { font-size: 24px; margin-bottom: 8px; }
+        .scene-name { font-size: 14px; font-weight: 600; }
+        .scene-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
         /* Device List */
-        .device-list {
-            padding: 16px;
-        }
-        .device-list-item {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 12px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            background: var(--bg-secondary);
-        }
-        .device-list-item .name {
-            font-size: 13px; font-weight: 500;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .device-list-item .type-badge {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 4px;
-            background: var(--accent-dim);
-            color: var(--accent);
-        }
+        .device-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .device-item:last-child { border-bottom: none; }
+        .device-name { font-size: 14px; font-weight: 500; }
+        .device-id { font-size: 12px; color: var(--text-muted); }
+        .device-badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
 
-        /* Command Log */
-        .cmd-log {
-            padding: 8px 16px 16px;
-            max-height: 400px;
-            overflow-y: auto;
-            font-family: 'Cascadia Code', 'Fira Code', monospace;
-            font-size: 12px;
-        }
-        .cmd-log-entry {
-            padding: 6px 8px;
-            border-radius: 4px;
-            margin-bottom: 4px;
-            background: var(--bg-secondary);
-        }
-        .cmd-log-entry .time { color: var(--text-muted); }
-        .cmd-log-entry .cmd { color: var(--accent); }
-        .cmd-log-entry .status { font-weight: 600; }
-        .cmd-log-entry .status.success { color: var(--green); }
-        .cmd-log-entry .status.timeout { color: var(--yellow); }
-        .cmd-log-entry .status.failed { color: var(--red); }
+        /* Alert Log */
+        .alert-item { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; align-items: center; gap: 10px; }
+        .alert-item.alert { background: var(--red-dim); color: var(--red); }
+        .alert-item.info { background: var(--blue-dim); color: var(--blue); }
+        .alert-item.success { background: var(--green-dim); color: var(--green); }
 
-        /* Message Log */
-        .log-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .log-header {
-            padding: 14px 16px;
-            display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-            font-size: 14px; font-weight: 600;
-        }
-        .log-count { font-size: 12px; color: var(--text-muted); font-weight: 400; }
-        .log-body {
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 8px;
-            font-family: 'Cascadia Code', 'Fira Code', monospace;
-            font-size: 12px;
-        }
-        .log-entry {
-            padding: 4px 8px;
-            border-radius: 4px;
-            display: flex;
-            gap: 8px;
-            align-items: baseline;
-        }
-        .log-entry:hover { background: var(--bg-hover); }
-        .log-time { color: var(--text-muted); white-space: nowrap; }
-        .log-topic { color: var(--accent); }
-        .log-data { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Compute */
+        .compute-result { background: var(--bg-hover); border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 13px; white-space: pre-wrap; }
 
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
+        /* Messages */
+        .msg-item { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; display: flex; gap: 10px; }
+        .msg-time { color: var(--text-muted); white-space: nowrap; min-width: 60px; }
+        .msg-type { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .tab-nav { padding: 8px 12px; }
+            .tab-content { padding: 16px; }
         }
-        .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
-        .empty-state h2 { font-size: 18px; color: var(--text-secondary); margin-bottom: 8px; }
-        .empty-state p { font-size: 13px; max-width: 400px; margin: 0 auto; line-height: 1.6; }
 
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
-        /* Responsive */
-        @media (max-width: 900px) {
-            .grid-devices { grid-template-columns: 1fr; }
-            .device-sensors { grid-template-columns: repeat(2, 1fr); }
-            .stats-bar { flex-direction: column; }
-            .cmd-layout { grid-template-columns: 1fr; }
-            .main { padding: 12px; }
-            .compute-grid { grid-template-columns: 1fr; }
-            .camera-grid { grid-template-columns: 1fr; }
-        }
     </style>
 </head>
 <body>
@@ -590,916 +145,667 @@
         <h1>Fusion Dashboard</h1>
     </div>
     <div class="header-right">
-        <span class="conn-mode" id="connMode">HTTP Polling</span>
-        <div class="status-badge status-offline" id="statusBadge">
-            <span class="status-dot"></span>
-            <span id="statusText">Disconnected</span>
+        <div class="status-badge status-online">
+            <div class="status-dot"></div>
+            <span id="connStatus">连接中...</span>
         </div>
+        <span id="deviceCount" style="font-size:12px;color:var(--text-muted)">0 设备</span>
     </div>
 </div>
 
-<!-- Tab Navigation -->
 <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('sensors')">
-        <span>&#x1F4E1;</span> Sensors
-    </button>
-    <button class="tab-btn" onclick="switchTab('compute')">
-        <span>&#x26A1;</span> Compute
-    </button>
-    <button class="tab-btn" onclick="switchTab('cameras')">
-        <span>&#x1F4F7;</span> Cameras
-    </button>
-    <button class="tab-btn" onclick="switchTab('sound')">
-        <span>&#x1F50A;</span> Sound
-        <span class="badge" id="alertBadge" style="display:none">0</span>
-    </button>
-    <button class="tab-btn" onclick="switchTab('command')">
-        <span>&#x1F39B;</span> Command
-    </button>
-    <button class="tab-btn" onclick="switchTab('log')">
-        <span>&#x1F4CB;</span> Log
-    </button>
+    <button class="tab-btn active" onclick="switchTab('sensors')">🌡️ 传感器</button>
+    <button class="tab-btn" onclick="switchTab('sound')">🔊 声音监测</button>
+    <button class="tab-btn" onclick="switchTab('cameras')">📹 摄像头</button>
+    <button class="tab-btn" onclick="switchTab('audio')">🎵 音频控制</button>
+    <button class="tab-btn" onclick="switchTab('scenes')">🏠 场景</button>
+    <button class="tab-btn" onclick="switchTab('compute')">⚡ 算力</button>
+    <button class="tab-btn" onclick="switchTab('devices')">📋 设备</button>
+    <button class="tab-btn" onclick="switchTab('logs')">📜 日志</button>
 </div>
 
-<div class="main">
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TAB: Sensors -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="tab-content active" id="tab-sensors">
-        <div class="stats-bar">
-            <div class="stat-card">
-                <div class="stat-icon devices">&#x1F4F1;</div>
-                <div>
-                    <div class="stat-value" id="statDevices">0</div>
-                    <div class="stat-label">Devices</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon sensors">&#x1F321;</div>
-                <div>
-                    <div class="stat-value" id="statSensors">0</div>
-                    <div class="stat-label">Sensors</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon messages">&#x1F4CA;</div>
-                <div>
-                    <div class="stat-value" id="statMessages">0</div>
-                    <div class="stat-label">Messages</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon uptime">&#x23F1;</div>
-                <div>
-                    <div class="stat-value" id="statUptime">00:00</div>
-                    <div class="stat-label">Uptime</div>
-                </div>
-            </div>
+<!-- 传感器 Tab -->
+<div id="tab-sensors" class="tab-content active">
+    <div class="grid-3" id="sensorCards">
+        <div class="card sensor-card">
+            <div class="sensor-label">光线 (Light)</div>
+            <div class="sensor-value" style="color:var(--yellow)" id="val-light">--</div>
+            <div class="sensor-unit">lux</div>
+            <div class="bar" style="background:var(--yellow);width:0%" id="bar-light"></div>
         </div>
-
-        <div class="grid-devices" id="deviceGrid">
-            <div class="empty-state" id="emptyState">
-                <div class="icon">&#x1F4E1;</div>
-                <h2>Waiting for Devices</h2>
-                <p>Start Android Companion App and connect to PC MQTT Broker (port 1883). Sensor data will appear here automatically.</p>
-            </div>
+        <div class="card sensor-card">
+            <div class="sensor-label">温度 (Temperature)</div>
+            <div class="sensor-value" style="color:var(--red)" id="val-temperature">--</div>
+            <div class="sensor-unit">°C</div>
+            <div class="bar" style="background:var(--red);width:0%" id="bar-temperature"></div>
+        </div>
+        <div class="card sensor-card">
+            <div class="sensor-label">湿度 (Humidity)</div>
+            <div class="sensor-value" style="color:var(--blue)" id="val-humidity">--</div>
+            <div class="sensor-unit">%</div>
+            <div class="bar" style="background:var(--blue);width:0%" id="bar-humidity"></div>
+        </div>
+        <div class="card sensor-card">
+            <div class="sensor-label">气压 (Pressure)</div>
+            <div class="sensor-value" style="color:var(--purple)" id="val-pressure">--</div>
+            <div class="sensor-unit">hPa</div>
+            <div class="bar" style="background:var(--purple);width:0%" id="bar-pressure"></div>
+        </div>
+        <div class="card sensor-card">
+            <div class="sensor-label">加速度 (Accelerometer)</div>
+            <div class="sensor-value" style="color:var(--cyan)" id="val-accelerometer">--</div>
+            <div class="sensor-unit">m/s²</div>
+            <div class="bar" style="background:var(--cyan);width:0%" id="bar-accelerometer"></div>
+        </div>
+        <div class="card sensor-card">
+            <div class="sensor-label">步数 (Step Counter)</div>
+            <div class="sensor-value" style="color:var(--green)" id="val-step_counter">--</div>
+            <div class="sensor-unit">steps</div>
+            <div class="bar" style="background:var(--green);width:0%" id="bar-step_counter"></div>
         </div>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TAB: Compute -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="tab-content" id="tab-compute">
-        <div class="stats-bar">
-            <div class="stat-card">
-                <div class="stat-icon" style="background:var(--green-dim)">&#x26A1;</div>
-                <div>
-                    <div class="stat-value" id="computeTotalScore">--</div>
-                    <div class="stat-label">Total Score</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background:var(--accent-dim)">&#x1F4F1;</div>
-                <div>
-                    <div class="stat-value" id="computeDeviceCount">0</div>
-                    <div class="stat-label">Devices</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background:var(--purple-dim)">&#x1F3AE;</div>
-                <div>
-                    <div class="stat-value" id="computeApps">0</div>
-                    <div class="stat-label">Registered Apps</div>
-                </div>
-            </div>
+    <div class="card" style="margin-top:16px">
+        <div class="card-header">
+            <div class="card-title">📈 传感器历史</div>
         </div>
-
-        <div class="compute-grid" id="computeGrid">
-            <div class="empty-state" style="grid-column:1/-1">
-                <div class="icon">&#x26A1;</div>
-                <h2>Compute Status</h2>
-                <p>Distributed scheduler monitors device performance and manages app migration between PC and phones.</p>
-            </div>
-        </div>
+        <canvas id="sensorChart" width="800" height="200" style="width:100%;background:var(--bg-hover);border-radius:8px"></canvas>
     </div>
+</div>
 
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TAB: Cameras -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="tab-content" id="tab-cameras">
-        <div class="stats-bar">
-            <div class="stat-card">
-                <div class="stat-icon" style="background:var(--blue-dim)">&#x1F4F9;</div>
-                <div>
-                    <div class="stat-value" id="camOnline">0</div>
-                    <div class="stat-label">Online</div>
-                </div>
+<!-- 声音监测 Tab -->
+<div id="tab-sound" class="tab-content">
+    <div class="grid-2">
+        <div class="card" style="text-align:center">
+            <div class="card-header">
+                <div class="card-title">🔊 当前音量</div>
+                <div style="font-size:12px;color:var(--text-muted)" id="soundSource">PC 麦克风</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background:var(--red-dim)">&#x23FA;</div>
-                <div>
-                    <div class="stat-value" id="camRecording">0</div>
-                    <div class="stat-label">Recording</div>
-                </div>
+            <div class="sound-level" id="soundLevel" style="color:var(--green)">-- dB</div>
+            <div class="sound-bar"><div class="sound-bar-fill" id="soundBar" style="width:0%;background:var(--green)"></div></div>
+            <div style="margin-top:16px;font-size:13px;color:var(--text-secondary)">
+                告警阈值: <input type="range" min="40" max="100" value="80" id="thresholdSlider" onchange="setThreshold(this.value)" style="vertical-align:middle;width:200px">
+                <span id="thresholdVal">80</span> dB
             </div>
+            <div class="sound-wave" id="soundWave"></div>
         </div>
-
-        <div class="camera-grid" id="cameraGrid">
-            <div class="empty-state" style="grid-column:1/-1">
-                <div class="icon">&#x1F4F7;</div>
-                <h2>Distributed Camera Array</h2>
-                <p>Connect old phones as security cameras. They will appear here with Scrcpy preview windows.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TAB: Sound -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="tab-content" id="tab-sound">
-        <div class="sound-panel">
-            <h3>&#x1F50A; Real-time Sound Monitor (Silent Analysis)</h3>
-            <div class="volume-display">
-                <div class="volume-value" id="volumeDb">-100</div>
-                <div class="volume-unit">dB</div>
-            </div>
-            <div class="volume-bar-container">
-                <div class="volume-bar-fill" id="volumeBar" style="width: 0%"></div>
-            </div>
-            <div class="volume-history">
-                <canvas id="volumeCanvas"></canvas>
-            </div>
-            <div class="sound-config">
-                <div class="config-field">
-                    <label>Alert Threshold:</label>
-                    <input type="number" id="thresholdInput" value="80" min="0" max="120">
-                    <button onclick="setThreshold()">Set</button>
-                </div>
-                <div class="config-field">
-                    <label>Status:</label>
-                    <span id="soundStatus" style="font-size:13px;color:var(--text-secondary)">Idle</span>
+        <div>
+            <div class="card">
+                <div class="card-title">📊 告警日志</div>
+                <div style="margin-top:12px;max-height:300px;overflow-y:auto" id="alertLog">
+                    <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px 0">暂无告警</div>
                 </div>
             </div>
-        </div>
-
-        <div class="alert-log">
-            <div class="alert-log-header">
-                <span>&#x26A0; Alert History</span>
-                <span class="log-count" id="alertCount">0 alerts</span>
-            </div>
-            <div class="log-body" id="alertBody">
-                <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No alerts yet...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TAB: Command -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="tab-content" id="tab-command">
-        <div class="cmd-layout">
-            <div class="cmd-panel">
-                <div class="cmd-panel-header">&#x1F39B; Send Command</div>
-                <div class="cmd-form">
-                    <fieldset>
-                        <legend>Target Device</legend>
-                        <select id="cmdTarget">
-                            <option value="">Select device...</option>
-                            <option value="broadcast">Broadcast (all devices)</option>
-                        </select>
-                    </fieldset>
-                    <fieldset>
-                        <legend>Action</legend>
-                        <select id="cmdAction">
-                            <option value="ping">Ping</option>
-                            <option value="get_status">Get Status</option>
-                            <option value="capture">Capture Screenshot</option>
-                            <option value="start_camera">Start Camera</option>
-                            <option value="stop_camera">Stop Camera</option>
-                            <option value="set_mode">Set Mode</option>
-                            <option value="arm_sensors">Arm Sensors</option>
-                            <option value="disarm_sensors">Disarm Sensors</option>
-                        </select>
-                    </fieldset>
-                    <fieldset>
-                        <legend>Parameters (JSON)</legend>
-                        <textarea id="cmdParams" placeholder='{"mode": "online"}'></textarea>
-                    </fieldset>
-                    <button class="cmd-send-btn" id="cmdSendBtn" onclick="sendCommand()">
-                        Send Command
-                    </button>
-                </div>
-            </div>
-
-            <div class="cmd-panel">
-                <div class="cmd-panel-header">&#x1F3DB; Scenes</div>
-                <div class="scene-grid" id="sceneGrid">
-                    <div class="scene-card" onclick="activateScene('night_mode')">
-                        <h4>&#x1F319; Night Mode</h4>
-                        <p>Dim lights, silent phones</p>
-                    </div>
-                    <div class="scene-card" onclick="activateScene('away_mode')">
-                        <h4>&#x1F6AA; Away Mode</h4>
-                        <p>Cameras, sensors, simulate presence</p>
-                    </div>
-                    <div class="scene-card" onclick="activateScene('all_lights_off')">
-                        <h4>&#x1F311; All Lights Off</h4>
-                        <p>Turn off all connected lights</p>
+            <div class="card">
+                <div class="card-title">🎯 音频源</div>
+                <div style="margin-top:12px" id="audioSources">
+                    <div class="device-item">
+                        <div><div class="device-name">PC 麦克风</div><div class="device-id">sounddevice</div></div>
+                        <span class="device-badge status-online">实时</span>
                     </div>
                 </div>
-                <div class="cmd-panel-header" style="margin-top:8px">&#x1F4CB; Registered Devices</div>
-                <div class="device-list" id="registeredDevices">
-                    <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">No devices registered yet</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="cmd-panel" style="margin-top:16px">
-            <div class="cmd-panel-header">&#x1F4DD; Command Log</div>
-            <div class="cmd-log" id="cmdLog">
-                <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No commands sent yet</div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TAB: Log -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="tab-content" id="tab-log">
-        <div class="log-section">
-            <div class="log-header">
-                <span>MQTT Message Log</span>
-                <span class="log-count" id="logCount">0 messages</span>
+<!-- 摄像头 Tab -->
+<div id="tab-cameras" class="tab-content">
+    <div style="margin-bottom:16px;display:flex;gap:12px">
+        <button class="audio-btn audio-btn-primary" onclick="refreshCameras()">📷 刷新画面</button>
+        <button class="audio-btn audio-btn-secondary" onclick="captureAll()">📸 全部截图</button>
+    </div>
+    <div class="camera-grid" id="cameraGrid">
+        <div class="camera-feed"><div class="camera-placeholder">等待摄像头连接...</div></div>
+    </div>
+</div>
+
+<!-- 音频控制 Tab -->
+<div id="tab-audio" class="tab-content">
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🔊 播放控制</div>
             </div>
-            <div class="log-body" id="logBody">
-                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px;">
-                    Waiting for messages...
-                </div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">让手机发出声音</p>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+                <button class="audio-btn audio-btn-primary" onclick="playSound('beep')">🔔 提示音</button>
+                <button class="audio-btn audio-btn-primary" onclick="playSound('alarm')">🚨 警报</button>
+                <button class="audio-btn audio-btn-primary" onclick="playSound('confirm')">✅ 确认</button>
+                <button class="audio-btn audio-btn-primary" onclick="playSound('ring')">📱 铃声</button>
+                <button class="audio-btn audio-btn-danger" onclick="playSound('error')">❌ 错误</button>
+            </div>
+            <div style="margin-bottom:12px">
+                <label style="font-size:13px;color:var(--text-secondary)">音量</label>
+                <input type="range" min="0" max="100" value="80" id="playVolume" class="volume-slider">
+                <span id="playVolVal" style="font-size:12px;color:var(--text-muted)">80%</span>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📢 TTS 朗读</div>
+            </div>
+            <textarea id="ttsText" placeholder="输入要朗读的文字..." style="width:100%;height:80px;background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text-primary);font-size:14px;resize:vertical;margin-bottom:12px"></textarea>
+            <button class="audio-btn audio-btn-primary" onclick="playTTS()">🗣️ 朗读</button>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📻 全屋广播</div>
+            </div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">同时让所有设备播放声音</p>
+            <button class="audio-btn audio-btn-danger" onclick="broadcastSound('alarm')" style="width:100%">📢 全屋广播警报</button>
+            <button class="audio-btn audio-btn-secondary" onclick="broadcastSound('beep')" style="width:100%;margin-top:8px">🔔 全屋提示音</button>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📳 振动控制</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px">
+                <button class="audio-btn audio-btn-secondary" onclick="vibrate(200)">短振 200ms</button>
+                <button class="audio-btn audio-btn-secondary" onclick="vibrate(500)">中振 500ms</button>
+                <button class="audio-btn audio-btn-secondary" onclick="vibrate(1000)">长振 1s</button>
             </div>
         </div>
     </div>
+</div>
 
+<!-- 场景 Tab -->
+<div id="tab-scenes" class="tab-content">
+    <div class="grid-3" id="sceneGrid">
+        <div class="scene-card" onclick="activateScene('night_mode')">
+            <div class="scene-icon">🌙</div>
+            <div class="scene-name">夜间模式</div>
+            <div class="scene-desc">调暗灯光 + 静音手机</div>
+        </div>
+        <div class="scene-card" onclick="activateScene('away_mode')">
+            <div class="scene-icon">🔒</div>
+            <div class="scene-name">离家模式</div>
+            <div class="scene-desc">启动摄像头 + 传感器警戒</div>
+        </div>
+        <div class="scene-card" onclick="activateScene('movie_mode')">
+            <div class="scene-icon">🎬</div>
+            <div class="scene-name">影院模式</div>
+            <div class="scene-desc">降低音量 + 调暗灯光</div>
+        </div>
+        <div class="scene-card" onclick="activateScene('party_mode')">
+            <div class="scene-icon">🎉</div>
+            <div class="scene-name">派对模式</div>
+            <div class="scene-desc">播放音乐 + 灯光循环</div>
+        </div>
+        <div class="scene-card" onclick="activateScene('alert_mode')">
+            <div class="scene-icon">🚨</div>
+            <div class="scene-name">警报模式</div>
+            <div class="scene-desc">振动 + 警报声</div>
+        </div>
+        <div class="scene-card" onclick="activateScene('all_lights_off')">
+            <div class="scene-icon">💡</div>
+            <div class="scene-name">关闭灯光</div>
+            <div class="scene-desc">MCU 控制全部关灯</div>
+        </div>
+    </div>
+</div>
+
+<!-- 算力 Tab -->
+<div id="tab-compute" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">⚡ 分布式算力基准测试</div>
+        </div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">向手机发送计算任务，测试分布式算力调度</p>
+        <div style="display:flex;gap:12px;margin-bottom:16px">
+            <button class="audio-btn audio-btn-primary" onclick="runBenchmark(1000000)">🏃 基准测试 (1M)</button>
+            <button class="audio-btn audio-btn-secondary" onclick="runBenchmark(5000000)">🚀 压力测试 (5M)</button>
+        </div>
+        <div class="compute-result" id="computeResult">等待测试...</div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">📊 设备评分</div>
+        </div>
+        <div id="deviceScores" style="margin-top:12px">
+            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">等待设备数据...</div>
+        </div>
+    </div>
+</div>
+
+<!-- 设备 Tab -->
+<div id="tab-devices" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">📋 已注册设备</div>
+            <button class="audio-btn audio-btn-secondary" onclick="refreshDevices()" style="padding:6px 14px;font-size:12px">刷新</button>
+        </div>
+        <div id="deviceList">
+            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px 0">等待设备连接...</div>
+        </div>
+    </div>
+</div>
+
+<!-- 日志 Tab -->
+<div id="tab-logs" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">📜 实时消息日志</div>
+            <button class="audio-btn audio-btn-secondary" onclick="clearLogs()" style="padding:6px 14px;font-size:12px">清空</button>
+        </div>
+        <div id="messageLog" style="max-height:600px;overflow-y:auto">
+            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px 0">等待消息...</div>
+        </div>
+    </div>
 </div>
 
 <script>
-    // ═══════════════════════════════════════════════════════
-    // Fusion Dashboard v2.0 - Full Control Center
-    // ═══════════════════════════════════════════════════════
+// ═══ 全局状态 ═══
+let ws = null;
+let sensorHistory = { light: [], temperature: [], humidity: [], pressure: [] };
+let maxHistory = 60;
+let messages = [];
 
-    const state = {
-        devices: {},
-        messages: [],
-        totalMessages: 0,
-        startTime: Date.now(),
-        ws: null,
-        connected: false,
-        pollInterval: null,
-        // Sound monitor state
-        volumeHistory: [],
-        alertCount: 0,
-        // Command state
-        cmdLog: [],
-        // Compute state
-        computeData: null,
+// ═══ Tab 切换 ═══
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+}
+
+// ═══ WebSocket 连接 ═══
+function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(proto + '//' + location.host + ':' + (parseInt(location.port) + 1));
+    
+    ws.onopen = () => {
+        document.getElementById('connStatus').textContent = '已连接';
     };
-
-    // Sensor metadata
-    const SENSOR_META = {
-        temperature:    { icon: '&#x1F321;', label: 'Temp',   unit: 'C',    cls: 'temperature' },
-        humidity:       { icon: '&#x1F4A7;', label: 'Humid',  unit: '%',    cls: 'humidity' },
-        light:          { icon: '&#x2600;',  label: 'Light',  unit: 'lux',  cls: 'light' },
-        pressure:       { icon: '&#x1F535;', label: 'Press',  unit: 'hPa',  cls: 'pressure' },
-        proximity:      { icon: '&#x1F4CF;', label: 'Prox',   unit: 'cm',   cls: 'proximity' },
-        accelerometer:  { icon: '&#x1F4D0;', label: 'Accel',  unit: 'm/s2', cls: 'accelerometer' },
-        gyroscope:      { icon: '&#x1F504;', label: 'Gyro',   unit: 'rad/s',cls: 'gyroscope' },
-        ambient_temperature: { icon: '&#x1F321;', label: 'Env Temp', unit: 'C', cls: 'temperature' },
+    
+    ws.onclose = () => {
+        document.getElementById('connStatus').textContent = '断开重连中...';
+        setTimeout(connectWS, 3000);
     };
-
-    // ═══ Tab Navigation ═══
-    function switchTab(name) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(`tab-${name}`).classList.add('active');
-        event.currentTarget.classList.add('active');
-    }
-
-    // ═══ Connection ═══
-    function connectWebSocket() {
-        const wsPort = location.port ? parseInt(location.port) + 1 : 8081;
-        const wsUrl = `ws://${location.hostname}:${wsPort}`;
-        
+    
+    ws.onmessage = (e) => {
         try {
-            state.ws = new WebSocket(wsUrl);
-            
-            state.ws.onopen = () => {
-                state.connected = true;
-                updateConnectionUI(true, 'WebSocket');
-                if (state.pollInterval) {
-                    clearInterval(state.pollInterval);
-                    state.pollInterval = null;
-                }
-            };
-            
-            state.ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    handleData(data);
-                } catch (e) { console.error('WS parse error:', e); }
-            };
-            
-            state.ws.onclose = () => {
-                state.connected = false;
-                updateConnectionUI(false);
-                startPolling();
-                setTimeout(connectWebSocket, 5000);
-            };
-            
-            state.ws.onerror = () => { state.ws.close(); };
-        } catch (e) {
-            startPolling();
-        }
-    }
+            const data = JSON.parse(e.data);
+            handleMessage(data);
+        } catch(err) {}
+    };
+}
 
-    function startPolling() {
-        if (state.pollInterval) return;
-        updateConnectionUI(true, 'HTTP Polling');
-        state.pollInterval = setInterval(pollData, 2000);
-        pollData();
-    }
-
-    async function pollData() {
-        try {
-            const resp = await fetch('/api/sensors');
-            const data = await resp.json();
+// ═══ 消息处理 ═══
+function handleMessage(data) {
+    addMessage(data);
+    
+    switch(data.type) {
+        case 'sensor':
+            updateSensor(data.device_id, data.sensor, data.value, data.unit);
+            break;
+        case 'device_status':
+            updateDeviceStatus(data.device_id, data.online, data.battery);
+            break;
+        case 'alert':
+            addAlert(data.alert_type, data.value, data.message);
+            break;
+        case 'init':
+            // 初始化数据
             if (data.sensors) {
-                Object.entries(data.sensors).forEach(([deviceId, sensors]) => {
-                    if (!state.devices[deviceId]) {
-                        state.devices[deviceId] = { sensors: {}, online: true, battery: -1, lastSeen: Date.now()/1000 };
+                for (let [devId, sensors] of Object.entries(data.sensors)) {
+                    for (let [stype, sdata] of Object.entries(sensors)) {
+                        updateSensor(devId, stype, sdata.value, sdata.unit);
                     }
-                    Object.entries(sensors).forEach(([sensorType, sensorData]) => {
-                        state.devices[deviceId].sensors[sensorType] = sensorData;
-                    });
-                });
-                render();
-            }
-        } catch (e) { console.error('Poll error:', e); }
-    }
-
-    // ═══ Data Handling ═══
-    function handleData(data) {
-        if (data.type === 'init') {
-            if (data.sensors) {
-                Object.entries(data.sensors).forEach(([deviceId, sensors]) => {
-                    state.devices[deviceId] = { sensors, online: true, battery: -1, lastSeen: Date.now()/1000 };
-                });
+                }
             }
             if (data.devices) {
-                Object.entries(data.devices).forEach(([deviceId, info]) => {
-                    if (state.devices[deviceId]) {
-                        state.devices[deviceId].online = info.online;
-                        state.devices[deviceId].battery = info.battery;
-                        state.devices[deviceId].lastSeen = info.last_seen;
-                    }
-                });
+                for (let [devId, ddata] of Object.entries(data.devices)) {
+                    updateDeviceStatus(devId, ddata.online, ddata.battery);
+                }
             }
-            render();
-        } else if (data.type === 'sensor') {
-            const { device_id, sensor, value, unit, ts } = data;
-            if (!state.devices[device_id]) {
-                state.devices[device_id] = { sensors: {}, online: true, battery: -1, lastSeen: ts };
-            }
-            state.devices[device_id].sensors[sensor] = { value, unit, timestamp: ts };
-            state.devices[device_id].lastSeen = ts;
-            state.totalMessages++;
-            addLogEntry(data);
-            render();
-        } else if (data.type === 'device_status') {
-            const { device_id, online, battery } = data;
-            if (!state.devices[device_id]) {
-                state.devices[device_id] = { sensors: {}, online, battery, lastSeen: data.ts };
-            }
-            state.devices[device_id].online = online;
-            state.devices[device_id].battery = battery;
-            state.devices[device_id].lastSeen = data.ts;
-            addLogEntry(data);
-            render();
-        } else if (data.type === 'alert') {
-            handleAlert(data);
-        }
+            break;
     }
+}
 
-    function handleAlert(data) {
-        state.alertCount++;
-        const badge = document.getElementById('alertBadge');
-        badge.textContent = state.alertCount;
-        badge.style.display = '';
+// ═══ 传感器更新 ═══
+function updateSensor(deviceId, sensorType, value, unit) {
+    const el = document.getElementById('val-' + sensorType);
+    const bar = document.getElementById('bar-' + sensorType);
+    if (el) {
+        el.textContent = typeof value === 'number' ? value.toFixed(1) : value;
+    }
+    
+    // 进度条
+    if (bar) {
+        let pct = 0;
+        if (sensorType === 'light') pct = Math.min(100, value / 1000 * 100);
+        else if (sensorType === 'temperature') pct = Math.min(100, value / 50 * 100);
+        else if (sensorType === 'humidity') pct = Math.min(100, value);
+        else if (sensorType === 'pressure') pct = Math.min(100, (value - 900) / 150 * 100);
+        else if (sensorType === 'accelerometer') pct = Math.min(100, value / 20 * 100);
+        bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+    }
+    
+    // 历史数据
+    if (sensorHistory[sensorType] !== undefined) {
+        sensorHistory[sensorType].push({ t: Date.now(), v: value });
+        if (sensorHistory[sensorType].length > maxHistory) sensorHistory[sensorType].shift();
+        drawChart();
+    }
+}
+
+// ═══ 简易图表 ═══
+function drawChart() {
+    const canvas = document.getElementById('sensorChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    
+    const colors = { light: '#facc15', temperature: '#f87171', humidity: '#60a5fa', pressure: '#a78bfa' };
+    const labels = { light: '光线', temperature: '温度', humidity: '湿度', pressure: '气压' };
+    let legendY = 15;
+    
+    for (let [type, history] of Object.entries(sensorHistory)) {
+        if (history.length < 2) continue;
         
-        const alertBody = document.getElementById('alertBody');
-        if (state.alertCount <= 1) alertBody.innerHTML = '';
+        // 图例
+        ctx.fillStyle = colors[type];
+        ctx.fillRect(10, legendY - 5, 10, 10);
+        ctx.fillStyle = '#8b8fa3';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(labels[type], 25, legendY + 4);
+        legendY += 18;
         
-        const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-        const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        entry.style.background = 'var(--red-dim)';
-        entry.innerHTML = `<span class="log-time">${time}</span>
-            <span style="color:var(--red)">${data.alert_type}</span>
-            <span class="log-data">${data.source}: ${data.value} dB ${data.message}</span>`;
-        alertBody.insertBefore(entry, alertBody.firstChild);
+        // 找最大最小值
+        let vals = history.map(h => h.v);
+        let min = Math.min(...vals), max = Math.max(...vals);
+        if (max === min) { max += 1; min -= 1; }
         
-        document.getElementById('alertCount').textContent = `${state.alertCount} alerts`;
-    }
-
-    // ═══ Rendering ═══
-    function render() {
-        renderStats();
-        renderDevices();
-    }
-
-    function renderStats() {
-        const onlineDevices = Object.values(state.devices).filter(d => d.online).length;
-        const totalSensors = Object.values(state.devices)
-            .reduce((sum, d) => sum + Object.keys(d.sensors).length, 0);
-        
-        document.getElementById('statDevices').textContent = onlineDevices;
-        document.getElementById('statSensors').textContent = totalSensors;
-        document.getElementById('statMessages').textContent = formatNumber(state.totalMessages);
-    }
-
-    function renderDevices() {
-        const grid = document.getElementById('deviceGrid');
-        const emptyState = document.getElementById('emptyState');
-        const devices = Object.entries(state.devices);
-
-        if (devices.length === 0) {
-            if (!emptyState.parentNode) grid.appendChild(emptyState);
-            emptyState.style.display = '';
-            return;
-        }
-
-        if (emptyState.parentNode) emptyState.style.display = 'none';
-
-        const existingCards = {};
-        grid.querySelectorAll('.device-card').forEach(card => {
-            existingCards[card.dataset.deviceId] = card;
-        });
-
-        devices.forEach(([deviceId, device]) => {
-            let card = existingCards[deviceId];
-            if (!card) {
-                card = createDeviceCard(deviceId);
-                grid.appendChild(card);
-            }
-            updateDeviceCard(card, deviceId, device);
-        });
-
-        Object.keys(existingCards).forEach(id => {
-            if (!state.devices[id]) existingCards[id].remove();
-        });
-
-        const uptime = Math.floor((Date.now() - state.startTime) / 1000);
-        const mins = Math.floor(uptime / 60).toString().padStart(2, '0');
-        const secs = (uptime % 60).toString().padStart(2, '0');
-        document.getElementById('statUptime').textContent = `${mins}:${secs}`;
-    }
-
-    function createDeviceCard(deviceId) {
-        const card = document.createElement('div');
-        card.className = 'device-card';
-        card.dataset.deviceId = deviceId;
-        card.innerHTML = `
-            <div class="device-header">
-                <div class="device-name">
-                    <div class="device-icon">&#x1F4F1;</div>
-                    <span class="name"></span>
-                </div>
-                <div class="device-meta">
-                    <span class="battery"></span>
-                    <span class="last-seen"></span>
-                </div>
-            </div>
-            <div class="device-sensors"></div>`;
-        return card;
-    }
-
-    function updateDeviceCard(card, deviceId, device) {
-        const name = card.querySelector('.name');
-        name.textContent = deviceId.length > 24 ? deviceId.substring(0, 24) + '...' : deviceId;
-
-        const batteryEl = card.querySelector('.battery');
-        if (device.battery >= 0) {
-            batteryEl.textContent = `${device.battery}%`;
-            batteryEl.className = `battery${device.battery < 20 ? ' low' : ''}`;
-            batteryEl.style.display = '';
-        } else {
-            batteryEl.style.display = 'none';
-        }
-
-        const lastSeenEl = card.querySelector('.last-seen');
-        if (device.lastSeen) {
-            const ago = Math.floor(Date.now()/1000 - device.lastSeen);
-            if (ago < 60) lastSeenEl.textContent = `${ago}s ago`;
-            else if (ago < 3600) lastSeenEl.textContent = `${Math.floor(ago/60)}m ago`;
-            else lastSeenEl.textContent = `${Math.floor(ago/3600)}h ago`;
-        }
-
-        const header = card.querySelector('.device-header');
-        if (!header.querySelector('.status-badge')) {
-            const badge = document.createElement('span');
-            badge.className = 'status-badge';
-            header.querySelector('.device-meta').prepend(badge);
-        }
-        const badge = header.querySelector('.status-badge');
-        badge.className = `status-badge ${device.online ? 'status-online' : 'status-offline'}`;
-        badge.innerHTML = `<span class="status-dot"></span>${device.online ? 'Online' : 'Offline'}`;
-
-        const sensorsContainer = card.querySelector('.device-sensors');
-        const sensorKeys = Object.keys(device.sensors);
-        const priority = ['light', 'temperature', 'ambient_temperature', 'humidity', 'pressure', 'proximity', 'accelerometer', 'gyroscope'];
-        const sortedKeys = sensorKeys.sort((a, b) => {
-            const ai = priority.indexOf(a);
-            const bi = priority.indexOf(b);
-            return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-        });
-
-        sensorsContainer.innerHTML = sortedKeys.map(key => {
-            const meta = SENSOR_META[key] || { icon: '&#x1F4CA;', label: key, unit: '', cls: '' };
-            const d = device.sensors[key];
-            const value = d.value !== undefined ? formatValue(d.value, key) : '--';
-            return `<div class="sensor-tile ${meta.cls || ''}">
-                <div class="sensor-icon">${meta.icon}</div>
-                <div class="sensor-value">${value}</div>
-                <div class="sensor-unit">${meta.unit || d.unit || ''}</div>
-                <div class="sensor-label">${meta.label}</div>
-            </div>`;
-        }).join('');
-
-        if (sortedKeys.length === 0) {
-            sensorsContainer.innerHTML = `<div class="sensor-tile no-data" style="grid-column:1/-1">
-                <div class="sensor-value">No Data</div>
-                <div class="sensor-label">Waiting...</div></div>`;
-        }
-    }
-
-    // ═══ Command ═══
-    function sendCommand() {
-        const target = document.getElementById('cmdTarget').value;
-        const action = document.getElementById('cmdAction').value;
-        let params = {};
-        try {
-            const raw = document.getElementById('cmdParams').value.trim();
-            if (raw) params = JSON.parse(raw);
-        } catch (e) { params = {}; }
-
-        if (!target) return;
-
-        const cmd = {
-            target, action, params,
-            timestamp: Date.now(),
-            id: Math.random().toString(36).substr(2, 8),
-        };
-
-        state.cmdLog.unshift(cmd);
-        renderCmdLog();
-
-        // Send via API (POST /api/command)
-        fetch('/api/command', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cmd),
-        }).then(r => r.json()).then(data => {
-            cmd.status = data.status || 'sent';
-            renderCmdLog();
-        }).catch(() => {
-            cmd.status = 'failed';
-            renderCmdLog();
-        });
-    }
-
-    function activateScene(name) {
-        fetch('/api/scene', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scene: name }),
-        }).then(r => r.json()).then(data => {
-            addCmdLogEntry({
-                id: Math.random().toString(36).substr(2, 8),
-                target: 'scene',
-                action: `activate:${name}`,
-                status: data.ok ? 'success' : 'failed',
-            });
-        });
-    }
-
-    function renderCmdLog() {
-        const log = document.getElementById('cmdLog');
-        if (state.cmdLog.length === 0) return;
-        
-        log.innerHTML = state.cmdLog.slice(0, 50).map(cmd => {
-            const time = new Date(cmd.timestamp).toLocaleTimeString('en-US', { hour12: false });
-            const statusCls = cmd.status === 'success' ? 'success' : (cmd.status === 'timeout' ? 'timeout' : (cmd.status === 'failed' ? 'failed' : ''));
-            return `<div class="cmd-log-entry">
-                <span class="time">${time}</span>
-                <span class="cmd">${cmd.target}/${cmd.action}</span>
-                <span class="status ${statusCls}">${cmd.status || 'sent'}</span>
-            </div>`;
-        }).join('');
-    }
-
-    function addCmdLogEntry(cmd) {
-        cmd.timestamp = Date.now();
-        state.cmdLog.unshift(cmd);
-        renderCmdLog();
-    }
-
-    // ═══ Sound Monitor ═══
-    function setThreshold() {
-        const val = parseInt(document.getElementById('thresholdInput').value);
-        if (val > 0 && val <= 120) {
-            fetch('/api/sound/threshold', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ threshold: val }),
-            });
-        }
-    }
-
-    function updateSoundMonitor(db) {
-        const pct = Math.max(0, Math.min(100, ((db + 100) / 100) * 100));
-        document.getElementById('volumeDb').textContent = db.toFixed(1);
-        document.getElementById('volumeBar').style.width = pct + '%';
-        
-        state.volumeHistory.push(db);
-        if (state.volumeHistory.length > 200) state.volumeHistory.shift();
-        drawVolumeChart();
-
-        document.getElementById('soundStatus').textContent = 
-            db > 80 ? 'ALERT' : db > 50 ? 'Loud' : db > 20 ? 'Normal' : 'Quiet';
-        document.getElementById('soundStatus').style.color = 
-            db > 80 ? 'var(--red)' : db > 50 ? 'var(--yellow)' : 'var(--green)';
-    }
-
-    function drawVolumeChart() {
-        const canvas = document.getElementById('volumeCanvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        canvas.width = canvas.offsetWidth * 2;
-        canvas.height = canvas.offsetHeight * 2;
-        ctx.scale(2, 2);
-        
-        const w = canvas.offsetWidth;
-        const h = canvas.offsetHeight;
-        const data = state.volumeHistory;
-        
-        ctx.clearRect(0, 0, w, h);
-        
-        if (data.length < 2) return;
-        
-        // Grid lines
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-        ctx.lineWidth = 0.5;
-        for (let db = -100; db <= 0; db += 20) {
-            const y = h - ((db + 100) / 100) * h;
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-        }
-        
-        // Volume line
-        ctx.beginPath();
-        ctx.strokeStyle = 'var(--accent)';
+        // 画线
+        ctx.strokeStyle = colors[type];
         ctx.lineWidth = 1.5;
-        const step = w / (data.length - 1);
-        data.forEach((db, i) => {
-            const x = i * step;
-            const y = h - ((db + 100) / 100) * h;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-        
-        // Fill under curve
-        const lastX = (data.length - 1) * step;
-        ctx.lineTo(lastX, h);
-        ctx.lineTo(0, h);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(108,140,255,0.1)';
-        ctx.fill();
-
-        // Threshold line
-        const threshold = parseInt(document.getElementById('thresholdInput').value) || 80;
-        const threshY = h - ((threshold + 100) / 100) * h;
-        ctx.strokeStyle = 'var(--red)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.moveTo(0, threshY); ctx.lineTo(w, threshY); ctx.stroke();
-        ctx.setLineDash([]);
-    }
-
-    // ═══ Log ═══
-    function addLogEntry(data) {
-        const now = new Date();
-        const time = now.toLocaleTimeString('en-US', { hour12: false });
-        
-        let topic = '', text = '';
-        if (data.type === 'sensor') {
-            topic = `sensors/${data.device_id}/${data.sensor}`;
-            text = `${data.value} ${data.unit || ''}`;
-        } else if (data.type === 'device_status') {
-            topic = `devices/${data.device_id}`;
-            text = data.online ? 'online' : 'offline';
+        ctx.beginPath();
+        for (let i = 0; i < history.length; i++) {
+            let x = (i / (maxHistory - 1)) * W;
+            let y = H - ((history[i].v - min) / (max - min)) * (H - 20) - 10;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
+        ctx.stroke();
+    }
+}
 
-        const logBody = document.getElementById('logBody');
-        const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        entry.innerHTML = `<span class="log-time">${time}</span><span class="log-topic">${topic}</span><span class="log-data">${text}</span>`;
+// ═══ 声音监测 ═══
+function updateSound(data) {
+    const level = data.current_db;
+    const el = document.getElementById('soundLevel');
+    const bar = document.getElementById('soundBar');
+    
+    if (level !== undefined && level > -100) {
+        el.textContent = level.toFixed(1) + ' dB';
+        let pct = Math.max(0, Math.min(100, (level + 100) / 100 * 100));
+        bar.style.width = pct + '%';
         
-        if (state.totalMessages <= 1) logBody.innerHTML = '';
-        logBody.insertBefore(entry, logBody.firstChild);
-        while (logBody.children.length > 200) logBody.removeChild(logBody.lastChild);
-        document.getElementById('logCount').textContent = `${state.totalMessages} messages`;
+        if (level > 80) { el.style.color = 'var(--red)'; bar.style.background = 'var(--red)'; }
+        else if (level > 60) { el.style.color = 'var(--yellow)'; bar.style.background = 'var(--yellow)'; }
+        else { el.style.color = 'var(--green)'; bar.style.background = 'var(--green)'; }
     }
+    
+    // 音频波形
+    updateWave(level);
+}
 
-    // ═══ UI Helpers ═══
-    function updateConnectionUI(connected, mode = '') {
-        const badge = document.getElementById('statusBadge');
-        const text = document.getElementById('statusText');
-        const modeEl = document.getElementById('connMode');
-        badge.className = `status-badge ${connected ? 'status-online' : 'status-offline'}`;
-        text.textContent = connected ? 'Connected' : 'Disconnected';
-        if (mode) modeEl.textContent = mode;
+function updateWave(level) {
+    const container = document.getElementById('soundWave');
+    let bars = container.children;
+    if (bars.length === 0) {
+        for (let i = 0; i < 30; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'sound-wave-bar';
+            container.appendChild(bar);
+        }
+        bars = container.children;
     }
-
-    function formatValue(value, sensorType) {
-        if (Math.abs(value) >= 10000) return value.toFixed(0);
-        if (Math.abs(value) >= 100) return value.toFixed(1);
-        if (Math.abs(value) >= 10) return value.toFixed(1);
-        return value.toFixed(1);
+    const normalized = level !== undefined ? Math.max(5, (level + 100) / 100 * 40) : 2;
+    for (let bar of bars) {
+        const h = normalized * (0.3 + Math.random() * 0.7);
+        bar.style.height = h + 'px';
+        if (level > 80) bar.style.background = 'var(--red)';
+        else if (level > 60) bar.style.background = 'var(--yellow)';
+        else bar.style.background = 'var(--accent)';
     }
+}
 
-    function formatNumber(n) {
-        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-        return n.toString();
-    }
-
-    // ═══ Init ═══
-    document.addEventListener('DOMContentLoaded', () => {
-        connectWebSocket();
-        
-        // Uptime ticker
-        setInterval(() => {
-            const uptime = Math.floor((Date.now() - state.startTime) / 1000);
-            const hrs = Math.floor(uptime / 3600);
-            const mins = Math.floor((uptime % 3600) / 60).toString().padStart(2, '0');
-            const secs = (uptime % 60).toString().padStart(2, '0');
-            document.getElementById('statUptime').textContent = 
-                hrs > 0 ? `${hrs}:${mins}:${secs}` : `${mins}:${secs}`;
-        }, 1000);
-
-        // Periodic API polling for compute/sound data
-        setInterval(async () => {
-            try {
-                const resp = await fetch('/api/status');
-                const data = await resp.json();
-                if (data.sound_db !== undefined) {
-                    updateSoundMonitor(data.sound_db);
-                }
-                if (data.compute) {
-                    state.computeData = data.compute;
-                    renderCompute();
-                }
-                if (data.cameras) {
-                    renderCameras(data.cameras);
-                }
-                if (data.registered_devices) {
-                    renderRegisteredDevices(data.registered_devices);
-                }
-            } catch (e) {}
-        }, 2000);
+function setThreshold(val) {
+    document.getElementById('thresholdVal').textContent = val;
+    fetch('/api/sound/threshold', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threshold: parseInt(val) })
     });
+}
 
-    // ═══ Compute Tab Rendering ═══
-    function renderCompute() {
-        const data = state.computeData;
-        if (!data) return;
-        
-        document.getElementById('computeTotalScore').textContent = 
-            data.compute_score !== undefined ? data.compute_score.toFixed(0) : '--';
-        document.getElementById('computeDeviceCount').textContent = Object.keys(data.devices || {}).length;
-        document.getElementById('computeApps').textContent = Object.keys(data.registered_apps || {}).length;
+function addAlert(type, value, message) {
+    const log = document.getElementById('alertLog');
+    const item = document.createElement('div');
+    item.className = 'alert-item alert';
+    const now = new Date();
+    item.innerHTML = `<span>🚨</span><span>${message || type + ': ' + (value || 0).toFixed(1) + ' dB'}</span><span style="margin-left:auto;font-size:11px">${now.toLocaleTimeString()}</span>`;
+    log.prepend(item);
+    if (log.children.length > 20) log.removeChild(log.lastChild);
+}
 
-        const grid = document.getElementById('computeGrid');
-        const devices = data.devices || {};
-        
-        if (Object.keys(devices).length === 0) return;
-        
-        grid.innerHTML = Object.entries(devices).map(([id, d]) => {
-            const score = d.score || 0;
-            const scoreClass = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
-            return `<div class="compute-card">
-                <h3><span style="font-size:16px">${d.device_type === 'android' ? '&#x1F4F1;' : '&#x1F5A5;'}</span> ${d.device_name || id}</h3>
-                <div class="metric-row">
-                    <span class="metric-label">CPU</span>
-                    <span class="metric-value">${(d.cpu_usage || 0).toFixed(1)}%</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Memory</span>
-                    <span class="metric-value">${(d.memory_usage || 0).toFixed(1)}%</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">GPU</span>
-                    <span class="metric-value">${d.gpu_name || 'N/A'} (${(d.gpu_usage || 0).toFixed(0)}%)</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Temperature</span>
-                    <span class="metric-value">${(d.temperature || 0).toFixed(1)}&deg;C</span>
-                </div>
-                ${d.device_type === 'android' ? `<div class="metric-row">
-                    <span class="metric-label">Battery</span>
-                    <span class="metric-value">${d.battery_level || '--}% ${d.is_charging ? '&#x26A1;' : ''}</span>
-                </div>` : ''}
-                <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:12px">
-                    <span style="color:var(--text-secondary)">Score</span>
-                    <span style="font-weight:700;color:${score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)'}">${score.toFixed(0)}</span>
-                </div>
-                <div class="score-bar">
-                    <div class="score-fill ${scoreClass}" style="width:${score}%"></div>
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    // ═══ Camera Tab Rendering ═══
-    function renderCameras(cameras) {
+// ═══ 摄像头 ═══
+function refreshCameras() {
+    fetch('/api/camera/list').then(r => r.json()).then(data => {
         const grid = document.getElementById('cameraGrid');
-        if (!cameras || Object.keys(cameras).length === 0) return;
+        grid.innerHTML = '';
+        
+        if (data.devices && Object.keys(data.devices).length > 0) {
+            for (let [serial, info] of Object.entries(data.devices)) {
+                const div = document.createElement('div');
+                div.className = 'camera-feed';
+                div.id = 'cam-' + serial;
+                div.innerHTML = `<div class="camera-placeholder">📷 ${info.name || serial}</div><div class="camera-label">${info.name || serial} ${info.running ? '🟢' : '🔴'}</div>`;
+                grid.appendChild(div);
+            }
+        } else {
+            grid.innerHTML = '<div class="camera-feed"><div class="camera-placeholder">未发现额外设备 (仅主 Scrcpy 窗口)</div></div>';
+        }
+    });
+}
 
-        let onlineCount = 0, recordingCount = 0;
-        grid.innerHTML = Object.entries(cameras).map(([id, cam]) => {
-            if (cam.running) onlineCount++;
-            if (cam.recording) recordingCount++;
-            return `<div class="camera-card">
-                <div class="camera-preview">
-                    <span style="font-size:64px">&#x1F4F7;</span>
-                    ${cam.running ? '<div class="live-badge">LIVE</div>' : ''}
-                </div>
-                <div class="camera-info">
-                    <span class="camera-name">${cam.device_name || id}</span>
-                    <div class="camera-controls">
-                        <button class="cam-btn ${cam.camera_enabled ? 'active' : ''}">${cam.camera_enabled ? 'ON' : 'OFF'}</button>
-                        <button class="cam-btn">Capture</button>
+function captureAll() {
+    fetch('/api/camera/screenshot').then(r => r.json()).then(data => {
+        if (data.ok && data.image_base64) {
+            for (let feed of document.querySelectorAll('.camera-feed')) {
+                feed.querySelector('.camera-placeholder').innerHTML = `<img src="data:image/png;base64,${data.image_base64}" alt="screenshot">`;
+            }
+        }
+    });
+}
+
+// ═══ 音频控制 ═══
+function playSound(type) {
+    const vol = document.getElementById('playVolume').value;
+    fetch('/api/audio/play', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: type, volume: parseInt(vol) })
+    }).then(r => r.json()).then(d => {
+        showToast(type + ' 已发送');
+    });
+}
+
+function playTTS() {
+    const text = document.getElementById('ttsText').value;
+    if (!text.trim()) return;
+    fetch('/api/audio/tts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text })
+    }).then(r => r.json()).then(d => {
+        showToast('TTS 已发送');
+    });
+}
+
+function broadcastSound(type) {
+    fetch('/api/audio/broadcast', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: type })
+    }).then(r => r.json()).then(d => {
+        showToast('广播已发送');
+    });
+}
+
+function vibrate(ms) {
+    fetch('/api/command', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: 'broadcast', action: 'vibrate', params: { duration: ms } })
+    });
+}
+
+// 音量滑块实时更新
+document.getElementById('playVolume').addEventListener('input', function() {
+    document.getElementById('playVolVal').textContent = this.value + '%';
+});
+
+// ═══ 场景 ═══
+function activateScene(name) {
+    fetch('/api/scene', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scene: name })
+    }).then(r => r.json()).then(d => {
+        showToast('场景 ' + name + (d.ok ? ' 已激活' : ' 失败'));
+        // 高亮激活的场景
+        document.querySelectorAll('.scene-card').forEach(c => c.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    });
+}
+
+// ═══ 算力 ═══
+function runBenchmark(iterations) {
+    document.getElementById('computeResult').textContent = '测试运行中...';
+    fetch('/api/compute/benchmark', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iterations: iterations })
+    }).then(r => r.json()).then(d => {
+        document.getElementById('computeResult').textContent = 
+            '命令已发送 (id: ' + d.command_id + ')\n' +
+            '等待设备响应...\n' +
+            '结果将通过 WebSocket 推送';
+        showToast('基准测试已发送');
+    });
+}
+
+// ═══ 设备 ═══
+function refreshDevices() {
+    fetch('/api/status').then(r => r.json()).then(data => {
+        // 设备列表
+        const list = document.getElementById('deviceList');
+        list.innerHTML = '';
+        
+        if (data.registered_devices) {
+            for (let [devId, dev] of Object.entries(data.registered_devices)) {
+                const item = document.createElement('div');
+                item.className = 'device-item';
+                item.innerHTML = `
+                    <div>
+                        <div class="device-name">${dev.device_name || devId}</div>
+                        <div class="device-id">${devId} · ${dev.device_type || 'unknown'}</div>
                     </div>
-                </div>
-            </div>`;
-        }).join('');
-
-        document.getElementById('camOnline').textContent = onlineCount;
-        document.getElementById('camRecording').textContent = recordingCount;
-    }
-
-    // ═══ Registered Devices (Command Tab) ═══
-    function renderRegisteredDevices(devices) {
-        const container = document.getElementById('registeredDevices');
-        if (!devices || Object.keys(devices).length === 0) return;
-
-        // Also update target dropdown
-        const select = document.getElementById('cmdTarget');
-        const currentVal = select.value;
-        select.innerHTML = '<option value="broadcast">Broadcast (all devices)</option>';
+                    <div style="display:flex;gap:8px;align-items:center">
+                        ${(dev.capabilities || []).map(c => '<span class="device-badge" style="background:var(--accent-dim);color:var(--accent)">' + c + '</span>').join('')}
+                    </div>`;
+                list.appendChild(item);
+            }
+        } else {
+            list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">暂无设备</div>';
+        }
         
-        container.innerHTML = Object.entries(devices).map(([id, d]) => {
-            select.innerHTML += `<option value="${id}">${d.device_name || id}</option>`;
-            return `<div class="device-list-item">
-                <span class="name">
-                    <span class="dot ${d.online ? 'running' : 'stopped'}" style="width:8px;height:8px;border-radius:50%;display:inline-block"></span>
-                    ${d.device_name || id}
-                </span>
-                <span class="type-badge">${d.device_type || 'unknown'}</span>
-            </div>`;
-        }).join('');
+        // 设备计数
+        const count = data.registered_devices ? Object.keys(data.registered_devices).length : 0;
+        document.getElementById('deviceCount').textContent = count + ' 设备';
         
-        select.value = currentVal;
+        // 声音数据
+        if (data.sound_db !== undefined) updateSound(data);
+        
+        // 算力评分
+        if (data.compute) {
+            const scores = document.getElementById('deviceScores');
+            scores.innerHTML = '';
+            // compute 数据展示
+            if (typeof data.compute === 'object') {
+                for (let [key, val] of Object.entries(data.compute)) {
+                    const row = document.createElement('div');
+                    row.className = 'device-item';
+                    row.innerHTML = `<div class="device-name">${key}</div><div class="device-badge" style="background:var(--green-dim);color:var(--green)">${typeof val === 'object' ? JSON.stringify(val) : val}</div>`;
+                    scores.appendChild(row);
+                }
+            }
+        }
+    });
+}
+
+// ═══ 日志 ═══
+function addMessage(data) {
+    messages.unshift(data);
+    if (messages.length > 200) messages.pop();
+    renderMessages();
+}
+
+function renderMessages() {
+    const log = document.getElementById('messageLog');
+    const typeColors = {
+        sensor: 'var(--green)', device_status: 'var(--blue)', alert: 'var(--red)',
+        command: 'var(--purple)', info: 'var(--text-secondary)'
+    };
+    
+    let html = '';
+    for (let msg of messages.slice(0, 100)) {
+        const time = new Date(msg.ts * 1000 || Date.now()).toLocaleTimeString();
+        const color = typeColors[msg.type] || 'var(--text-muted)';
+        const label = msg.type || 'unknown';
+        const text = msg.sensor || msg.device_id || msg.alert_type || msg.message || JSON.stringify(msg).substring(0, 80);
+        html += `<div class="msg-item"><span class="msg-time">${time}</span><span class="msg-type" style="background:${color}20;color:${color}">${label}</span><span style="color:var(--text-secondary)">${text}</span></div>`;
     }
+    log.innerHTML = html;
+}
+
+function clearLogs() {
+    messages = [];
+    document.getElementById('messageLog').innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">已清空</div>';
+}
+
+// ═══ Toast ═══
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border);padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;animation:fadeIn 0.3s';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
+
+// ═══ 定时轮询 (HTTP 轮询备用) ═══
+function pollStatus() {
+    fetch('/api/status').then(r => r.json()).then(data => {
+        if (data.sound_db !== undefined) updateSound(data);
+    }).catch(() => {});
+    refreshDevices();
+}
+
+// ═══ 初始化 ═══
+connectWS();
+pollStatus();
+setInterval(pollStatus, 5000);
+refreshCameras();
+
+// 音量滑块联动
+document.getElementById('playVolume').addEventListener('input', function() {
+    document.getElementById('playVolVal').textContent = this.value + '%';
+});
+
+// 波形动画
+setInterval(() => {
+    const bars = document.getElementById('soundWave').children;
+    for (let bar of bars) {
+        const h = 2 + Math.random() * 8;
+        bar.style.height = h + 'px';
+    }
+}, 200);
 </script>
+
 </body>
 </html>

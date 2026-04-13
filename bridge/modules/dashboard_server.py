@@ -292,6 +292,122 @@ class DashboardHTTPRequestHandler(SimpleHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(e)})
             return
 
+        elif path == "/api/camera/screenshot":
+            """截图指定设备"""
+            try:
+                device_id = urllib.parse.parse_qs(parsed.query).get("device", [None])[0]
+                if self.daemon and self.daemon.multi_scrcpy:
+                    result = self.daemon.multi_scrcpy.capture_screenshot(device_id)
+                    if result:
+                        self._send_json({"ok": True, "image_base64": result})
+                    else:
+                        self._send_json({"ok": False, "error": "screenshot failed"})
+                else:
+                    self._send_json({"ok": False, "error": "no multi_scrcpy"})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/list":
+            """列出摄像头设备"""
+            try:
+                if self.daemon and self.daemon.multi_scrcpy:
+                    devices = self.daemon.multi_scrcpy.get_status()
+                    self._send_json({"ok": True, "devices": devices})
+                else:
+                    self._send_json({"ok": True, "devices": {}})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/audio/play":
+            """在手机上播放声音"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.audio_bridge:
+                    sound_type = data.get("type", "beep")
+                    device_id = data.get("device", "")
+                    volume = data.get("volume", 80)
+                    ok = self.daemon.audio_bridge.play_sound_on_phone(
+                        device_id=device_id, sound_type=sound_type, volume=volume
+                    )
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False, "error": "audio_bridge not available"})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/audio/tts":
+            """在手机上朗读文字"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.audio_bridge:
+                    text = data.get("text", "")
+                    device_id = data.get("device", "")
+                    ok = self.daemon.audio_bridge.play_tts_on_phone(
+                        text=text, device_id=device_id
+                    )
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False, "error": "audio_bridge not available"})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/audio/broadcast":
+            """全屋广播"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.audio_bridge:
+                    sound_type = data.get("type", "beep")
+                    ok = self.daemon.audio_bridge.broadcast_sound(sound_type=sound_type)
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False, "error": "audio_bridge not available"})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/scenes":
+            """获取所有场景"""
+            try:
+                if self.daemon and self.daemon.command_bridge:
+                    scenes = self.daemon.command_bridge.get_scenes()
+                    self._send_json({"ok": True, "scenes": scenes})
+                else:
+                    self._send_json({"ok": True, "scenes": {}})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/compute/benchmark":
+            """发送算力基准测试到设备"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.command_bridge:
+                    device_id = data.get("device", "")
+                    iterations = data.get("iterations", 1000000)
+                    cmd = self.daemon.command_bridge.send_command(
+                        target=device_id or "phone",
+                        action="compute_task",
+                        params={"task_type": "benchmark", "iterations": iterations},
+                    )
+                    self._send_json({"ok": True, "command_id": cmd.id})
+                else:
+                    self._send_json({"ok": False, "error": "command_bridge not available"})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
         self.send_response(404)
         self.end_headers()
 

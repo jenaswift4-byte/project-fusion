@@ -181,12 +181,26 @@ class CommandBridge:
         发送命令到目标设备
 
         Args:
-            target: 目标设备 ID
+            target: 目标设备 ID (支持 group/xxx 设备组)
             action: 动作名称 (如 "turn_on", "set_value", "capture")
             params: 动作参数
             timeout: 超时时间 (秒)
             wait_response: 是否等待响应
         """
+        # 设备组展开
+        if target.startswith("group/"):
+            group_name = target.split("/", 1)[1]
+            devices = self.get_group_devices(group_name)
+            for device_id in devices:
+                self._send_single_command(device_id, action, params, timeout, wait_response)
+            return Command(target=target, action=action, params=params or {},
+                          status=CommandStatus.SENT, sent_at=time.time())
+        
+        return self._send_single_command(target, action, params, timeout, wait_response)
+    
+    def _send_single_command(self, target: str, action: str, params: Dict,
+                             timeout: int, wait_response: bool) -> Command:
+        """发送单设备命令"""
         cmd = Command(
             target=target,
             action=action,
@@ -358,6 +372,9 @@ class CommandBridge:
                 {"target": "group/mcu", "action": "dim_lights", "params": {"level": 20}},
                 {"target": "group/phones", "action": "set_mode", "params": {"mode": "silent"}},
             ],
+            conditions=[
+                {"type": "time", "after": "22:00", "before": "06:00"},
+            ],
         )
         self._scenes["away_mode"] = Scene(
             name="away_mode",
@@ -366,6 +383,33 @@ class CommandBridge:
                 {"target": "group/cameras", "action": "start_recording"},
                 {"target": "group/phones", "action": "arm_sensors"},
                 {"target": "group/mcu", "action": "simulate_presence"},
+            ],
+        )
+        self._scenes["movie_mode"] = Scene(
+            name="movie_mode",
+            description="影院模式",
+            actions=[
+                {"target": "group/phones", "action": "set_volume", "params": {"level": 10}},
+                {"target": "group/mcu", "action": "dim_lights", "params": {"level": 5}},
+            ],
+        )
+        self._scenes["party_mode"] = Scene(
+            name="party_mode",
+            description="派对模式",
+            actions=[
+                {"target": "group/phones", "action": "play_sound", "params": {"type": "ring"}},
+                {"target": "group/mcu", "action": "color_cycle"},
+            ],
+        )
+        self._scenes["alert_mode"] = Scene(
+            name="alert_mode",
+            description="警报模式",
+            actions=[
+                {"target": "group/phones", "action": "vibrate", "params": {"duration": 1000}},
+                {"target": "group/phones", "action": "play_sound", "params": {"type": "alarm"}},
+            ],
+            conditions=[
+                {"type": "sensor", "sensor_type": "sound", "above_db": 80},
             ],
         )
 

@@ -31,10 +31,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 
  * 功能特性:
  * - 支持所有可用传感器（光线/距离/温度/湿度/气压/陀螺仪/加速度计）
- * - 每 5 秒采集一次数据
- * - 支持启动/停止采集
- * - 低功耗设计（使用事件驱动而非轮询）
+ * - 每 5 秒主动轮询一次数据 (绕过 MIUI 省电模式下 onSensorChanged 不触发的问题)
+ * - 支持 Batch 模式 (Android 9+)：flush() 触发传感器批量上报
  * - 通过 MQTT 发布传感器数据
+ * 
+ * 采集模式:
+ * 1. 轮询模式 (POLL): 使用 Handler 定时调用 sensorManager.flush() 或读取缓存
+ * 2. 事件模式 (EVENT): 传统 onSensorChanged 回调 (MIUI 省电下可能失效)
+ * 
+ * 默认使用轮询模式，确保 MIUI / 国产 ROM 下也能正常采集。
  * 
  * 支持的传感器类型:
  * - TYPE_LIGHT (光线传感器)
@@ -44,23 +49,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * - TYPE_PRESSURE (气压计)
  * - TYPE_GYROSCOPE (陀螺仪)
  * - TYPE_ACCELEROMETER (加速度计)
- * 
- * 数据格式 (JSON):
- * {
- *   "device_id": "bedroom-phone-c",
- *   "sensor_type": "temperature",
- *   "value": 25.5,
- *   "unit": "°C",
- *   "timestamp": 1234567890
- * }
- * 
- * MQTT 发布配置:
- * - 主题：sensors/{deviceId}/{sensorType}
- * - QoS: 1
- * - Retained: false
+ * - TYPE_MAGNETIC_FIELD (磁力计)
+ * - TYPE_STEP_COUNTER (步数)
  * 
  * @author Fusion
- * @version 1.0
+ * @version 2.0 - 定时轮询模式绕过 MIUI 省电限制
  */
 public class SensorCollector implements SensorEventListener {
     
@@ -86,6 +79,8 @@ public class SensorCollector implements SensorEventListener {
         SENSOR_TYPE_MAP.put(Sensor.TYPE_PRESSURE, "pressure");
         SENSOR_TYPE_MAP.put(Sensor.TYPE_GYROSCOPE, "gyroscope");
         SENSOR_TYPE_MAP.put(Sensor.TYPE_ACCELEROMETER, "accelerometer");
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_MAGNETIC_FIELD, "magnetic_field");
+        SENSOR_TYPE_MAP.put(Sensor.TYPE_STEP_COUNTER, "step_counter");
     };
     
     // 传感器单位映射表
@@ -98,6 +93,8 @@ public class SensorCollector implements SensorEventListener {
         SENSOR_UNIT_MAP.put(Sensor.TYPE_PRESSURE, "hPa");
         SENSOR_UNIT_MAP.put(Sensor.TYPE_GYROSCOPE, "rad/s");
         SENSOR_UNIT_MAP.put(Sensor.TYPE_ACCELEROMETER, "m/s²");
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_MAGNETIC_FIELD, "μT");
+        SENSOR_UNIT_MAP.put(Sensor.TYPE_STEP_COUNTER, "steps");
     };
     
     // 上下文和传感器管理器
@@ -116,8 +113,19 @@ public class SensorCollector implements SensorEventListener {
     // 传感器数据缓存 (用于限流)
     private final ConcurrentHashMap<Integer, Long> lastPublishTime = new ConcurrentHashMap<>();
     
+    // 传感器数据缓存 (轮询模式: 存储最新值)
+    private final ConcurrentHashMap<Integer, float[]> sensorValueCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, Long> sensorUpdateTimestamp = new ConcurrentHashMap<>();
+    
     // 采集间隔 (毫秒)
     private int collectionInterval = DEFAULT_COLLECTION_INTERVAL;
+    
+    // 轮询定时器
+    private Handler pollHandler;
+    private Runnable pollTask;
+    
+    // 轮询模式标记: true=定时 flush (推荐), false=被动事件 (MIUI 省电下失效)
+    private boolean pollMode = true;
     
     // MQTT 客户端
     private volatile MqttClient mqttClient;
@@ -424,18 +432,57 @@ public class SensorCollector implements SensorEventListener {
     }
     
     /**
-     * 启动定时采集任务
-     * 注意：MQTT 重连操作已移至后台线程
+     * 启动定时采集任务 (轮询模式)
+     * 
+     * 轮询策略:
+     * 1. 优先使用 sensorManager.flush() 触发批量上报 (Android 9+)
+     * 2. flush 失败时，直接读取缓存中的最新值并发布
+     * 3. 同时检查 MQTT 连接状态并自动重连
      */
     private void startCollectionTask() {
-        collectTask = new Runnable() {
+        if (pollHandler == null) {
+            pollHandler = new Handler(Looper.getMainLooper());
+        }
+        
+        pollTask = new Runnable() {
             @Override
             public void run() {
                 if (!isCollecting.get()) {
                     return;
                 }
                 
-                // MQTT 重连丢到后台线程
+                // ═══ 轮询: 主动 flush 传感器数据 ═══
+                if (pollMode && sensorManager != null && !registeredSensors.isEmpty()) {
+                    // 方案 1: flush() 触发传感器上报 (Android 9+)
+                    // 这会立即触发 onSensorChanged，更新缓存
+                    try {
+                        boolean flushed = sensorManager.flush(SensorCollector.this);
+                        if (!flushed) {
+                            Log.d(TAG, "传感器 flush 无效，将使用缓存数据");
+                        }
+                    } catch (Exception e) {
+                        Log.d(TAG, "flush 异常: " + e.getMessage());
+                    }
+                    
+                    // 方案 2: 读取缓存并发布 (确保即使 flush 失败也有数据)
+                    long now = System.currentTimeMillis();
+                    for (Sensor sensor : registeredSensors) {
+                        int type = sensor.getType();
+                        long lastUpdate = sensorUpdateTimestamp.getOrDefault(type, 0L);
+                        
+                        // 如果数据在 2 倍间隔内还有效，直接用缓存
+                        if (now - lastUpdate < collectionInterval * 2) {
+                            float[] values = sensorValueCache.get(type);
+                            if (values != null) {
+                                String unit = SENSOR_UNIT_MAP.get(type);
+                                final float value = values[0];
+                                mqttExecutor.execute(() -> publishSensorData(type, value, unit));
+                            }
+                        }
+                    }
+                }
+                
+                // ═══ MQTT 重连检查 ═══
                 if (mqttClient == null || !mqttClient.isConnected()) {
                     Log.w(TAG, "MQTT 连接断开，尝试重连...");
                     mqttExecutor.execute(() -> {
@@ -447,24 +494,33 @@ public class SensorCollector implements SensorEventListener {
                     });
                 }
                 
-                // 调度下一次检查
-                handler.postDelayed(this, collectionInterval);
+                // 调度下一次轮询
+                pollHandler.postDelayed(this, collectionInterval);
             }
         };
         
-        handler.post(collectTask);
-        Log.d(TAG, "定时采集任务已启动");
+        pollHandler.post(pollTask);
+        Log.i(TAG, "定时轮询任务已启动 (间隔: " + collectionInterval + "ms, 模式: " + (pollMode ? "POLL" : "EVENT"))");
     }
     
     /**
      * 停止定时采集任务
      */
     private void stopCollectionTask() {
-        if (collectTask != null) {
-            handler.removeCallbacks(collectTask);
-            collectTask = null;
+        if (pollTask != null && pollHandler != null) {
+            pollHandler.removeCallbacks(pollTask);
+            pollTask = null;
             Log.d(TAG, "定时采集任务已停止");
         }
+    }
+    
+    /**
+     * 设置采集模式
+     * @param poll true=轮询模式 (推荐, MIUI兼容), false=事件模式
+     */
+    public void setPollMode(boolean poll) {
+        this.pollMode = poll;
+        Log.i(TAG, "采集模式: " + (poll ? "POLL (轮询)" : "EVENT (事件)"));
     }
     
     // ==================== SensorEventListener 实现 ====================
@@ -476,11 +532,17 @@ public class SensorCollector implements SensorEventListener {
         }
         
         final int sensorType = event.sensor.getType();
-        final float value = event.values[0];
-        final String unit = SENSOR_UNIT_MAP.get(sensorType);
         
-        // 发布到 MQTT (后台线程，避免阻塞主线程)
-        mqttExecutor.execute(() -> publishSensorData(sensorType, value, unit));
+        // 缓存所有值 (多值传感器如加速度计有 x,y,z)
+        sensorValueCache.put(sensorType, event.values.clone());
+        sensorUpdateTimestamp.put(sensorType, System.currentTimeMillis());
+        
+        // 事件模式: 直接发布 (轮询模式下由 pollTask 统一发布)
+        if (!pollMode) {
+            final float value = event.values[0];
+            final String unit = SENSOR_UNIT_MAP.get(sensorType);
+            mqttExecutor.execute(() -> publishSensorData(sensorType, value, unit));
+        }
     }
     
     @Override

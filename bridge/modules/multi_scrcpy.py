@@ -504,6 +504,67 @@ class MultiScrcpyManager:
         """获取运行中设备数"""
         return sum(1 for inst in self.instances.values() if inst.running)
 
+    def capture_screenshot(self, device_serial: str = None) -> Optional[str]:
+        """
+        截取指定设备的屏幕截图，返回 Base64 编码的 PNG 图片
+        
+        Args:
+            device_serial: 设备序列号，None 则截取第一个运行中的设备
+        
+        Returns:
+            Base64 编码的 PNG，失败返回 None
+        """
+        target = device_serial
+        if not target:
+            running = [s for s, i in self.instances.items() if i.running]
+            if not running:
+                # 没有多设备实例，用 daemon 的默认设备
+                if self.config:
+                    target = None  # 使用默认 ADB 设备
+                else:
+                    return None
+            else:
+                target = running[0]
+        
+        try:
+            import base64
+            import tempfile
+            
+            # 在 PC 端创建临时文件
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+                tmp_path = f.name
+            
+            # ADB screencap
+            adb_cmd = [self.adb_path]
+            if target:
+                adb_cmd += ["-s", target]
+            adb_cmd += ["exec-out", "screencap", "-p"]
+            
+            result = subprocess.run(
+                adb_cmd, capture_output=True, timeout=10,
+            )
+            
+            if result.returncode == 0 and len(result.stdout) > 1000:
+                with open(tmp_path, 'wb') as f:
+                    f.write(result.stdout)
+                
+                # 转为 Base64
+                with open(tmp_path, 'rb') as f:
+                    b64 = base64.b64encode(f.read()).decode()
+                
+                os.unlink(tmp_path)
+                logger.info(f"[ScrcpyMgr] 截图成功: {target or 'default'} ({len(b64)} chars)")
+                return b64
+            else:
+                logger.warning(f"[ScrcpyMgr] 截图失败: returncode={result.returncode}")
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                return None
+                
+        except Exception as e:
+            logger.error(f"[ScrcpyMgr] 截图异常: {e}")
+            return None
+
     # ═══════════════════════════════════════════════════════
     # 回调
     # ═══════════════════════════════════════════════════════

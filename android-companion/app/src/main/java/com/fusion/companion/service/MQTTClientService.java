@@ -419,6 +419,24 @@ public class MQTTClientService extends Service implements SensorEventListener {
                         return;
                     }
                     
+                    // ═══ PC 命令通道 (fusion/cmd/*) ═══
+                    if (topic.startsWith("fusion/cmd/")) {
+                        handleCommand(topic, payloadStr);
+                        return;
+                    }
+                    
+                    // ═══ 音频控制命令 (fusion/audio/*) ═══
+                    if (topic.startsWith("fusion/audio/")) {
+                        handleAudioCommand(topic, payloadStr);
+                        return;
+                    }
+                    
+                    // ═══ 摄像头控制命令 (fusion/camera/*) ═══
+                    if (topic.startsWith("fusion/camera/")) {
+                        handleCameraCommand(topic, payloadStr);
+                        return;
+                    }
+                    
                     // 通知监听器
                     if (messageListener != null) {
                         messageListener.onMessageReceived(topic, message.getPayload());
@@ -618,7 +636,14 @@ public class MQTTClientService extends Service implements SensorEventListener {
         // 订阅音频控制命令
         subscribeTopic("fusion/audio/" + deviceId + "/command", 1);
         
-        Log.i(TAG, "已订阅主题：" + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command");
+        // 订阅 PC 命令通道 (fusion/cmd/{deviceId} 和 fusion/cmd/broadcast)
+        subscribeTopic("fusion/cmd/" + deviceId, 1);
+        subscribeTopic("fusion/cmd/broadcast", 1);
+        
+        // 订阅全设备命令 (通配符)
+        subscribeTopic("fusion/cmd/#", 1);
+        
+        Log.i(TAG, "已订阅主题: " + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command, fusion/audio/" + deviceId + "/command, fusion/cmd/#");
     }
     
     // ==================== 传感器数据发布 ====================
@@ -1022,5 +1047,454 @@ public class MQTTClientService extends Service implements SensorEventListener {
      */
     public Map<String, Float> getAllSensorData() {
         return new HashMap<>(sensorDataCache);
+    }
+    
+    // ==================== PC 命令通道处理 ====================
+    
+    /**
+     * 处理 PC 端发送的 MQTT 命令
+     * 
+     * 支持的命令:
+     * - ping: 心跳测试
+     * - ring: 铃声/振动
+     * - open_url: 打开链接
+     * - set_volume: 设置音量
+     * - play_sound: 播放声音 (TTS)
+     * - vibrate: 振动
+     * - toast: 显示 Toast
+     * - capture: 截图
+     * - compute_task: 算力任务
+     * - get_info: 获取设备信息
+     */
+    private void handleCommand(String topic, String payload) {
+        try {
+            org.json.JSONObject cmd = new org.json.JSONObject(payload);
+            String action = cmd.optString("action", "");
+            String cmdId = cmd.optString("id", "");
+            org.json.JSONObject params = cmd.optJSONObject("params");
+            if (params == null) params = new org.json.JSONObject();
+            
+            Log.i(TAG, "收到命令: " + action + " (id=" + cmdId + ")");
+            
+            // 检查目标是否是自己
+            String target = cmd.optString("target", "");
+            String broadcastTopic = "fusion/cmd/broadcast";
+            
+            // 广播命令或目标是本设备
+            boolean isForMe = broadcastTopic.equals(topic) 
+                || ("fusion/cmd/" + deviceId).equals(topic)
+                || topic.startsWith("fusion/cmd/" + deviceId + "/");
+            
+            if (!isForMe && !broadcastTopic.equals(topic)) {
+                // 不是给本设备的命令
+                return;
+            }
+            
+            org.json.JSONObject response = new org.json.JSONObject();
+            response.put("cmd_id", cmdId);
+            response.put("status", "ok");
+            response.put("timestamp", System.currentTimeMillis());
+            
+            switch (action) {
+                case "ping":
+                    response.put("result", "pong");
+                    break;
+                    
+                case "ring":
+                    playRingtone();
+                    response.put("result", "ringing");
+                    break;
+                    
+                case "vibrate":
+                    vibrateDevice(params.optInt("duration", 500));
+                    response.put("result", "vibrated");
+                    break;
+                    
+                case "toast":
+                    showToast(params.optString("message", "Fusion Command"));
+                    response.put("result", "shown");
+                    break;
+                    
+                case "get_info":
+                    response.put("result", getDeviceInfo());
+                    break;
+                    
+                case "get_sensors":
+                    response.put("result", getAllSensorData());
+                    break;
+                    
+                case "set_volume":
+                    int volume = params.optInt("level", 50);
+                    setMediaVolume(volume);
+                    response.put("result", "volume_set");
+                    break;
+                    
+                case "play_sound":
+                    String soundType = params.optString("type", "beep");
+                    playSound(soundType, params);
+                    response.put("result", "playing");
+                    break;
+                    
+                case "compute_task":
+                    // 算力卸载任务处理
+                    String taskType = params.optString("task_type", "benchmark");
+                    String result = handleComputeTask(taskType, params);
+                    response.put("result", result);
+                    break;
+                    
+                default:
+                    response.put("status", "unknown_action");
+                    response.put("result", "unsupported: " + action);
+                    Log.w(TAG, "未知命令: " + action);
+                    break;
+            }
+            
+            // 发送命令响应
+            String responseTopic = "fusion/cmd/" + deviceId + "/response";
+            publishTextMessage(responseTopic, response.toString(), 1);
+            Log.d(TAG, "命令响应已发送: " + action);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "处理命令失败: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 处理音频控制命令
+     */
+    private void handleAudioCommand(String topic, String payload) {
+        try {
+            org.json.JSONObject cmd = new org.json.JSONObject(payload);
+            String action = cmd.optString("action", "");
+            Log.i(TAG, "收到音频命令: " + action);
+            
+            switch (action) {
+                case "start_mic":
+                    startMicRecording();
+                    break;
+                case "stop_mic":
+                    stopMicRecording();
+                    break;
+                case "play":
+                    playMedia(cmd.optString("url", ""), cmd.optLong("position", -1));
+                    break;
+                case "pause":
+                    pauseMedia();
+                    break;
+                case "stop":
+                    stopMedia();
+                    break;
+                case "set_volume":
+                    int vol = cmd.optInt("volume", 50);
+                    setMediaVolume(vol);
+                    break;
+                case "play_tts":
+                    speakText(cmd.optString("text", ""));
+                    break;
+                default:
+                    Log.w(TAG, "未知音频命令: " + action);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "处理音频命令失败: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 处理摄像头控制命令
+     */
+    private void handleCameraCommand(String topic, String payload) {
+        try {
+            org.json.JSONObject cmd = new org.json.JSONObject(payload);
+            String action = cmd.optString("action", "");
+            Log.i(TAG, "收到摄像头命令: " + action);
+            
+            switch (action) {
+                case "capture":
+                    // 截图并通过 MQTT 发送
+                    captureAndSendScreenshot();
+                    break;
+                case "start_stream":
+                    // TODO: 启动视频流 (需要 native 代码)
+                    Log.i(TAG, "视频流启动请求 (暂不支持)");
+                    break;
+                case "stop_stream":
+                    Log.i(TAG, "视频流停止请求");
+                    break;
+                default:
+                    Log.w(TAG, "未知摄像头命令: " + action);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "处理摄像头命令失败: " + e.getMessage(), e);
+        }
+    }
+    
+    // ==================== 命令执行实现 ====================
+    
+    private void playRingtone() {
+        try {
+            android.media.Ringtone ringtone = android.media.RingtoneManager.getRingtone(
+                this, android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE)
+            );
+            if (ringtone != null) {
+                ringtone.play();
+                handler.postDelayed(() -> {
+                    if (ringtone.isPlaying()) ringtone.stop();
+                }, 3000);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "播放铃声失败: " + e.getMessage());
+        }
+    }
+    
+    private void vibrateDevice(int durationMs) {
+        try {
+            android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    vibrator.vibrate(android.os.VibrationEffect.createOneShot(durationMs, 128));
+                } else {
+                    vibrator.vibrate(durationMs);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "振动失败: " + e.getMessage());
+        }
+    }
+    
+    private void showToast(String message) {
+        handler.post(() -> {
+            try {
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Log.e(TAG, "Toast 失败: " + e.getMessage());
+            }
+        });
+    }
+    
+    private org.json.JSONObject getDeviceInfo() {
+        org.json.JSONObject info = new org.json.JSONObject();
+        try {
+            info.put("device_id", deviceId);
+            info.put("model", android.os.Build.MODEL);
+            info.put("brand", android.os.Build.BRAND);
+            info.put("android_version", android.os.Build.VERSION.RELEASE);
+            info.put("sdk_int", android.os.Build.VERSION.SDK_INT);
+            info.put("battery", getBatteryLevel());
+            info.put("sensors", new org.json.JSONArray(getAllSensorData().keySet()));
+        } catch (Exception e) {
+            Log.e(TAG, "获取设备信息失败", e);
+        }
+        return info;
+    }
+    
+    private void setMediaVolume(int level) {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                int maxVol = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+                int targetVol = Math.max(0, Math.min(level, maxVol));
+                am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, targetVol, 0);
+                Log.i(TAG, "音量已设置: " + targetVol + "/" + maxVol);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "设置音量失败: " + e.getMessage());
+        }
+    }
+    
+    private void playSound(String type, org.json.JSONObject params) {
+        try {
+            // 播放提示音 (让手机发出声音)
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                // 使用 ToneGenerator 播放简单音调 (不需要音频文件)
+                int toneType = android.media.AudioManager.TONE_PROP_BEEP;
+                switch (type) {
+                    case "alarm": toneType = android.media.AudioManager.TONE_ALARM; break;
+                    case "beep": toneType = android.media.AudioManager.TONE_PROP_BEEP; break;
+                    case "confirm": toneType = android.media.AudioManager.TONE_PROP_ACK; break;
+                    case "error": toneType = android.media.AudioManager.TONE_PROP_NACK; break;
+                    case "ring": toneType = android.media.AudioManager.TONE_RINGTONE; break;
+                }
+                // 确保音量不为 0
+                int currentVol = am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                if (currentVol == 0) {
+                    am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 
+                        am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) / 3, 0);
+                }
+                am.playSoundEffect(toneType);
+                Log.i(TAG, "播放声音: " + type);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "播放声音失败: " + e.getMessage());
+        }
+    }
+    
+    private void speakText(String text) {
+        try {
+            android.speech.tts.TextToSpeech tts = new android.speech.tts.TextToSpeech(this, status -> {
+                if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                    tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "fusion_tts");
+                    handler.postDelayed(tts::shutdown, 5000);
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "TTS 失败: " + e.getMessage());
+        }
+    }
+    
+    private void startMicRecording() {
+        // 通过 ADB 或 WS 发送录音命令
+        // 这里只做标记，实际录音由 FusionBridgeService 的 WebSocket 命令处理
+        Log.i(TAG, "麦克风录音请求 (转交 FusionBridgeService)");
+        if (FusionBridgeService.getWebSocketServer() != null) {
+            try {
+                org.json.JSONObject msg = new org.json.JSONObject();
+                msg.put("type", "mic_control");
+                msg.put("action", "start");
+                FusionBridgeService.getWebSocketServer().broadcast(msg.toString());
+            } catch (Exception e) {
+                Log.e(TAG, "转发录音命令失败: " + e.getMessage());
+            }
+        }
+    }
+    
+    private void stopMicRecording() {
+        Log.i(TAG, "停止录音请求");
+        if (FusionBridgeService.getWebSocketServer() != null) {
+            try {
+                org.json.JSONObject msg = new org.json.JSONObject();
+                msg.put("type", "mic_control");
+                msg.put("action", "stop");
+                FusionBridgeService.getWebSocketServer().broadcast(msg.toString());
+            } catch (Exception e) {
+                Log.e(TAG, "转发停止录音命令失败: " + e.getMessage());
+            }
+        }
+    }
+    
+    private void playMedia(String url, long position) {
+        // 通过广播通知 MediaManager 播放
+        try {
+            Intent intent = new Intent("com.fusion.companion.action.PLAY_MEDIA");
+            intent.setPackage(getPackageName());
+            intent.putExtra("url", url);
+            intent.putExtra("position", position);
+            startService(intent);
+            Log.i(TAG, "播放媒体: " + url);
+        } catch (Exception e) {
+            Log.e(TAG, "播放媒体失败: " + e.getMessage());
+        }
+    }
+    
+    private void pauseMedia() {
+        try {
+            Intent intent = new Intent("com.fusion.companion.action.PAUSE_MEDIA");
+            intent.setPackage(getPackageName());
+            startService(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "暂停媒体失败: " + e.getMessage());
+        }
+    }
+    
+    private void stopMedia() {
+        try {
+            Intent intent = new Intent("com.fusion.companion.action.STOP_MEDIA");
+            intent.setPackage(getPackageName());
+            startService(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "停止媒体失败: " + e.getMessage());
+        }
+    }
+    
+    private void captureAndSendScreenshot() {
+        // 截图并发送到 MQTT
+        new Thread(() -> {
+            try {
+                // 通过 ADB screencap 命令截图
+                Process proc = Runtime.getRuntime().exec(
+                    new String[]{"sh", "-c", "screencap -p /sdcard/fusion_capture.png"}
+                );
+                proc.waitFor();
+                
+                // 读取截图文件并发送
+                java.io.File file = new java.io.File("/sdcard/fusion_capture.png");
+                if (file.exists()) {
+                    byte[] imageData = new byte[(int) file.length()];
+                    java.io.FileInputStream fis = new java.io.FileInputStream(file);
+                    fis.read(imageData);
+                    fis.close();
+                    
+                    // 发送到 MQTT (Base64 编码)
+                    String base64 = android.util.Base64.encodeToString(imageData, 2);
+                    org.json.JSONObject msg = new org.json.JSONObject();
+                    msg.put("device_id", deviceId);
+                    msg.put("image_base64", base64);
+                    msg.put("timestamp", System.currentTimeMillis());
+                    publishTextMessage("fusion/camera/" + deviceId + "/frame", msg.toString(), 0);
+                    
+                    // 清理文件
+                    file.delete();
+                    Log.i(TAG, "截图已发送 (大小: " + (imageData.length / 1024) + "KB)");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "截图失败: " + e.getMessage());
+            }
+        }).start();
+    }
+    
+    /**
+     * 处理算力卸载任务
+     */
+    private String handleComputeTask(String taskType, org.json.JSONObject params) {
+        Log.i(TAG, "算力任务: " + taskType);
+        
+        try {
+            switch (taskType) {
+                case "benchmark":
+                    // 简单基准测试: 计算 Pi (Leibniz 公式) 测算 CPU 性能
+                    long startTime = System.currentTimeMillis();
+                    double pi = 0;
+                    int iterations = params.optInt("iterations", 1000000);
+                    for (int i = 0; i < iterations; i++) {
+                        pi += (i % 2 == 0 ? 1.0 : -1.0) / (2 * i + 1);
+                    }
+                    pi *= 4;
+                    long elapsed = System.currentTimeMillis() - startTime;
+                    
+                    org.json.JSONObject result = new org.json.JSONObject();
+                    result.put("pi", pi);
+                    result.put("iterations", iterations);
+                    result.put("elapsed_ms", elapsed);
+                    result.put("score", (int)(iterations / (elapsed / 1000.0))); // ops/sec
+                    return result.toString();
+                    
+                case "hash":
+                    // 文件哈希 (MD5/SHA-256)
+                    String hashInput = params.optString("data", "fusion-benchmark");
+                    String hashAlgo = params.optString("algorithm", "SHA-256");
+                    int rounds = params.optInt("rounds", 10000);
+                    long hashStart = System.currentTimeMillis();
+                    String hashResult = hashInput;
+                    java.security.MessageDigest md = java.security.MessageDigest.getInstance(hashAlgo);
+                    for (int i = 0; i < rounds; i++) {
+                        md.reset();
+                        byte[] hash = md.digest(hashResult.getBytes());
+                        hashResult = android.util.Base64.encodeToString(hash, 2);
+                    }
+                    long hashElapsed = System.currentTimeMillis() - hashStart;
+                    
+                    org.json.JSONObject hashResultObj = new org.json.JSONObject();
+                    hashResultObj.put("result_hash", hashResult);
+                    hashResultObj.put("rounds", rounds);
+                    hashResultObj.put("elapsed_ms", hashElapsed);
+                    return hashResultObj.toString();
+                    
+                default:
+                    return "{\"error\": \"unsupported_task: " + taskType + "\"}";
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "算力任务失败: " + e.getMessage());
+            return "{\"error\": \"" + e.getMessage() + "\"}";
+        }
     }
 }

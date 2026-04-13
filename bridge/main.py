@@ -392,7 +392,12 @@ class BridgeDaemon:
                 if sm_cfg.get("enabled", True):
                     self.sound_monitor.start()
                     self.sound_monitor.on_alert(self._on_sound_alert)
-                    print("  ✅ 声音监测 (静音分析)")
+                    print("  ✅ 声音监测 (PC+手机双源分析)")
+                    
+                    # 集成音频桥接到声音监测: 手机麦克风 → sound_monitor
+                    if audio_cfg.get("mic_to_pc", False):
+                        self.audio_bridge.start_mic_to_pc()
+                        print("  ✅ 手机麦克风 → PC 实时分析")
 
                 # 分布式调度器
                 dist_cfg = self.config.get("distributed", {})
@@ -866,7 +871,7 @@ class BridgeDaemon:
     # ═══════════════════════════════════════════════════════
 
     def _on_sound_alert(self, alert_type: str, db: float):
-        """声音告警回调 → Toast 通知"""
+        """声音告警回调 → Toast 通知 + PC 提示音 + Dashboard 告警"""
         send_toast(
             title=f"声音告警 ({alert_type})",
             text=f"检测到异常声音: {db:.1f} dB",
@@ -874,9 +879,20 @@ class BridgeDaemon:
         )
         logger.warning(f"[声音告警] {alert_type}: {db:.1f} dB")
 
+        # PC 扬声器播放提示音
+        try:
+            self.sound_monitor.play_pc_alert()
+        except Exception:
+            pass
+
         # 推送到 Dashboard
         if self.dashboard_server:
-            self.dashboard_server.push_alert("sound", alert_type, db)
+            self.dashboard_server.push_alert("sound", alert_type, db, 
+                f"检测到异常声音: {db:.1f} dB")
+
+        # 触发警报场景 (如果声音持续过高)
+        if db > 90 and self.command_bridge:
+            self.command_bridge.activate_scene("alert_mode")
 
     # ══════════════════════════════════════
     # KDE Connect 回调
