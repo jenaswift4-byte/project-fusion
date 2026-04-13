@@ -739,8 +739,14 @@ class MQTTBridge:
             def on_connect(cli, userdata, flags, rc):
                 if rc == 0:
                     logger.info("[PhoneBridge] 已连接手机 Broker")
-                    cli.subscribe([("sensors/#", 0), ("devices/#", 0), ("fusion/+/broker", 0)])
-                    logger.info("[PhoneBridge] 已订阅 sensors/#, devices/#")
+                    cli.subscribe([
+                        ("sensors/#", 0), 
+                        ("devices/#", 0), 
+                        ("fusion/+/broker", 0),
+                        # 反向通道: 订阅手机 Broker 的命令响应
+                        ("fusion/+/response", 0),
+                    ])
+                    logger.info("[PhoneBridge] 已订阅 sensors/#, devices/#, fusion/+/response")
                 else:
                     logger.warning(f"[PhoneBridge] 连接手机 Broker 失败: rc={rc}")
 
@@ -814,6 +820,24 @@ class MQTTBridge:
             except Exception:
                 pass
             self._phone_bridge_client = None
+
+    def _forward_command_to_phone(self, topic: str, payload: bytes):
+        """反向桥接: 将 PC Broker 收到的命令转发到手机本地 Broker
+        
+        当手机 MQTTClientService 在 fallback 模式下连本地 Broker (127.0.0.1:1883) 时，
+        PC 端 command_bridge 发送的 MQTT 命令 (fusion/cmd/#, fusion/audio/#) 
+        只到达 PC Broker，手机收不到。
+        
+        此方法通过 ADB forward 的 PhoneBridge 客户端将命令转发到手机 Broker。
+        """
+        if not self._phone_bridge_client or not self._phone_bridge_client.is_connected():
+            return
+
+        try:
+            self._phone_bridge_client.publish(topic, payload, qos=0)
+            logger.debug(f"[PhoneBridge] 命令已转发到手机: {topic}")
+        except Exception as e:
+            logger.debug(f"[PhoneBridge] 命令转发失败: {e}")
 
     def stop(self):
         """停止 MQTT Bridge"""
@@ -992,6 +1016,15 @@ class MQTTBridge:
                 logger.debug(f"[MQTT Bridge] 命令响应: {topic}")
             except json.JSONDecodeError:
                 pass
+
+            # 🔁 反向桥接: PC→手机命令转发
+            # 当手机 MQTTClientService 在 fallback 模式连本地 Broker 时，
+            # PC Broker 收到的命令需要转发到手机本地 Broker
+            self._forward_command_to_phone(topic, payload)
+
+        # 🔁 反向桥接: 音频命令转发 (fusion/audio/*)
+        elif len(parts) >= 2 and parts[0] == "fusion" and parts[1] == "audio":
+            self._forward_command_to_phone(topic, payload)
 
         # 设备状态上报: fusion/devices/{deviceId}/state
         elif len(parts) >= 3 and parts[0] == "fusion" and parts[1] == "devices":

@@ -24,6 +24,7 @@ import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
 
 import com.fusion.companion.FusionWebSocketServer;
+import com.fusion.companion.audio.AudioStreamer;
 
 import org.json.JSONObject;
 
@@ -76,6 +77,9 @@ public class FusionBridgeService extends Service {
 
     // 上次剪贴板内容 (去重)
     private String lastClipboardText = "";
+
+    // 音频流传输器 (手机麦克风 → PC)
+    private AudioStreamer audioStreamer;
 
     public static boolean isRunning() {
         return running;
@@ -152,6 +156,11 @@ public class FusionBridgeService extends Service {
         // 启动各监听模块
         startWebSocketServer();
         staticWsServer = wsServer;
+
+        // 初始化音频流传输器
+        audioStreamer = new AudioStreamer(wsServer);
+        audioStreamer.checkPermission(this);
+
         startClipboardMonitor();
         startTelephonyMonitor();
         startBatteryMonitor();
@@ -216,6 +225,12 @@ public class FusionBridgeService extends Service {
 
         // 停止传感器采集
         stopSensorCollection();
+
+        // 停止音频流传输
+        if (audioStreamer != null) {
+            audioStreamer.release();
+            audioStreamer = null;
+        }
 
         if (wakeLock != null && wakeLock.isHeld()) {
             wakeLock.release();
@@ -605,6 +620,23 @@ public class FusionBridgeService extends Service {
                             : android.media.AudioManager.ADJUST_LOWER;
                         audioMgr.adjustVolume(adjust, 0);
                         Log.d(TAG, "音量: " + direction);
+                        break;
+
+                    case "mic_control":
+                        // PC → 手机麦克风录音控制 (非 root 方案)
+                        JSONObject micObj = new JSONObject(data);
+                        String micAction = micObj.optString("action", "");
+                        if ("start".equals(micAction)) {
+                            if (audioStreamer != null) {
+                                boolean ok = audioStreamer.startStreaming();
+                                Log.i(TAG, "麦克风录音: " + (ok ? "已启动" : "启动失败"));
+                            }
+                        } else if ("stop".equals(micAction)) {
+                            if (audioStreamer != null) {
+                                audioStreamer.stopStreaming();
+                                Log.i(TAG, "麦克风录音: 已停止");
+                            }
+                        }
                         break;
                 }
             } catch (Exception e) {

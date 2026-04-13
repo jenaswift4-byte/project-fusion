@@ -23,6 +23,7 @@ import threading
 import struct
 import logging
 import wave
+import collections
 from typing import Dict, Optional, Callable, Any
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,13 @@ class AudioBridge:
         self.mic_save_dir = audio_cfg.get("mic_save_dir", r"D:\Fusion\Audio")
         self.scrcpy_audio_enabled = audio_cfg.get("scrcpy_audio", False)
         self._playback_vol = audio_cfg.get("playback_volume", 80)
+        
+        # WS 麦克风方案相关
+        self._mic_callback = None
+        self._mic_save_file = None
+        self._play_mic_audio = False
+        self._sd_stream = None
+        self._audio_queue = collections.deque(maxlen=50)
 
     def start(self):
         """启动音频桥接"""
@@ -78,12 +86,108 @@ class AudioBridge:
         """
         启动手机麦克风实时采集 → PC 播放/分析
         
-        通过 ADB 命令录制 PCM 音频流，实时传输到 PC。
-        支持 sound_monitor.feed_audio() 回调进行静音分析。
+        非root方案: 通过 WebSocket 发送 mic_control 命令 →
+        手机 AudioRecord 录音 → PCM 分片 Base64 编码 → WS 发送 →
+        PC 端解码播放
+        
+        同时保留旧的 arecord/tinycap 方案作为备用
         """
         self._recording = True
+        self._mic_callback = callback
         logger.info("[音频] 手机麦克风 → PC 开始 (采样率: %dHz)", self.mic_sample_rate)
 
+        # 方案 1: 通过 WebSocket 命令触发手机端 AudioRecord 录音
+        if self.daemon.ws_client and self.daemon.ws_client.running:
+            self._start_mic_via_ws()
+            return
+
+        # 方案 2 (备用): ADB shell arecord/tinycap (需要 root)
+        self._start_mic_via_adb()
+
+    def _start_mic_via_ws(self):
+        """通过 WebSocket 命令启动手机麦克风录音 (非root方案)"""
+        try:
+            if self.daemon.ws_client:
+                self.daemon.ws_client.send_message({
+                    "type": "mic_control",
+                    "action": "start"
+                })
+                logger.info("[音频] 已发送 WS mic_control start 命令")
+                
+                # 注册 PCM 数据回调
+                if self.daemon.ws_client:
+                    self.daemon.ws_client.on("audio_pcm", self._on_audio_pcm)
+                    self.daemon.ws_client.on("mic_status", self._on_mic_status)
+                    
+        except Exception as e:
+            logger.error(f"[音频] WS 启动录音失败: {e}")
+            # 降级到 ADB 方案
+            self._start_mic_via_adb()
+
+    def _stop_mic_via_ws(self):
+        """通过 WebSocket 命令停止手机麦克风录音"""
+        try:
+            if self.daemon.ws_client:
+                self.daemon.ws_client.send_message({
+                    "type": "mic_control",
+                    "action": "stop"
+                })
+                # 注意: WSClient 没有 off 方法，handler 会保留但 _recording=False 时不会处理
+                logger.info("[音频] 已发送 WS mic_control stop 命令")
+        except Exception as e:
+            logger.error(f"[音频] WS 停止录音失败: {e}")
+
+    def _on_audio_pcm(self, data: dict):
+        """处理手机发来的 PCM 音频分片"""
+        if not self._recording:
+            return
+        try:
+            import base64
+            
+            pcm_base64 = data.get("data", "")
+            if not pcm_base64:
+                return
+            
+            pcm_bytes = base64.b64decode(pcm_base64)
+            sample_rate = data.get("sample_rate", 16000)
+            
+            # 喂给 sound_monitor 分析
+            if self._mic_callback:
+                try:
+                    self._mic_callback("phone_mic", pcm_bytes)
+                except Exception:
+                    pass
+            
+            if self.daemon.sound_monitor and self.daemon.sound_monitor.running:
+                try:
+                    self.daemon.sound_monitor.feed_audio("phone_mic", pcm_bytes)
+                except Exception:
+                    pass
+            
+            # 如果启用了 PC 播放，通过 sounddevice 播放
+            if self._play_mic_audio and self._sd_stream:
+                try:
+                    import numpy as np
+                    audio_np = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+                    self._audio_queue.append(audio_np)
+                except Exception:
+                    pass
+            
+            # 保存到文件
+            if self._mic_save_file:
+                self._mic_save_file.write(pcm_bytes)
+                
+        except Exception as e:
+            logger.error(f"[音频] PCM 处理失败: {e}")
+
+    def _on_mic_status(self, data: dict):
+        """处理手机麦克风状态通知"""
+        status = data.get("status", "")
+        message = data.get("message", "")
+        logger.info(f"[音频] 麦克风状态: {status} - {message}")
+
+    def _start_mic_via_adb(self):
+        """通过 ADB shell arecord/tinycap 录音 (备用，需要root)"""
         def _mic_stream():
             """实时音频流读取循环"""
             pcm_buffer = b""
@@ -91,8 +195,6 @@ class AudioBridge:
 
             while self._recording and self.running:
                 try:
-                    # 使用 ADB 执行命令录音 (5秒片段, PCM 格式)
-                    # Android 10+ 支持: arecord 或 tinycap
                     cmd = [
                         self.daemon.adb_path,
                     ]
@@ -112,16 +214,13 @@ class AudioBridge:
                         if data:
                             pcm_buffer += data
 
-                            # 累积到 chunk_size 后喂给分析器
                             if len(pcm_buffer) >= chunk_size:
-                                # 回调: 喂给 sound_monitor 分析
-                                if callback:
+                                if self._mic_callback:
                                     try:
-                                        callback("phone_mic", pcm_buffer[:chunk_size])
+                                        self._mic_callback("phone_mic", pcm_buffer[:chunk_size])
                                     except Exception:
                                         pass
 
-                                # 喂给 daemon.sound_monitor
                                 if self.daemon.sound_monitor and self.daemon.sound_monitor.running:
                                     try:
                                         self.daemon.sound_monitor.feed_audio(
@@ -132,7 +231,6 @@ class AudioBridge:
 
                                 pcm_buffer = pcm_buffer[chunk_size:]
 
-                    # 如果录音结束，重启
                     if proc.poll() is not None and self._recording:
                         logger.debug("[音频] 录音进程结束，重启...")
                         time.sleep(0.5)
@@ -147,7 +245,30 @@ class AudioBridge:
     def stop_mic_to_pc(self):
         """停止手机麦克风采集"""
         self._recording = False
+        
+        # 停止 WS 方案
+        self._stop_mic_via_ws()
+        
+        # 停止 ADB 方案
         self._stop_mic_stream()
+        
+        # 关闭保存文件
+        if self._mic_save_file:
+            try:
+                self._mic_save_file.close()
+            except Exception:
+                pass
+            self._mic_save_file = None
+        
+        # 停止 sounddevice 播放
+        if self._sd_stream:
+            try:
+                self._sd_stream.stop()
+                self._sd_stream.close()
+            except Exception:
+                pass
+            self._sd_stream = None
+        
         logger.info("[音频] 手机麦克风已停止")
 
     def _stop_mic_stream(self):

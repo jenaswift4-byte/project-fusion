@@ -1414,10 +1414,10 @@ public class MQTTClientService extends Service implements SensorEventListener {
     }
     
     private void startMicRecording() {
-        // 通过 ADB 或 WS 发送录音命令
-        // 这里只做标记，实际录音由 FusionBridgeService 的 WebSocket 命令处理
-        Log.i(TAG, "麦克风录音请求 (转交 FusionBridgeService)");
+        // 通过 AudioStreamer 直接录音 (非 root 方案: AudioRecord → WS 传输)
+        Log.i(TAG, "麦克风录音请求 (AudioRecord 非root方案)");
         if (FusionBridgeService.getWebSocketServer() != null) {
+            // 兼容: 仍然发送 WS 消息通知
             try {
                 org.json.JSONObject msg = new org.json.JSONObject();
                 msg.put("type", "mic_control");
@@ -1427,6 +1427,8 @@ public class MQTTClientService extends Service implements SensorEventListener {
                 Log.e(TAG, "转发录音命令失败: " + e.getMessage());
             }
         }
+        // 同时通过 FusionBridgeService 的 handleClientCommand 触发录音
+        // (由 FusionBridgeService 的 AudioStreamer 实际执行)
     }
     
     private void stopMicRecording() {

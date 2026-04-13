@@ -8,7 +8,7 @@
 
 | 序号 | 设备 | ADB序列号 | 位置标注 | 角色 | WiFi IP |
 |------|------|-----------|----------|------|---------|
-| 1 | 小米8 | 7254adb5 | 客厅监控 | 摄像头+传感器+音箱 | 192.168.40.84 |
+| 1 | 小米8 | 7254adb5 | 客厅监控 | 摄像头+传感器+音箱 | 192.168.40.84:5555 |
 | 2 | _(待添加)_ | — | 卧室传感器 | 传感器+闹钟 | — |
 | 3 | _(待添加)_ | — | 门口对讲 | 摄像头+门铃 | — |
 
@@ -16,85 +16,100 @@
 
 ---
 
-## 🎯 已实现 vs 可落地场景
+## 🎯 落地场景 — 按验证状态分类
 
-### ⭐ Tier 1: 今天就能用（已实现，只需启动）
+### ✅ 已验证可用（全链路打通，实测通过）
 
-| 场景 | 怎么用 | 需要什么 | 价值 |
-|------|--------|----------|------|
-| 🌡️ **环境监控台** | Dashboard 实时看温度/湿度/气压/光线 | 启动 PC Bridge + 打开 Dashboard | 知道什么时候该开空调/加湿器 |
-| 📹 **客厅安防摄像头** | 手机放客厅 → Scrcpy 投屏 + 截图 + 异常声音告警 | 手机固定位置 + 充电 | 有人进客厅能发现，异常声音能告警 |
-| 🔋 **电池看护** | 低电量自动提醒，充满提醒拔线 | 已实现 | 废旧手机 24 小时在线不担心过充 |
-| 📋 **跨设备剪贴板** | 手机复制验证码 → PC 自动有 | 已实现 | 收验证码再也不用手动敲 |
-| 🔗 **URL 接力** | 手机上看到好文章 → 一键在 PC 打开 | 已实现 | 阅读体验无缝切换 |
-| 📱 **通知转发** | 手机 QQ/微信通知 → PC Toast 弹窗 | 已实现 | 手机静音也不漏消息 |
+| # | 场景 | 验证时间 | 实测结果 |
+|---|------|----------|----------|
+| 1 | 🌡️ **环境监控台** | 2026-04-13 | Dashboard API 返回 pressure/light/gyroscope/accelerometer/magnetic_field 实时数据，每 5 秒刷新 |
+| 2 | 📹 **客厅安防摄像头** | 2026-04-13 | Scrcpy 投屏+相机App实时画面 ✅，ADB截图0.9MB ✅，6个摄像头设备 ✅，`--video-source=camera` 不支持(Android 10<12) |
+| 3 | 🔋 **电池看护** | 2026-04-13 | `dumpsys battery` 返回 100%/34°C，低电提醒已实现 |
+| 4 | 📋 **跨设备剪贴板** | 2026-04-13 | 双向同步 + 链接自动打开 + 历史记录，回弹 bug 已修 |
+| 5 | 🔗 **URL 接力** | 2026-04-13 | 双向测试通过（PC→手机: WS open_url; 手机→PC: 剪贴板 URL os.startfile） |
+| 6 | 📱 **通知转发** | 2026-04-13 | Toast 推送 + 自动置顶 + 包名映射，免打扰模式已实现 |
+| 7 | 📩 **短信读取** | 2026-04-13 | `content://sms/inbox` 正常读取验证码等 |
+| 8 | 🌡️ **传感器全链路** | 2026-04-13 | 手机→本地MQTT Broker→ADB forward→PC端，15秒收13条消息 |
+| 9 | 🔇 **免打扰** | 2026-04-13 | 全屏时缓存通知，退出全屏自动推送 |
 
-### ⭐⭐ Tier 2: 配置一下就能用（1小时内）
+### ⏳ 已实现但需端到端验证
 
-| 场景 | 怎么用 | 需要什么 | 价值 |
-|------|--------|----------|------|
-| 🚪 **门铃/敲门检测** | 声音监测检测敲门 → PC 弹通知 + 录音 | 手机放门口 + sound_monitor | 不在门口也能知道有人来 |
-| 🌙 **智能夜灯** | 光线传感器检测暗 → MQTT 命令开灯 | 手机 + 智能灯(MQTT) | 起夜自动开灯 |
-| 📡 **多房间传感器网络** | 多台手机分布各房间 → Dashboard 统一监控 | 多台废旧手机 + WiFi | 全屋环境感知，一个面板看全部 |
-| 🔔 **来电弹窗** | 手机来电 → PC 大屏弹窗显示号码 | 已实现(phone_bridge) | 手机静音模式不漏接电话 |
+| # | 场景 | 模块 | 状态 | 缺什么 |
+|---|------|------|------|--------|
+| 10 | 🔔 **来电弹窗** | phone_bridge | 代码就绪 | 需来电话实测 |
+| 11 | 🔊 **PC声音监测** | sound_monitor | ✅ 2026-04-13 验证通过 | -74.5dB 环境底噪，80dB告警阈值，3秒持续触发 |
+| 12 | 🎤 **手机麦克风→PC** | audio_bridge | ❌ 非root不可用 | arecord/tinycap 需root，需改用App端MediaRecorder+WS |
+| 13 | ⌨️ **全局热键** | hotkey_manager | 代码就绪，keyboard库已安装 | 需手动按Win+Shift+S/P/H/B等测试 |
+| 14 | 📡 **近场检测** | proximity_detector | 代码就绪 | 需蓝牙 RSSI 测试 |
+| 15 | 🤖 **算力卸载** | distributed_scheduler | ⚠️ 命令通道不通 | PC→手机MQTT命令被fallback阻断，需双向桥接 |
+| 16 | 🏠 **智能家居** | command_bridge | 代码就绪 | 需 ESP32/MCU 硬件 |
 
-### ⭐⭐⭐ Tier 3: 稍微开发就能用（1-3天）
+### 📋 待开发
 
-| 场景 | 怎么用 | 需要什么 | 价值 |
-|------|--------|----------|------|
-| 🎵 **全屋音响** | 多台手机同步播放音乐 | 音频桥接 + NTP 同步 | 免费全屋背景音乐 |
-| 🤖 **算力农场** | 闲置手机跑 Python 脚本(哈希计算/数据处理) | distributed_scheduler | 3台手机 = 免费轻量服务器 |
-| 🏠 **智能家居中枢** | 手机 MQTT → MCU → 控制开关/灯/窗帘 | ESP32/Arduino + 继电器 | 手机变免费 Home Assistant |
-| 👶 **婴儿哭声监测** | 麦克风检测特定频率 → 推送告警 | sound_monitor + 训练样本 | 不用买专用婴儿监视器 |
-| 📺 **视频流转** | 主力手机视频投到废旧手机大屏播放 | Scrcpy 反向 + 链接接力 | 小屏看视频 → 大屏继续 |
+| # | 场景 | 说明 | 预估工时 |
+|---|------|------|----------|
+| 17 | 🎵 **全屋音响** | 多手机 NTP 同步播放 | 1-2 天 |
+| 18 | 👶 **婴儿哭声监测** | 频率分析 + 训练样本 | 2-3 天 |
+| 19 | 📺 **视频流转** | 主力手机↔废旧手机 | 1 天 |
+| 20 | 🌙 **智能夜灯联动** | 光线传感器→MQTT→智能灯 | 0.5 天 + 硬件 |
 
 ---
 
 ## 🏆 推荐立即做的 3 个场景
 
-### 1️⃣ 客厅安防摄像头（0 配置，立刻用）
+### 1️⃣ 环境监控台（✅ 已验证，现在就能用）
+
+```
+手机传感器 → MQTT Broker → PC Bridge → Dashboard
+→ 实时气压/光线/加速度/磁场曲线
+→ 手机放客厅充电，PC 端看环境数据
+```
+
+**一键启动**:
+```powershell
+# 确保 WiFi ADB 已连接
+adb connect 192.168.40.84:5555
+
+cd C:\Users\wang\Desktop\万物互联\bridge
+python main.py
+# 打开 http://localhost:8080 → 🌡️ 传感器 Tab
+```
+
+**实际数据（2026-04-13 实测）**:
+- 气压: 1007.81 hPa
+- 光照: 102 lux
+- 加速度: 1.61 m/s²
+- 磁场: 74.81 μT
+- 陀螺仪: 0 rad/s
+
+### 2️⃣ 跨设备工作流（✅ 已验证，日常可用）
+
+```
+手机收验证码 → PC 剪贴板自动有
+手机看文章   → PC 浏览器自动开
+手机来通知   → PC Toast 弹窗
+手机静音模式也不漏消息
+```
+
+**一键启动**:
+```powershell
+cd C:\Users\wang\Desktop\万物互联\bridge
+python main.py --modules clipboard_bridge,notification_bridge,handoff_bridge,sms_bridge
+```
+
+### 3️⃣ 客厅安防摄像头（✅ 投屏+截图已验证，声音告警待测）
 
 ```
 手机放客厅 → 充电线常驻 → PC Bridge 启动
 → Scrcpy 实时画面（最小化到角落）
-→ 声音监测异常告警（玻璃破碎/敲门）
-→ 电池充满自动提醒
+→ 截图保存 + 异常声音告警
+→ 电池充满提醒
 ```
 
-**启动命令**:
+**一键启动**:
 ```powershell
 cd C:\Users\wang\Desktop\万物互联\bridge
-python main.py --modules scrcpy,sound_monitor,battery_bridge,notification_bridge
-```
-
-### 2️⃣ 环境监控台（传感器数据已打通，只需 Dashboard）
-
-```
-手机传感器 → MQTT Broker → PC Bridge → Dashboard
-→ 实时温度/湿度/气压/光线曲线
-→ 离开家自动检测（光线+加速度变化）
-```
-
-**启动命令**:
-```powershell
-cd C:\Users\wang\Desktop\万物互联\bridge
-python main.py --modules mqtt_bridge,dashboard_server,environment_monitor
-# 打开 http://localhost:8080 查看
-```
-
-### 3️⃣ 跨设备工作流（剪贴板+URL接力+通知）
-
-```
-手机收验证码 → PC 剪贴板自动有
-手机看文章 → PC 浏览器自动开
-手机来通知 → PC Toast 弹窗
-手机来电 → PC 大屏弹号码
-```
-
-**启动命令**:
-```powershell
-cd C:\Users\wang\Desktop\万物互联\bridge
-python main.py --modules clipboard_bridge,notification_bridge,handoff_bridge,phone_bridge,sms_bridge
+python main.py --modules multi_scrcpy,sound_monitor,battery_bridge,screenshot_bridge
 ```
 
 ---
@@ -124,24 +139,35 @@ python main.py --modules clipboard_bridge,notification_bridge,handoff_bridge,pho
 
 ---
 
+## 🔧 已知问题（影响落地）
+
+| 问题 | 影响 | 状态 |
+|------|------|------|
+| 传感器消息重复 | Dashboard 显示双份数据 | 待修：去重 |
+| device_id 不统一 | phone-mi-8-65823 vs device-mi-8-7728 | 待修：统一命名 |
+| MIUI 省电暂停传感器 | 息屏/稳定放置时 onSensorChanged 不触发 | 已绕过：POLL 模式 + flush |
+| WiFi ADB IP 变化 | 路由器重分配 IP 需重新连接 | 待修：mDNS/固定 IP |
+| KDE Connect 未安装 | Phase 2+ 通知/文件传输需 KDE | 待安装 |
+
+---
+
 ## 🔧 设备标注配置方法
 
-在 `bridge/config.yaml` 中添加设备映射:
+在 `bridge/config.py` 的 `devices` 节点添加设备映射:
 
-```yaml
-devices:
-  "7254adb5":
-    name: "客厅监控"
-    location: "客厅"
-    role: "摄像头+传感器+音箱"
-  "device_serial_2":
-    name: "卧室传感器"
-    location: "卧室"
-    role: "传感器+闹钟"
+```python
+devices = {
+    "7254adb5": {
+        "name": "客厅监控",
+        "location": "客厅",
+        "role": "摄像头+传感器+音箱",
+        "wifi_ip": "192.168.40.84"
+    }
+}
 ```
 
 Dashboard 和日志系统会自动使用友好名称显示。
 
 ---
 
-_最后更新: 2026-04-13_
+_最后更新: 2026-04-13 22:00_
