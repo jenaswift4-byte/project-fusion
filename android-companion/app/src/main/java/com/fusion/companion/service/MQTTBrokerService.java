@@ -185,6 +185,28 @@ public class MQTTBrokerService extends Service {
                         }
                         int headerLen = rlOffset; // fixed header + remaining length 字节数
                         
+                        // QoS 标志
+                        int qosFlag = (buffer[0] >> 1) & 0x03;
+                        
+                        // QoS > 0 时回复 PUBACK (type 4)
+                        if (qosFlag > 0) {
+                            // PUBLISH QoS 1/2 包含 2 字节 msgId（topic 长度之后）
+                            // 先找到 msgId 的位置
+                            if (len > headerLen + 2) {
+                                int topicLen = ((buffer[headerLen] & 0xFF) << 8) | (buffer[headerLen + 1] & 0xFF);
+                                int msgIdOffset = headerLen + 2 + topicLen;
+                                if (len > msgIdOffset + 1) {
+                                    byte msgIdHi = buffer[msgIdOffset];
+                                    byte msgIdLo = buffer[msgIdOffset + 1];
+                                    // PUBACK: 0x40, 0x02, msgIdHi, msgIdLo
+                                    out.write(new byte[]{0x40, 0x02, msgIdHi, msgIdLo});
+                                    out.flush();
+                                    int msgId = ((msgIdHi & 0xFF) << 8) | (msgIdLo & 0xFF);
+                                    Log.d(TAG, "发送 PUBACK 给 " + clientId + " msgId=" + msgId);
+                                }
+                            }
+                        }
+                        
                         Log.d(TAG, "PUBLISH 原始数据: len=" + len + " headerLen=" + headerLen + " remainingLen=" + remainingLen);
                         
                         if (len > headerLen + 2) {
@@ -193,8 +215,6 @@ public class MQTTBrokerService extends Service {
                             if (topicLen > 0 && len > headerLen + 2 + topicLen) {
                                 String topic = new String(buffer, headerLen + 2, topicLen);
                                 
-                                // QoS > 0 时 topic 后面有 2 字节 msgId
-                                int qosFlag = (buffer[0] >> 1) & 0x03;
                                 int payloadStart = headerLen + 2 + topicLen;
                                 if (qosFlag > 0) payloadStart += 2; // skip msgId
                                 int payloadLen = len - payloadStart;

@@ -869,8 +869,8 @@ public class MQTTClientService extends Service implements SensorEventListener {
             data.unit = getSensorUnit(sensorType);
             data.timestamp = System.currentTimeMillis();
             
-            // 发布 JSON 消息
-            boolean ok = publishJsonMessage(topic, data, 1);
+            // 发布 JSON 消息 (QoS 0 - 不需要 PUBACK，避免阻塞)
+            boolean ok = publishJsonMessage(topic, data, 0);
             if (ok) published++;
             
             Log.d(TAG, "发布传感器数据：" + topic + " - " + value + " " + data.unit + (ok ? " ✅" : " ❌"));
@@ -915,7 +915,7 @@ public class MQTTClientService extends Service implements SensorEventListener {
         
         // 发布心跳
         String topic = "devices/" + deviceId + "/heartbeat";
-        publishJsonMessage(topic, heartbeat, 1);
+        publishJsonMessage(topic, heartbeat, 0);
         
         Log.d(TAG, "发布心跳 - 电量：" + batteryLevel + "%");
     }
