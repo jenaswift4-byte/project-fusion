@@ -16,12 +16,16 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,6 +51,12 @@ public class MQTTBrokerService extends Service {
 
     // 客户端连接跟踪
     private ConcurrentHashMap<String, Long> connectedClients;
+
+    // 客户端输出流（用于消息转发）
+    private final ConcurrentHashMap<String, DataOutputStream> clientOutputStreams = new ConcurrentHashMap<>();
+
+    // 客户端订阅关系: clientId → 订阅的 topic 列表（支持通配符 # +）
+    private final ConcurrentHashMap<String, CopyOnWriteArrayList<String>> clientSubscriptions = new ConcurrentHashMap<>();
 
     // 主线程 Handler
     private Handler handler;
@@ -139,6 +149,10 @@ public class MQTTBrokerService extends Service {
             DataInputStream in = new DataInputStream(client.getInputStream());
             DataOutputStream out = new DataOutputStream(client.getOutputStream());
 
+            // 注册输出流（用于消息转发）
+            clientOutputStreams.put(clientId, out);
+            clientSubscriptions.putIfAbsent(clientId, new CopyOnWriteArrayList<>());
+
             byte[] buffer = new byte[4096];
             int len;
             while (running.get() && !client.isClosed()) {
@@ -166,19 +180,46 @@ public class MQTTBrokerService extends Service {
                                 int payloadLen = len - 4 - topicLen;
                                 String payload = new String(buffer, 4 + topicLen, payloadLen);
                                 Log.d(TAG, "PUBLISH topic=" + topic + " payload=" + payload);
-                                
-                                // 转发给其他订阅的客户端
-                                broadcastToClients(topic, payload, clientId);
+
+                                // 转发原始 PUBLISH 包给其他订阅的客户端
+                                byte qosFlag = (byte) ((buffer[0] >> 1) & 0x03);
+                                broadcastToClients(topic, buffer, len, qosFlag, clientId);
                             }
                         }
                         break;
                     case 8: // SUBSCRIBE
-                        // 回复 SUBACK: packet_id + return_code for each topic
-                        if (len > 5) {
+                        // 解析并保存订阅关系
+                        if (len > 6) {
                             int msgId = ((buffer[2] & 0xFF) << 8) | (buffer[3] & 0xFF);
-                            out.write(new byte[]{(byte) 0x90, 0x03, (byte) (msgId >> 8), (byte) (msgId & 0xFF), 0x00});
+                            // 解析 topic filters: 每个是 2-byte length + topic + 1-byte QoS
+                            int offset = 4;
+                            int topicCount = 0;
+                            while (offset + 2 < len) {
+                                int tLen = ((buffer[offset] & 0xFF) << 8) | (buffer[offset + 1] & 0xFF);
+                                offset += 2;
+                                if (offset + tLen < len) {
+                                    String topicFilter = new String(buffer, offset, tLen);
+                                    CopyOnWriteArrayList<String> subs = clientSubscriptions.get(clientId);
+                                    if (subs != null && !subs.contains(topicFilter)) {
+                                        subs.add(topicFilter);
+                                    }
+                                    topicCount++;
+                                    Log.d(TAG, "客户端 " + clientId + " 订阅: " + topicFilter);
+                                }
+                                offset += tLen + 1; // +1 for QoS byte
+                            }
+                            // 回复 SUBACK: packet_id + return_code for each topic
+                            byte[] suback = new byte[4 + topicCount];
+                            suback[0] = (byte) 0x90;
+                            suback[1] = (byte) (2 + topicCount);
+                            suback[2] = (byte) (msgId >> 8);
+                            suback[3] = (byte) (msgId & 0xFF);
+                            for (int i = 0; i < topicCount; i++) {
+                                suback[4 + i] = 0x00; // QoS 0 accepted
+                            }
+                            out.write(suback);
                             out.flush();
-                            Log.d(TAG, "发送 SUBACK 给 " + clientId);
+                            Log.d(TAG, "发送 SUBACK 给 " + clientId + " (" + topicCount + " topics)");
                         }
                         break;
                     case 12: // PINGREQ
@@ -198,16 +239,67 @@ public class MQTTBrokerService extends Service {
             Log.d(TAG, "客户端断开：" + clientId);
         } finally {
             connectedClients.remove(clientId);
+            clientOutputStreams.remove(clientId);
+            clientSubscriptions.remove(clientId);
             try { client.close(); } catch (IOException ignored) {}
         }
     }
     
     /**
-     * 广播 MQTT 消息给其他已连接的客户端
+     * 广播 MQTT 消息给其他已连接的客户端（实现真正的 topic 匹配和消息转发）
      */
-    private void broadcastToClients(String topic, String payload, String senderId) {
-        // 暂时只记录日志，后续可实现真正的消息路由
+    private void broadcastToClients(String topic, byte[] rawData, int dataLen, int qosFlag, String senderId) {
         Log.d(TAG, "广播消息 topic=" + topic + " (from " + senderId + ")");
+
+        for (ConcurrentHashMap.Entry<String, CopyOnWriteArrayList<String>> entry : clientSubscriptions.entrySet()) {
+            String subClientId = entry.getKey();
+            if (subClientId.equals(senderId)) continue; // 不转发给发送者
+
+            CopyOnWriteArrayList<String> subscriptions = entry.getValue();
+            if (subscriptions == null) continue;
+
+            boolean matched = false;
+            for (String filter : subscriptions) {
+                if (topicMatches(topic, filter)) {
+                    matched = true;
+                    break;
+                }
+            }
+
+            if (matched) {
+                DataOutputStream clientOut = clientOutputStreams.get(subClientId);
+                if (clientOut != null) {
+                    try {
+                        // 构造 PUBLISH 包转发（使用原始包数据）
+                        clientOut.write(rawData, 0, dataLen);
+                        clientOut.flush();
+                        Log.d(TAG, "已转发给 " + subClientId);
+                    } catch (IOException e) {
+                        Log.w(TAG, "转发给 " + subClientId + " 失败: " + e.getMessage());
+                        clientOutputStreams.remove(subClientId);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * MQTT topic 通配符匹配
+     * 支持 # (多级) 和 + (单级)
+     */
+    private boolean topicMatches(String topic, String filter) {
+        if (filter.equals(topic) || filter.equals("#")) return true;
+
+        String[] topicParts = topic.split("/");
+        String[] filterParts = filter.split("/");
+
+        int i = 0;
+        for (; i < filterParts.length; i++) {
+            if (filterParts[i].equals("#")) return true; // # 匹配剩余所有
+            if (i >= topicParts.length) return false;
+            if (!filterParts[i].equals("+") && !filterParts[i].equals(topicParts[i])) return false;
+        }
+        return i == topicParts.length;
     }
 
     /**
