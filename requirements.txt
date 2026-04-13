@@ -5,3 +5,7 @@ Pillow>=10.0             # 图片剪贴板 + 托盘图标
 pystray>=0.19            # 系统托盘图标
 websocket-client>=1.6.0  # WebSocket 客户端 (连接 Android 伴侣 App)
 keyboard>=0.13.3         # 全局热键监听 (手机当 PC 外设操控)
+paho-mqtt>=2.0           # MQTT 客户端 (传感器数据订阅, 备用通道)
+psutil>=5.9.0            # 系统/进程监控 (CPU/GPU/内存指标采集)
+websockets>=12.0         # WebSocket 服务端 (Dashboard 实时推送)
+sounddevice>=0.4.6       # PC 麦克风采集 (声音监测模块)

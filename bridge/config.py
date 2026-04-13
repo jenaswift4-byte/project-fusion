@@ -108,6 +108,15 @@ DEFAULT_CONFIG = {
         "auto_connect": True,
         "auto_disconnect": False,
     },
+    "mqtt": {
+        "enabled": True,
+        "port": 1883,
+        "auto_start": True,
+    },
+    "dashboard": {
+        "enabled": True,
+        "port": 8080,
+    },
     "paths": {
         "clipboard_images": r"D:\Fusion\Clipboard",
         "logs": r"D:\Fusion\Logs",

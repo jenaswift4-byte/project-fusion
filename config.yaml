@@ -301,6 +301,19 @@ environment:
     broker: "mqtt://homeassistant:1883"
     topic_prefix: "fusion"
 
+# ═══ MQTT 配置 ═══
+mqtt:
+  enabled: true
+  port: 1883
+  # PC 端内嵌 Broker，手机 MQTTClientService 直连此端口
+  # 无需外部 Mosquitto
+  auto_start: true
+
+# ═══ Dashboard 配置 ═══
+dashboard:
+  enabled: true
+  port: 8080
+
 # ═══ 网络配置 ═══
 network:
   lan:
@@ -319,3 +332,25 @@ power_saving:
   reduce_fps_when_low: true
   reduce_bitrate_when_low: true
   auto_adjust_refresh_rate: true
+
+# ═══ 多设备摄像头配置 ═══
+multi_scrcpy:
+  layout_strategy: "grid"       # grid/stack/horizontal/vertical
+  layout_margin: 10
+  window_width: 480
+  window_height: 854
+  max_columns: 3
+  camera_max_fps: 15
+  camera_bit_rate: "2M"
+  screenshot_dir: "D:\\Fusion\\Camera"
+
+# ═══ 声音监测配置 ═══
+sound_monitor:
+  enabled: true
+  alert_threshold_db: 80        # 告警阈值 (dB)
+  sustained_alert_seconds: 3    # 持续告警时间
+
+# ═══ PC 在线广播配置 ═══
+pc_online:
+  heartbeat_interval: 15        # 心跳间隔 (秒)
+  pc_name: ""                   # 留空自动取 hostname

@@ -206,6 +206,7 @@ class DistributedScheduler:
             try:
                 self._collect_all_metrics()
                 self._check_load_balance()
+                self.handle_task_timeout()
             except Exception as e:
                 logger.debug(f"监控循环错误: {e}")
 
@@ -673,3 +674,153 @@ class DistributedScheduler:
         for device_id, metrics in self.device_metrics.items():
             scores[device_id] = round(self._calculate_device_score(metrics), 2)
         return scores
+
+    # ═══════════════════════════════════════════════════════
+    # 任务分发与结果回收 (MQTT / WebSocket)
+    # ═══════════════════════════════════════════════════════
+
+    def dispatch_task(self, task_type: str, task_data: dict, timeout: int = 60) -> Optional[str]:
+        """
+        分发计算任务到最佳设备
+
+        Args:
+            task_type: 任务类型 (e.g., "ai_inference", "sensor_batch", "encoding")
+            task_data: 任务数据 (会通过 MQTT 发送到目标设备)
+            timeout: 超时时间 (秒)
+
+        Returns:
+            task_id 或 None (无可用设备)
+        """
+        import uuid
+
+        task_id = str(uuid.uuid4())[:12]
+        task = {
+            "task_id": task_id,
+            "task_type": task_type,
+            "data": task_data,
+            "timestamp": int(time.time() * 1000),
+            "timeout": timeout,
+        }
+
+        # 选择最佳设备
+        best_device = self._select_best_device_for_task(task_type, task_data)
+        if not best_device:
+            logger.warning(f"[调度器] 无可用设备执行任务: {task_type}")
+            return None
+
+        # 通过 MQTT 发送任务
+        topic = f"devices/{best_device}"
+        if self.daemon and hasattr(self.daemon, 'mqtt_bridge'):
+            self.daemon.mqtt_bridge.publish_json(topic, {
+                "command": "compute_task",
+                "params": task,
+            }, qos=1)
+            logger.info(f"[调度器] 任务已分发: {task_id} ({task_type}) -> {best_device}")
+        elif self.daemon and hasattr(self.daemon, 'ws_client') and self.daemon.use_companion:
+            # WebSocket 备用通道
+            self.daemon.ws_client.send({
+                "type": "compute_task",
+                "task_id": task_id,
+                "task_type": task_type,
+                "data": task_data,
+            })
+            logger.info(f"[调度器] 任务已分发 (WS): {task_id} -> {best_device}")
+        else:
+            logger.warning(f"[调度器] 无通信通道，任务无法分发: {task_id}")
+            return None
+
+        # 记录待回收任务
+        if not hasattr(self, '_pending_tasks'):
+            self._pending_tasks = {}
+        self._pending_tasks[task_id] = {
+            "device": best_device,
+            "task_type": task_type,
+            "sent_at": time.time(),
+            "timeout": timeout,
+            "result": None,
+            "status": "sent",
+        }
+
+        return task_id
+
+    def collect_result(self, task_id: str, result: dict):
+        """
+        回收任务结果 (由 MQTT 回调或 WebSocket 回调调用)
+
+        Args:
+            task_id: 任务 ID
+            result: 结果数据
+        """
+        if not hasattr(self, '_pending_tasks'):
+            return
+
+        task = self._pending_tasks.get(task_id)
+        if task:
+            task["result"] = result
+            task["status"] = "completed"
+            logger.info(f"[调度器] 任务完成: {task_id} ({task['task_type']}) from {task['device']}")
+
+    def handle_task_timeout(self):
+        """检查并清理超时任务"""
+        if not hasattr(self, '_pending_tasks'):
+            return
+
+        now = time.time()
+        timed_out = []
+        for task_id, task in self._pending_tasks.items():
+            if task["status"] == "sent" and now - task["sent_at"] > task["timeout"]:
+                task["status"] = "timeout"
+                timed_out.append(task_id)
+                logger.warning(f"[调度器] 任务超时: {task_id} ({task['task_type']})")
+
+        for tid in timed_out:
+            del self._pending_tasks[tid]
+
+    def _select_best_device_for_task(self, task_type: str, task_data: dict) -> Optional[str]:
+        """根据任务类型选择最佳执行设备"""
+        if not self.device_metrics:
+            return None
+
+        candidates = []
+
+        for device_id, metrics in self.device_metrics.items():
+            score = self._calculate_device_score(metrics)
+
+            # AI 推理任务: 优先选择空闲设备 (低 CPU、高内存)
+            if task_type == "ai_inference":
+                if metrics.memory_available < 512:  # 需要至少 512MB 可用内存
+                    continue
+                score *= (1 + (100 - metrics.cpu_usage) / 200)  # CPU 越空闲权重越高
+
+            # 编码任务: 需要 GPU
+            elif task_type == "encoding":
+                if metrics.gpu_name in ("No NVIDIA GPU", "Unknown", ""):
+                    score *= 0.3  # 无 GPU 降权
+                else:
+                    score *= (1 + (100 - metrics.gpu_usage) / 200)
+
+            # 传感器批量处理: 优先手机 (数据在手机本地)
+            elif task_type == "sensor_batch":
+                if metrics.device_type == DeviceType.ANDROID:
+                    score *= 1.5
+
+            # 手机低电量时降低优先级
+            if metrics.device_type == DeviceType.ANDROID:
+                if metrics.battery_level < 20 and not metrics.is_charging:
+                    score *= 0.2
+                elif metrics.battery_level < 50 and not metrics.is_charging:
+                    score *= 0.5
+
+            candidates.append((device_id, score))
+
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        return candidates[0][0]
+
+    def get_pending_tasks(self) -> Dict:
+        """获取待处理任务列表"""
+        if not hasattr(self, '_pending_tasks'):
+            return {}
+        return {tid: task for tid, task in self._pending_tasks.items()}

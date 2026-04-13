@@ -145,10 +145,22 @@ class TrayIcon:
                 self._action_toggle_dnd,
                 checked=lambda item: self.daemon.dnd_manager.running,
             ),
+            MenuItem(
+                "声音监测",
+                self._action_toggle_sound_monitor,
+                checked=lambda item: self.daemon.sound_monitor.running,
+            ),
+            MenuItem(
+                "算力调度",
+                self._action_toggle_scheduler,
+                checked=lambda item: self.daemon.distributed_scheduler.monitoring,
+            ),
             Menu.SEPARATOR,
             MenuItem("推送链接到手机", self._action_handoff),
             MenuItem("查看短信", self._action_view_sms),
             MenuItem("截图文件夹", self._action_screenshot_folder),
+            Menu.SEPARATOR,
+            MenuItem("打开 Dashboard", self._action_open_dashboard),
             Menu.SEPARATOR,
             MenuItem("退出", self._action_quit),
         )
@@ -205,6 +217,33 @@ class TrayIcon:
         else:
             self.daemon.dnd_manager.start()
             logger.info("智能免打扰已开启")
+
+    def _action_toggle_sound_monitor(self, icon=None, item=None):
+        """切换声音监测"""
+        if self.daemon.sound_monitor.running:
+            self.daemon.sound_monitor.stop()
+            logger.info("声音监测已关闭")
+        else:
+            self.daemon.sound_monitor.start()
+            logger.info("声音监测已开启")
+
+    def _action_toggle_scheduler(self, icon=None, item=None):
+        """切换算力调度"""
+        if self.daemon.distributed_scheduler.monitoring:
+            self.daemon.distributed_scheduler.stop_monitoring()
+            logger.info("算力调度已暂停")
+        else:
+            self.daemon.distributed_scheduler.start_monitoring()
+            logger.info("算力调度已恢复")
+
+    def _action_open_dashboard(self, icon=None, item=None):
+        """打开 Dashboard"""
+        try:
+            import webbrowser
+            port = self.daemon.config.get("dashboard", {}).get("port", 8080)
+            webbrowser.open(f"http://localhost:{port}")
+        except Exception as e:
+            logger.error(f"打开 Dashboard 失败: {e}")
 
     def _action_screenshot(self, icon=None, item=None):
         """手机截图"""

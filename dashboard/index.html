@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fusion Dashboard - 万物互联控制中心</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d27;
+            --bg-card: #21242f;
+            --bg-hover: #2a2e3b;
+            --border: #2e3345;
+            --text-primary: #e4e6f0;
+            --text-secondary: #8b8fa3;
+            --text-muted: #5a5e72;
+            --accent: #6c8cff;
+            --accent-dim: rgba(108, 140, 255, 0.15);
+            --green: #4ade80;
+            --green-dim: rgba(74, 222, 128, 0.15);
+            --yellow: #facc15;
+            --yellow-dim: rgba(250, 204, 21, 0.15);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.15);
+            --blue: #60a5fa;
+            --blue-dim: rgba(96, 165, 250, 0.15);
+            --purple: #a78bfa;
+            --purple-dim: rgba(167, 139, 250, 0.15);
+            --cyan: #22d3ee;
+            --cyan-dim: rgba(34, 211, 238, 0.15);
+            --orange: #fb923c;
+            --orange-dim: rgba(251, 146, 60, 0.15);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            padding: 12px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 14px; color: white;
+        }
+        .header h1 { font-size: 16px; font-weight: 600; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .status-badge {
+            display: flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+        }
+        .status-online { background: var(--green-dim); color: var(--green); }
+        .status-offline { background: var(--red-dim); color: var(--red); }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .status-online .status-dot { background: var(--green); }
+        .status-offline .status-dot { background: var(--red); }
+        .conn-mode {
+            padding: 4px 10px; border-radius: 6px; font-size: 11px;
+            background: var(--accent-dim); color: var(--accent);
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 2px;
+            padding: 8px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .tab-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .tab-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .tab-btn.active { background: var(--accent-dim); color: var(--accent); }
+        .tab-btn .badge {
+            background: var(--red);
+            color: white;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            min-width: 16px;
+            text-align: center;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Main Layout */
+        .main { padding: 20px; max-width: 1600px; margin: 0 auto; }
+        
+        .grid-devices {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        /* Device Card */
+        .device-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .device-card:hover { border-color: var(--accent); }
+        .device-header {
+            padding: 14px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+        .device-name {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 14px; font-weight: 600;
+        }
+        .device-icon {
+            width: 28px; height: 28px;
+            background: var(--accent-dim);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+        }
+        .device-meta {
+            display: flex; align-items: center; gap: 10px; font-size: 12px;
+        }
+        .battery { color: var(--green); display: flex; align-items: center; gap: 3px; }
+        .battery.low { color: var(--red); }
+        .last-seen { color: var(--text-muted); }
+
+        .device-sensors {
+            padding: 12px 16px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        /* Sensor Tile */
+        .sensor-tile {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            transition: background 0.2s;
+        }
+        .sensor-tile:hover { background: var(--bg-hover); }
+        .sensor-icon { font-size: 20px; margin-bottom: 6px; }
+        .sensor-value {
+            font-size: 20px; font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 2px;
+        }
+        .sensor-unit { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .sensor-label { font-size: 11px; color: var(--text-secondary); }
+        .sensor-tile.temperature .sensor-value { color: var(--orange); }
+        .sensor-tile.humidity .sensor-value { color: var(--blue); }
+        .sensor-tile.light .sensor-value { color: var(--yellow); }
+        .sensor-tile.pressure .sensor-value { color: var(--purple); }
+        .sensor-tile.proximity .sensor-value { color: var(--cyan); }
+        .sensor-tile.accelerometer .sensor-value { color: var(--green); }
+        .sensor-tile.gyroscope .sensor-value { color: var(--accent); }
+        .sensor-tile.no-data .sensor-value { color: var(--text-muted); font-size: 12px; }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 18px;
+            flex: 1; min-width: 140px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .stat-icon.devices { background: var(--accent-dim); }
+        .stat-icon.sensors { background: var(--green-dim); }
+        .stat-icon.messages { background: var(--yellow-dim); }
+        .stat-icon.uptime { background: var(--purple-dim); }
+        .stat-value { font-size: 22px; font-weight: 700; }
+        .stat-label { font-size: 12px; color: var(--text-muted); }
+
+        /* ═══ Compute Tab ═══ */
+        .compute-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .compute-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .compute-card h3 {
+            font-size: 14px; font-weight: 600; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .metric-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-label { font-size: 13px; color: var(--text-secondary); }
+        .metric-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .score-bar {
+            width: 100%; height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        .score-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .score-fill.high { background: linear-gradient(90deg, var(--green), #22d3ee); }
+        .score-fill.medium { background: linear-gradient(90deg, var(--yellow), var(--orange)); }
+        .score-fill.low { background: linear-gradient(90deg, var(--orange), var(--red)); }
+
+        /* Registered Apps */
+        .app-list {
+            display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .app-tag {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .app-tag .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+        }
+        .app-tag .dot.running { background: var(--green); }
+        .app-tag .dot.stopped { background: var(--text-muted); }
+
+        /* ═══ Camera Tab ═══ */
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        .camera-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .camera-preview {
+            aspect-ratio: 9/16;
+            background: var(--bg-primary);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 48px;
+            color: var(--text-muted);
+            position: relative;
+        }
+        .camera-preview .live-badge {
+            position: absolute; top: 8px; left: 8px;
+            background: var(--red);
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .camera-info {
+            padding: 12px 16px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .camera-name { font-size: 14px; font-weight: 600; }
+        .camera-controls { display: flex; gap: 8px; }
+        .cam-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cam-btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+        .cam-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+        /* ═══ Sound Tab ═══ */
+        .sound-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .sound-panel h3 { font-size: 16px; margin-bottom: 16px; }
+        .volume-display {
+            text-align: center;
+            padding: 30px 0;
+        }
+        .volume-value {
+            font-size: 56px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .volume-unit { font-size: 20px; color: var(--text-muted); }
+        .volume-bar-container {
+            width: 100%; max-width: 600px;
+            height: 12px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        .volume-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.15s ease;
+            background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
+        }
+        .volume-history {
+            width: 100%; max-width: 600px;
+            height: 80px;
+            margin: 16px auto 0;
+            position: relative;
+        }
+        .volume-history canvas {
+            width: 100%; height: 100%;
+        }
+        .sound-config {
+            display: flex; gap: 16px; margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .config-field {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .config-field label { font-size: 13px; color: var(--text-secondary); }
+        .config-field input {
+            width: 80px; padding: 6px 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+        .config-field button {
+            padding: 6px 16px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        /* Alert Log */
+        .alert-log {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .alert-log-header {
+            padding: 14px 16px;
+            font-size: 14px; font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* ═══ Command Tab ═══ */
+        .cmd-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .cmd-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .cmd-panel-header {
+            padding: 14px 16px;
+            font-size: 14px; font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+        .cmd-form {
+            padding: 16px;
+        }
+        .cmd-form fieldset {
+            border: none; padding: 0 0 12px;
+        }
+        .cmd-form legend {
+            font-size: 12px; color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .cmd-form select, .cmd-form input, .cmd-form textarea {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        .cmd-form textarea { min-height: 60px; resize: vertical; font-family: monospace; }
+        .cmd-send-btn {
+            width: 100%;
+            padding: 10px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .cmd-send-btn:hover { opacity: 0.9; }
+        .cmd-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Scene Cards */
+        .scene-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            padding: 16px;
+        }
+        .scene-card {
+            padding: 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .scene-card:hover { border-color: var(--accent); background: var(--bg-hover); }
+        .scene-card h4 { font-size: 13px; margin-bottom: 4px; }
+        .scene-card p { font-size: 11px; color: var(--text-muted); }
+
+        /* Device List */
+        .device-list {
+            padding: 16px;
+        }
+        .device-list-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg-secondary);
+        }
+        .device-list-item .name {
+            font-size: 13px; font-weight: 500;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .device-list-item .type-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        /* Command Log */
+        .cmd-log {
+            padding: 8px 16px 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 12px;
+        }
+        .cmd-log-entry {
+            padding: 6px 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            background: var(--bg-secondary);
+        }
+        .cmd-log-entry .time { color: var(--text-muted); }
+        .cmd-log-entry .cmd { color: var(--accent); }
+        .cmd-log-entry .status { font-weight: 600; }
+        .cmd-log-entry .status.success { color: var(--green); }
+        .cmd-log-entry .status.timeout { color: var(--yellow); }
+        .cmd-log-entry .status.failed { color: var(--red); }
+
+        /* Message Log */
+        .log-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .log-header {
+            padding: 14px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px; font-weight: 600;
+        }
+        .log-count { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+        .log-body {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+        }
+        .log-entry:hover { background: var(--bg-hover); }
+        .log-time { color: var(--text-muted); white-space: nowrap; }
+        .log-topic { color: var(--accent); }
+        .log-data { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-state h2 { font-size: 18px; color: var(--text-secondary); margin-bottom: 8px; }
+        .empty-state p { font-size: 13px; max-width: 400px; margin: 0 auto; line-height: 1.6; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .grid-devices { grid-template-columns: 1fr; }
+            .device-sensors { grid-template-columns: repeat(2, 1fr); }
+            .stats-bar { flex-direction: column; }
+            .cmd-layout { grid-template-columns: 1fr; }
+            .main { padding: 12px; }
+            .compute-grid { grid-template-columns: 1fr; }
+            .camera-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <div class="logo">F</div>
+        <h1>Fusion Dashboard</h1>
+    </div>
+    <div class="header-right">
+        <span class="conn-mode" id="connMode">HTTP Polling</span>
+        <div class="status-badge status-offline" id="statusBadge">
+            <span class="status-dot"></span>
+            <span id="statusText">Disconnected</span>
+        </div>
+    </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('sensors')">
+        <span>&#x1F4E1;</span> Sensors
+    </button>
+    <button class="tab-btn" onclick="switchTab('compute')">
+        <span>&#x26A1;</span> Compute
+    </button>
+    <button class="tab-btn" onclick="switchTab('cameras')">
+        <span>&#x1F4F7;</span> Cameras
+    </button>
+    <button class="tab-btn" onclick="switchTab('sound')">
+        <span>&#x1F50A;</span> Sound
+        <span class="badge" id="alertBadge" style="display:none">0</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('command')">
+        <span>&#x1F39B;</span> Command
+    </button>
+    <button class="tab-btn" onclick="switchTab('log')">
+        <span>&#x1F4CB;</span> Log
+    </button>
+</div>
+
+<div class="main">
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TAB: Sensors -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="tab-content active" id="tab-sensors">
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-icon devices">&#x1F4F1;</div>
+                <div>
+                    <div class="stat-value" id="statDevices">0</div>
+                    <div class="stat-label">Devices</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon sensors">&#x1F321;</div>
+                <div>
+                    <div class="stat-value" id="statSensors">0</div>
+                    <div class="stat-label">Sensors</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon messages">&#x1F4CA;</div>
+                <div>
+                    <div class="stat-value" id="statMessages">0</div>
+                    <div class="stat-label">Messages</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon uptime">&#x23F1;</div>
+                <div>
+                    <div class="stat-value" id="statUptime">00:00</div>
+                    <div class="stat-label">Uptime</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-devices" id="deviceGrid">
+            <div class="empty-state" id="emptyState">
+                <div class="icon">&#x1F4E1;</div>
+                <h2>Waiting for Devices</h2>
+                <p>Start Android Companion App and connect to PC MQTT Broker (port 1883). Sensor data will appear here automatically.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TAB: Compute -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-compute">
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:var(--green-dim)">&#x26A1;</div>
+                <div>
+                    <div class="stat-value" id="computeTotalScore">--</div>
+                    <div class="stat-label">Total Score</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:var(--accent-dim)">&#x1F4F1;</div>
+                <div>
+                    <div class="stat-value" id="computeDeviceCount">0</div>
+                    <div class="stat-label">Devices</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:var(--purple-dim)">&#x1F3AE;</div>
+                <div>
+                    <div class="stat-value" id="computeApps">0</div>
+                    <div class="stat-label">Registered Apps</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="compute-grid" id="computeGrid">
+            <div class="empty-state" style="grid-column:1/-1">
+                <div class="icon">&#x26A1;</div>
+                <h2>Compute Status</h2>
+                <p>Distributed scheduler monitors device performance and manages app migration between PC and phones.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TAB: Cameras -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-cameras">
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:var(--blue-dim)">&#x1F4F9;</div>
+                <div>
+                    <div class="stat-value" id="camOnline">0</div>
+                    <div class="stat-label">Online</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:var(--red-dim)">&#x23FA;</div>
+                <div>
+                    <div class="stat-value" id="camRecording">0</div>
+                    <div class="stat-label">Recording</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="camera-grid" id="cameraGrid">
+            <div class="empty-state" style="grid-column:1/-1">
+                <div class="icon">&#x1F4F7;</div>
+                <h2>Distributed Camera Array</h2>
+                <p>Connect old phones as security cameras. They will appear here with Scrcpy preview windows.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TAB: Sound -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-sound">
+        <div class="sound-panel">
+            <h3>&#x1F50A; Real-time Sound Monitor (Silent Analysis)</h3>
+            <div class="volume-display">
+                <div class="volume-value" id="volumeDb">-100</div>
+                <div class="volume-unit">dB</div>
+            </div>
+            <div class="volume-bar-container">
+                <div class="volume-bar-fill" id="volumeBar" style="width: 0%"></div>
+            </div>
+            <div class="volume-history">
+                <canvas id="volumeCanvas"></canvas>
+            </div>
+            <div class="sound-config">
+                <div class="config-field">
+                    <label>Alert Threshold:</label>
+                    <input type="number" id="thresholdInput" value="80" min="0" max="120">
+                    <button onclick="setThreshold()">Set</button>
+                </div>
+                <div class="config-field">
+                    <label>Status:</label>
+                    <span id="soundStatus" style="font-size:13px;color:var(--text-secondary)">Idle</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert-log">
+            <div class="alert-log-header">
+                <span>&#x26A0; Alert History</span>
+                <span class="log-count" id="alertCount">0 alerts</span>
+            </div>
+            <div class="log-body" id="alertBody">
+                <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No alerts yet...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TAB: Command -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-command">
+        <div class="cmd-layout">
+            <div class="cmd-panel">
+                <div class="cmd-panel-header">&#x1F39B; Send Command</div>
+                <div class="cmd-form">
+                    <fieldset>
+                        <legend>Target Device</legend>
+                        <select id="cmdTarget">
+                            <option value="">Select device...</option>
+                            <option value="broadcast">Broadcast (all devices)</option>
+                        </select>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Action</legend>
+                        <select id="cmdAction">
+                            <option value="ping">Ping</option>
+                            <option value="get_status">Get Status</option>
+                            <option value="capture">Capture Screenshot</option>
+                            <option value="start_camera">Start Camera</option>
+                            <option value="stop_camera">Stop Camera</option>
+                            <option value="set_mode">Set Mode</option>
+                            <option value="arm_sensors">Arm Sensors</option>
+                            <option value="disarm_sensors">Disarm Sensors</option>
+                        </select>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Parameters (JSON)</legend>
+                        <textarea id="cmdParams" placeholder='{"mode": "online"}'></textarea>
+                    </fieldset>
+                    <button class="cmd-send-btn" id="cmdSendBtn" onclick="sendCommand()">
+                        Send Command
+                    </button>
+                </div>
+            </div>
+
+            <div class="cmd-panel">
+                <div class="cmd-panel-header">&#x1F3DB; Scenes</div>
+                <div class="scene-grid" id="sceneGrid">
+                    <div class="scene-card" onclick="activateScene('night_mode')">
+                        <h4>&#x1F319; Night Mode</h4>
+                        <p>Dim lights, silent phones</p>
+                    </div>
+                    <div class="scene-card" onclick="activateScene('away_mode')">
+                        <h4>&#x1F6AA; Away Mode</h4>
+                        <p>Cameras, sensors, simulate presence</p>
+                    </div>
+                    <div class="scene-card" onclick="activateScene('all_lights_off')">
+                        <h4>&#x1F311; All Lights Off</h4>
+                        <p>Turn off all connected lights</p>
+                    </div>
+                </div>
+                <div class="cmd-panel-header" style="margin-top:8px">&#x1F4CB; Registered Devices</div>
+                <div class="device-list" id="registeredDevices">
+                    <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">No devices registered yet</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cmd-panel" style="margin-top:16px">
+            <div class="cmd-panel-header">&#x1F4DD; Command Log</div>
+            <div class="cmd-log" id="cmdLog">
+                <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No commands sent yet</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TAB: Log -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-log">
+        <div class="log-section">
+            <div class="log-header">
+                <span>MQTT Message Log</span>
+                <span class="log-count" id="logCount">0 messages</span>
+            </div>
+            <div class="log-body" id="logBody">
+                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px;">
+                    Waiting for messages...
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // ═══════════════════════════════════════════════════════
+    // Fusion Dashboard v2.0 - Full Control Center
+    // ═══════════════════════════════════════════════════════
+
+    const state = {
+        devices: {},
+        messages: [],
+        totalMessages: 0,
+        startTime: Date.now(),
+        ws: null,
+        connected: false,
+        pollInterval: null,
+        // Sound monitor state
+        volumeHistory: [],
+        alertCount: 0,
+        // Command state
+        cmdLog: [],
+        // Compute state
+        computeData: null,
+    };
+
+    // Sensor metadata
+    const SENSOR_META = {
+        temperature:    { icon: '&#x1F321;', label: 'Temp',   unit: 'C',    cls: 'temperature' },
+        humidity:       { icon: '&#x1F4A7;', label: 'Humid',  unit: '%',    cls: 'humidity' },
+        light:          { icon: '&#x2600;',  label: 'Light',  unit: 'lux',  cls: 'light' },
+        pressure:       { icon: '&#x1F535;', label: 'Press',  unit: 'hPa',  cls: 'pressure' },
+        proximity:      { icon: '&#x1F4CF;', label: 'Prox',   unit: 'cm',   cls: 'proximity' },
+        accelerometer:  { icon: '&#x1F4D0;', label: 'Accel',  unit: 'm/s2', cls: 'accelerometer' },
+        gyroscope:      { icon: '&#x1F504;', label: 'Gyro',   unit: 'rad/s',cls: 'gyroscope' },
+        ambient_temperature: { icon: '&#x1F321;', label: 'Env Temp', unit: 'C', cls: 'temperature' },
+    };
+
+    // ═══ Tab Navigation ═══
+    function switchTab(name) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(`tab-${name}`).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // ═══ Connection ═══
+    function connectWebSocket() {
+        const wsPort = location.port ? parseInt(location.port) + 1 : 8081;
+        const wsUrl = `ws://${location.hostname}:${wsPort}`;
+        
+        try {
+            state.ws = new WebSocket(wsUrl);
+            
+            state.ws.onopen = () => {
+                state.connected = true;
+                updateConnectionUI(true, 'WebSocket');
+                if (state.pollInterval) {
+                    clearInterval(state.pollInterval);
+                    state.pollInterval = null;
+                }
+            };
+            
+            state.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleData(data);
+                } catch (e) { console.error('WS parse error:', e); }
+            };
+            
+            state.ws.onclose = () => {
+                state.connected = false;
+                updateConnectionUI(false);
+                startPolling();
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            state.ws.onerror = () => { state.ws.close(); };
+        } catch (e) {
+            startPolling();
+        }
+    }
+
+    function startPolling() {
+        if (state.pollInterval) return;
+        updateConnectionUI(true, 'HTTP Polling');
+        state.pollInterval = setInterval(pollData, 2000);
+        pollData();
+    }
+
+    async function pollData() {
+        try {
+            const resp = await fetch('/api/sensors');
+            const data = await resp.json();
+            if (data.sensors) {
+                Object.entries(data.sensors).forEach(([deviceId, sensors]) => {
+                    if (!state.devices[deviceId]) {
+                        state.devices[deviceId] = { sensors: {}, online: true, battery: -1, lastSeen: Date.now()/1000 };
+                    }
+                    Object.entries(sensors).forEach(([sensorType, sensorData]) => {
+                        state.devices[deviceId].sensors[sensorType] = sensorData;
+                    });
+                });
+                render();
+            }
+        } catch (e) { console.error('Poll error:', e); }
+    }
+
+    // ═══ Data Handling ═══
+    function handleData(data) {
+        if (data.type === 'init') {
+            if (data.sensors) {
+                Object.entries(data.sensors).forEach(([deviceId, sensors]) => {
+                    state.devices[deviceId] = { sensors, online: true, battery: -1, lastSeen: Date.now()/1000 };
+                });
+            }
+            if (data.devices) {
+                Object.entries(data.devices).forEach(([deviceId, info]) => {
+                    if (state.devices[deviceId]) {
+                        state.devices[deviceId].online = info.online;
+                        state.devices[deviceId].battery = info.battery;
+                        state.devices[deviceId].lastSeen = info.last_seen;
+                    }
+                });
+            }
+            render();
+        } else if (data.type === 'sensor') {
+            const { device_id, sensor, value, unit, ts } = data;
+            if (!state.devices[device_id]) {
+                state.devices[device_id] = { sensors: {}, online: true, battery: -1, lastSeen: ts };
+            }
+            state.devices[device_id].sensors[sensor] = { value, unit, timestamp: ts };
+            state.devices[device_id].lastSeen = ts;
+            state.totalMessages++;
+            addLogEntry(data);
+            render();
+        } else if (data.type === 'device_status') {
+            const { device_id, online, battery } = data;
+            if (!state.devices[device_id]) {
+                state.devices[device_id] = { sensors: {}, online, battery, lastSeen: data.ts };
+            }
+            state.devices[device_id].online = online;
+            state.devices[device_id].battery = battery;
+            state.devices[device_id].lastSeen = data.ts;
+            addLogEntry(data);
+            render();
+        } else if (data.type === 'alert') {
+            handleAlert(data);
+        }
+    }
+
+    function handleAlert(data) {
+        state.alertCount++;
+        const badge = document.getElementById('alertBadge');
+        badge.textContent = state.alertCount;
+        badge.style.display = '';
+        
+        const alertBody = document.getElementById('alertBody');
+        if (state.alertCount <= 1) alertBody.innerHTML = '';
+        
+        const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.style.background = 'var(--red-dim)';
+        entry.innerHTML = `<span class="log-time">${time}</span>
+            <span style="color:var(--red)">${data.alert_type}</span>
+            <span class="log-data">${data.source}: ${data.value} dB ${data.message}</span>`;
+        alertBody.insertBefore(entry, alertBody.firstChild);
+        
+        document.getElementById('alertCount').textContent = `${state.alertCount} alerts`;
+    }
+
+    // ═══ Rendering ═══
+    function render() {
+        renderStats();
+        renderDevices();
+    }
+
+    function renderStats() {
+        const onlineDevices = Object.values(state.devices).filter(d => d.online).length;
+        const totalSensors = Object.values(state.devices)
+            .reduce((sum, d) => sum + Object.keys(d.sensors).length, 0);
+        
+        document.getElementById('statDevices').textContent = onlineDevices;
+        document.getElementById('statSensors').textContent = totalSensors;
+        document.getElementById('statMessages').textContent = formatNumber(state.totalMessages);
+    }
+
+    function renderDevices() {
+        const grid = document.getElementById('deviceGrid');
+        const emptyState = document.getElementById('emptyState');
+        const devices = Object.entries(state.devices);
+
+        if (devices.length === 0) {
+            if (!emptyState.parentNode) grid.appendChild(emptyState);
+            emptyState.style.display = '';
+            return;
+        }
+
+        if (emptyState.parentNode) emptyState.style.display = 'none';
+
+        const existingCards = {};
+        grid.querySelectorAll('.device-card').forEach(card => {
+            existingCards[card.dataset.deviceId] = card;
+        });
+
+        devices.forEach(([deviceId, device]) => {
+            let card = existingCards[deviceId];
+            if (!card) {
+                card = createDeviceCard(deviceId);
+                grid.appendChild(card);
+            }
+            updateDeviceCard(card, deviceId, device);
+        });
+
+        Object.keys(existingCards).forEach(id => {
+            if (!state.devices[id]) existingCards[id].remove();
+        });
+
+        const uptime = Math.floor((Date.now() - state.startTime) / 1000);
+        const mins = Math.floor(uptime / 60).toString().padStart(2, '0');
+        const secs = (uptime % 60).toString().padStart(2, '0');
+        document.getElementById('statUptime').textContent = `${mins}:${secs}`;
+    }
+
+    function createDeviceCard(deviceId) {
+        const card = document.createElement('div');
+        card.className = 'device-card';
+        card.dataset.deviceId = deviceId;
+        card.innerHTML = `
+            <div class="device-header">
+                <div class="device-name">
+                    <div class="device-icon">&#x1F4F1;</div>
+                    <span class="name"></span>
+                </div>
+                <div class="device-meta">
+                    <span class="battery"></span>
+                    <span class="last-seen"></span>
+                </div>
+            </div>
+            <div class="device-sensors"></div>`;
+        return card;
+    }
+
+    function updateDeviceCard(card, deviceId, device) {
+        const name = card.querySelector('.name');
+        name.textContent = deviceId.length > 24 ? deviceId.substring(0, 24) + '...' : deviceId;
+
+        const batteryEl = card.querySelector('.battery');
+        if (device.battery >= 0) {
+            batteryEl.textContent = `${device.battery}%`;
+            batteryEl.className = `battery${device.battery < 20 ? ' low' : ''}`;
+            batteryEl.style.display = '';
+        } else {
+            batteryEl.style.display = 'none';
+        }
+
+        const lastSeenEl = card.querySelector('.last-seen');
+        if (device.lastSeen) {
+            const ago = Math.floor(Date.now()/1000 - device.lastSeen);
+            if (ago < 60) lastSeenEl.textContent = `${ago}s ago`;
+            else if (ago < 3600) lastSeenEl.textContent = `${Math.floor(ago/60)}m ago`;
+            else lastSeenEl.textContent = `${Math.floor(ago/3600)}h ago`;
+        }
+
+        const header = card.querySelector('.device-header');
+        if (!header.querySelector('.status-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'status-badge';
+            header.querySelector('.device-meta').prepend(badge);
+        }
+        const badge = header.querySelector('.status-badge');
+        badge.className = `status-badge ${device.online ? 'status-online' : 'status-offline'}`;
+        badge.innerHTML = `<span class="status-dot"></span>${device.online ? 'Online' : 'Offline'}`;
+
+        const sensorsContainer = card.querySelector('.device-sensors');
+        const sensorKeys = Object.keys(device.sensors);
+        const priority = ['light', 'temperature', 'ambient_temperature', 'humidity', 'pressure', 'proximity', 'accelerometer', 'gyroscope'];
+        const sortedKeys = sensorKeys.sort((a, b) => {
+            const ai = priority.indexOf(a);
+            const bi = priority.indexOf(b);
+            return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+        });
+
+        sensorsContainer.innerHTML = sortedKeys.map(key => {
+            const meta = SENSOR_META[key] || { icon: '&#x1F4CA;', label: key, unit: '', cls: '' };
+            const d = device.sensors[key];
+            const value = d.value !== undefined ? formatValue(d.value, key) : '--';
+            return `<div class="sensor-tile ${meta.cls || ''}">
+                <div class="sensor-icon">${meta.icon}</div>
+                <div class="sensor-value">${value}</div>
+                <div class="sensor-unit">${meta.unit || d.unit || ''}</div>
+                <div class="sensor-label">${meta.label}</div>
+            </div>`;
+        }).join('');
+
+        if (sortedKeys.length === 0) {
+            sensorsContainer.innerHTML = `<div class="sensor-tile no-data" style="grid-column:1/-1">
+                <div class="sensor-value">No Data</div>
+                <div class="sensor-label">Waiting...</div></div>`;
+        }
+    }
+
+    // ═══ Command ═══
+    function sendCommand() {
+        const target = document.getElementById('cmdTarget').value;
+        const action = document.getElementById('cmdAction').value;
+        let params = {};
+        try {
+            const raw = document.getElementById('cmdParams').value.trim();
+            if (raw) params = JSON.parse(raw);
+        } catch (e) { params = {}; }
+
+        if (!target) return;
+
+        const cmd = {
+            target, action, params,
+            timestamp: Date.now(),
+            id: Math.random().toString(36).substr(2, 8),
+        };
+
+        state.cmdLog.unshift(cmd);
+        renderCmdLog();
+
+        // Send via API (POST /api/command)
+        fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cmd),
+        }).then(r => r.json()).then(data => {
+            cmd.status = data.status || 'sent';
+            renderCmdLog();
+        }).catch(() => {
+            cmd.status = 'failed';
+            renderCmdLog();
+        });
+    }
+
+    function activateScene(name) {
+        fetch('/api/scene', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scene: name }),
+        }).then(r => r.json()).then(data => {
+            addCmdLogEntry({
+                id: Math.random().toString(36).substr(2, 8),
+                target: 'scene',
+                action: `activate:${name}`,
+                status: data.ok ? 'success' : 'failed',
+            });
+        });
+    }
+
+    function renderCmdLog() {
+        const log = document.getElementById('cmdLog');
+        if (state.cmdLog.length === 0) return;
+        
+        log.innerHTML = state.cmdLog.slice(0, 50).map(cmd => {
+            const time = new Date(cmd.timestamp).toLocaleTimeString('en-US', { hour12: false });
+            const statusCls = cmd.status === 'success' ? 'success' : (cmd.status === 'timeout' ? 'timeout' : (cmd.status === 'failed' ? 'failed' : ''));
+            return `<div class="cmd-log-entry">
+                <span class="time">${time}</span>
+                <span class="cmd">${cmd.target}/${cmd.action}</span>
+                <span class="status ${statusCls}">${cmd.status || 'sent'}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function addCmdLogEntry(cmd) {
+        cmd.timestamp = Date.now();
+        state.cmdLog.unshift(cmd);
+        renderCmdLog();
+    }
+
+    // ═══ Sound Monitor ═══
+    function setThreshold() {
+        const val = parseInt(document.getElementById('thresholdInput').value);
+        if (val > 0 && val <= 120) {
+            fetch('/api/sound/threshold', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ threshold: val }),
+            });
+        }
+    }
+
+    function updateSoundMonitor(db) {
+        const pct = Math.max(0, Math.min(100, ((db + 100) / 100) * 100));
+        document.getElementById('volumeDb').textContent = db.toFixed(1);
+        document.getElementById('volumeBar').style.width = pct + '%';
+        
+        state.volumeHistory.push(db);
+        if (state.volumeHistory.length > 200) state.volumeHistory.shift();
+        drawVolumeChart();
+
+        document.getElementById('soundStatus').textContent = 
+            db > 80 ? 'ALERT' : db > 50 ? 'Loud' : db > 20 ? 'Normal' : 'Quiet';
+        document.getElementById('soundStatus').style.color = 
+            db > 80 ? 'var(--red)' : db > 50 ? 'var(--yellow)' : 'var(--green)';
+    }
+
+    function drawVolumeChart() {
+        const canvas = document.getElementById('volumeCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * 2;
+        canvas.height = canvas.offsetHeight * 2;
+        ctx.scale(2, 2);
+        
+        const w = canvas.offsetWidth;
+        const h = canvas.offsetHeight;
+        const data = state.volumeHistory;
+        
+        ctx.clearRect(0, 0, w, h);
+        
+        if (data.length < 2) return;
+        
+        // Grid lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 0.5;
+        for (let db = -100; db <= 0; db += 20) {
+            const y = h - ((db + 100) / 100) * h;
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        }
+        
+        // Volume line
+        ctx.beginPath();
+        ctx.strokeStyle = 'var(--accent)';
+        ctx.lineWidth = 1.5;
+        const step = w / (data.length - 1);
+        data.forEach((db, i) => {
+            const x = i * step;
+            const y = h - ((db + 100) / 100) * h;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        
+        // Fill under curve
+        const lastX = (data.length - 1) * step;
+        ctx.lineTo(lastX, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(108,140,255,0.1)';
+        ctx.fill();
+
+        // Threshold line
+        const threshold = parseInt(document.getElementById('thresholdInput').value) || 80;
+        const threshY = h - ((threshold + 100) / 100) * h;
+        ctx.strokeStyle = 'var(--red)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(0, threshY); ctx.lineTo(w, threshY); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // ═══ Log ═══
+    function addLogEntry(data) {
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-US', { hour12: false });
+        
+        let topic = '', text = '';
+        if (data.type === 'sensor') {
+            topic = `sensors/${data.device_id}/${data.sensor}`;
+            text = `${data.value} ${data.unit || ''}`;
+        } else if (data.type === 'device_status') {
+            topic = `devices/${data.device_id}`;
+            text = data.online ? 'online' : 'offline';
+        }
+
+        const logBody = document.getElementById('logBody');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `<span class="log-time">${time}</span><span class="log-topic">${topic}</span><span class="log-data">${text}</span>`;
+        
+        if (state.totalMessages <= 1) logBody.innerHTML = '';
+        logBody.insertBefore(entry, logBody.firstChild);
+        while (logBody.children.length > 200) logBody.removeChild(logBody.lastChild);
+        document.getElementById('logCount').textContent = `${state.totalMessages} messages`;
+    }
+
+    // ═══ UI Helpers ═══
+    function updateConnectionUI(connected, mode = '') {
+        const badge = document.getElementById('statusBadge');
+        const text = document.getElementById('statusText');
+        const modeEl = document.getElementById('connMode');
+        badge.className = `status-badge ${connected ? 'status-online' : 'status-offline'}`;
+        text.textContent = connected ? 'Connected' : 'Disconnected';
+        if (mode) modeEl.textContent = mode;
+    }
+
+    function formatValue(value, sensorType) {
+        if (Math.abs(value) >= 10000) return value.toFixed(0);
+        if (Math.abs(value) >= 100) return value.toFixed(1);
+        if (Math.abs(value) >= 10) return value.toFixed(1);
+        return value.toFixed(1);
+    }
+
+    function formatNumber(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n.toString();
+    }
+
+    // ═══ Init ═══
+    document.addEventListener('DOMContentLoaded', () => {
+        connectWebSocket();
+        
+        // Uptime ticker
+        setInterval(() => {
+            const uptime = Math.floor((Date.now() - state.startTime) / 1000);
+            const hrs = Math.floor(uptime / 3600);
+            const mins = Math.floor((uptime % 3600) / 60).toString().padStart(2, '0');
+            const secs = (uptime % 60).toString().padStart(2, '0');
+            document.getElementById('statUptime').textContent = 
+                hrs > 0 ? `${hrs}:${mins}:${secs}` : `${mins}:${secs}`;
+        }, 1000);
+
+        // Periodic API polling for compute/sound data
+        setInterval(async () => {
+            try {
+                const resp = await fetch('/api/status');
+                const data = await resp.json();
+                if (data.sound_db !== undefined) {
+                    updateSoundMonitor(data.sound_db);
+                }
+                if (data.compute) {
+                    state.computeData = data.compute;
+                    renderCompute();
+                }
+                if (data.cameras) {
+                    renderCameras(data.cameras);
+                }
+                if (data.registered_devices) {
+                    renderRegisteredDevices(data.registered_devices);
+                }
+            } catch (e) {}
+        }, 2000);
+    });
+
+    // ═══ Compute Tab Rendering ═══
+    function renderCompute() {
+        const data = state.computeData;
+        if (!data) return;
+        
+        document.getElementById('computeTotalScore').textContent = 
+            data.compute_score !== undefined ? data.compute_score.toFixed(0) : '--';
+        document.getElementById('computeDeviceCount').textContent = Object.keys(data.devices || {}).length;
+        document.getElementById('computeApps').textContent = Object.keys(data.registered_apps || {}).length;
+
+        const grid = document.getElementById('computeGrid');
+        const devices = data.devices || {};
+        
+        if (Object.keys(devices).length === 0) return;
+        
+        grid.innerHTML = Object.entries(devices).map(([id, d]) => {
+            const score = d.score || 0;
+            const scoreClass = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+            return `<div class="compute-card">
+                <h3><span style="font-size:16px">${d.device_type === 'android' ? '&#x1F4F1;' : '&#x1F5A5;'}</span> ${d.device_name || id}</h3>
+                <div class="metric-row">
+                    <span class="metric-label">CPU</span>
+                    <span class="metric-value">${(d.cpu_usage || 0).toFixed(1)}%</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Memory</span>
+                    <span class="metric-value">${(d.memory_usage || 0).toFixed(1)}%</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">GPU</span>
+                    <span class="metric-value">${d.gpu_name || 'N/A'} (${(d.gpu_usage || 0).toFixed(0)}%)</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Temperature</span>
+                    <span class="metric-value">${(d.temperature || 0).toFixed(1)}&deg;C</span>
+                </div>
+                ${d.device_type === 'android' ? `<div class="metric-row">
+                    <span class="metric-label">Battery</span>
+                    <span class="metric-value">${d.battery_level || '--}% ${d.is_charging ? '&#x26A1;' : ''}</span>
+                </div>` : ''}
+                <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:12px">
+                    <span style="color:var(--text-secondary)">Score</span>
+                    <span style="font-weight:700;color:${score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)'}">${score.toFixed(0)}</span>
+                </div>
+                <div class="score-bar">
+                    <div class="score-fill ${scoreClass}" style="width:${score}%"></div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ═══ Camera Tab Rendering ═══
+    function renderCameras(cameras) {
+        const grid = document.getElementById('cameraGrid');
+        if (!cameras || Object.keys(cameras).length === 0) return;
+
+        let onlineCount = 0, recordingCount = 0;
+        grid.innerHTML = Object.entries(cameras).map(([id, cam]) => {
+            if (cam.running) onlineCount++;
+            if (cam.recording) recordingCount++;
+            return `<div class="camera-card">
+                <div class="camera-preview">
+                    <span style="font-size:64px">&#x1F4F7;</span>
+                    ${cam.running ? '<div class="live-badge">LIVE</div>' : ''}
+                </div>
+                <div class="camera-info">
+                    <span class="camera-name">${cam.device_name || id}</span>
+                    <div class="camera-controls">
+                        <button class="cam-btn ${cam.camera_enabled ? 'active' : ''}">${cam.camera_enabled ? 'ON' : 'OFF'}</button>
+                        <button class="cam-btn">Capture</button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        document.getElementById('camOnline').textContent = onlineCount;
+        document.getElementById('camRecording').textContent = recordingCount;
+    }
+
+    // ═══ Registered Devices (Command Tab) ═══
+    function renderRegisteredDevices(devices) {
+        const container = document.getElementById('registeredDevices');
+        if (!devices || Object.keys(devices).length === 0) return;
+
+        // Also update target dropdown
+        const select = document.getElementById('cmdTarget');
+        const currentVal = select.value;
+        select.innerHTML = '<option value="broadcast">Broadcast (all devices)</option>';
+        
+        container.innerHTML = Object.entries(devices).map(([id, d]) => {
+            select.innerHTML += `<option value="${id}">${d.device_name || id}</option>`;
+            return `<div class="device-list-item">
+                <span class="name">
+                    <span class="dot ${d.online ? 'running' : 'stopped'}" style="width:8px;height:8px;border-radius:50%;display:inline-block"></span>
+                    ${d.device_name || id}
+                </span>
+                <span class="type-badge">${d.device_type || 'unknown'}</span>
+            </div>`;
+        }).join('');
+        
+        select.value = currentVal;
+    }
+</script>
+</body>
+</html>

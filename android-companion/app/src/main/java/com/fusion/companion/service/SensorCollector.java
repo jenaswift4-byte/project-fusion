@@ -70,6 +70,7 @@ public class SensorCollector implements SensorEventListener {
     
     // MQTT 配置
     private static final String MQTT_BROKER_URL = "tcp://127.0.0.1:1883";
+    private String mqttBrokerUrl = MQTT_BROKER_URL;  // 可通过 setBrokerUrl 动态修改
     private static final String MQTT_CLIENT_ID = "sensor-collector";
     private static final int MQTT_QOS = 1;
     private static final String TOPIC_PREFIX = "sensors/";
@@ -141,7 +142,24 @@ public class SensorCollector implements SensorEventListener {
         // 初始化传感器管理器
         sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         
-        Log.i(TAG, "传感器采集器初始化完成 - 设备 ID: " + deviceId);
+        // 尝试从 SharedPreferences 读取 Broker 配置 (与 MQTTClientService 共享配置)
+        SharedPreferences prefs = context.getSharedPreferences("mqtt_client_prefs", Context.MODE_PRIVATE);
+        String host = prefs.getString("broker_host", "");
+        int port = prefs.getInt("broker_port", 1883);
+        if (!host.isEmpty()) {
+            mqttBrokerUrl = "tcp://" + host + ":" + port;
+        }
+        
+        Log.i(TAG, "传感器采集器初始化完成 - 设备 ID: " + deviceId + ", Broker: " + mqttBrokerUrl);
+    }
+
+    /**
+     * 设置 MQTT Broker URL (连接外部 Broker)
+     * @param url Broker URL, e.g. "tcp://192.168.1.100:1883"
+     */
+    public void setBrokerUrl(String url) {
+        mqttBrokerUrl = url;
+        Log.i(TAG, "MQTT Broker URL 已更新: " + url);
     }
     
     /**
@@ -254,7 +272,7 @@ public class SensorCollector implements SensorEventListener {
         try {
             // 创建 MQTT 客户端 (使用内存持久化)
             mqttClient = new MqttClient(
-                MQTT_BROKER_URL,
+                mqttBrokerUrl,
                 MQTT_CLIENT_ID + "-" + deviceId,
                 new MemoryPersistence()
             );
@@ -266,9 +284,9 @@ public class SensorCollector implements SensorEventListener {
             connOpts.setKeepAliveInterval(30);
             connOpts.setAutomaticReconnect(true);
             
-            // 连接到本地 Broker
+            // 连接到 Broker (本地或远程)
             mqttClient.connect(connOpts);
-            Log.d(TAG, "MQTT 客户端已连接：" + MQTT_BROKER_URL);
+            Log.d(TAG, "MQTT 客户端已连接：" + mqttBrokerUrl);
             
         } catch (MqttException e) {
             Log.e(TAG, "MQTT 客户端初始化失败", e);
