@@ -1325,10 +1325,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
     
     private void speakText(String text) {
         try {
-            android.speech.tts.TextToSpeech tts = new android.speech.tts.TextToSpeech(this, status -> {
+            final android.speech.tts.TextToSpeech tts = new android.speech.tts.TextToSpeech(this, status -> {
                 if (status == android.speech.tts.TextToSpeech.SUCCESS) {
                     tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "fusion_tts");
                     handler.postDelayed(tts::shutdown, 5000);
+                } else {
+                    tts.shutdown();
                 }
             });
         } catch (Exception e) {
