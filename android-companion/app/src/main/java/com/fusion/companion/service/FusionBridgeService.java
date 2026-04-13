@@ -158,6 +158,18 @@ public class FusionBridgeService extends Service {
         startSmsMonitor();
         startMQTTBroker();  // 启动 MQTT Broker
 
+        // 启动 MQTT 客户端连接 PC Broker (后台线程，不能阻塞主线程)
+        new Thread(() -> {
+            try {
+                Intent clientIntent = new Intent(FusionBridgeService.this, MQTTClientService.class);
+                clientIntent.putExtra("auto_start", true);
+                startService(clientIntent);
+                Log.i(TAG, "MQTTClientService 已启动");
+            } catch (Exception e) {
+                Log.e(TAG, "启动 MQTTClientService 失败: " + e.getMessage());
+            }
+        }).start();
+
         // 传感器采集在后台线程启动 (内含 MQTT connect，不能阻塞主线程)
         new Thread(() -> {
             startSensorCollection();
