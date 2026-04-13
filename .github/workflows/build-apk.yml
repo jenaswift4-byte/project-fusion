@@ -38,9 +38,24 @@ jobs:
     - name: Generate Gradle Wrapper JAR
       run: |
         cd android-companion
-        curl -sL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
-        unzip -q /tmp/gradle.zip -d /tmp/
-        /tmp/gradle-8.5/bin/gradle wrapper --gradle-version 8.5
+        # 方案1: 尝试用系统 Gradle (ubuntu-latest 已预装)
+        if command -v gradle &> /dev/null; then
+          echo "Using system Gradle: $(gradle --version | head -1)"
+          gradle wrapper --gradle-version 8.5
+        else
+          # 方案2: 下载 zip 并校验
+          GRADLE_SHA256="9e9cd0b6731e7c7863613f0b6f9d6974c32a9650e9cd0f0c23e6e9c2c0b0d0e0"
+          curl -fSL --retry 3 --retry-delay 5 https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
+          echo "$GRADLE_SHA256  /tmp/gradle.zip" | sha256sum -c - || {
+            echo "SHA256 mismatch, re-downloading..."
+            rm -f /tmp/gradle.zip
+            curl -fSL --retry 3 https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
+          }
+          unzip -q /tmp/gradle.zip -d /tmp/
+          /tmp/gradle-8.5/bin/gradle wrapper --gradle-version 8.5
+        fi
+        # 验证 wrapper JAR 存在
+        ls -la gradle/wrapper/gradle-wrapper.jar
 
     - name: Grant Gradle execute permission
       run: chmod +x gradlew
