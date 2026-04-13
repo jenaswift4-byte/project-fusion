@@ -62,7 +62,7 @@ public class FusionBridgeService extends Service {
     private static boolean mqttBrokerRunning = false;
 
     // 传感器采集器
-    private SensorCollector sensorCollector;
+    private static SensorCollector sensorCollector;
     private static boolean sensorCollectionRunning = false;
 
     // 电池状态
@@ -99,6 +99,14 @@ public class FusionBridgeService extends Service {
      */
     public static boolean isSensorCollectionRunning() {
         return sensorCollectionRunning;
+    }
+    
+    /**
+     * 获取 SensorCollector 实例 (供其他组件更新 Broker URL)
+     * @return SensorCollector 实例，如果未启动返回 null
+     */
+    public static SensorCollector getSensorCollector() {
+        return sensorCollector;
     }
 
     @Override

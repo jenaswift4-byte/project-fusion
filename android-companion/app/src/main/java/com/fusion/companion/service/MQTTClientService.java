@@ -281,6 +281,59 @@ public class MQTTClientService extends Service implements SensorEventListener {
         }
     }
     
+    /**
+     * 处理 PC Broker 发现消息
+     * 当手机连上本地 Broker 后，收到 PC 端广播的 Broker 地址，
+     * 自动更新配置并重连 SensorCollector 到 PC Broker
+     * 
+     * 消息格式：
+     * {
+     *   "host": "192.168.1.100",
+     *   "port": 1883,
+     *   "action": "connect",
+     *   "timestamp": 1234567890
+     * }
+     */
+    private void handleBrokerDiscovery(String payload) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(payload);
+            String host = json.getString("host");
+            int port = json.optInt("port", 1883);
+            String action = json.optString("action", "connect");
+            
+            // 如果收到的就是当前 Broker，不需要切换
+            if (host.equals(brokerHost) && port == brokerPort) {
+                Log.d(TAG, "Broker 发现: 已连接到目标 Broker " + host + ":" + port);
+                return;
+            }
+            
+            // 只处理 connect action
+            if (!"connect".equals(action)) {
+                return;
+            }
+            
+            Log.i(TAG, "发现 PC Broker: " + host + ":" + port + "，当前: " + brokerHost + ":" + brokerPort);
+            
+            // 更新 SharedPreferences (SensorCollector 下次读取时生效)
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            prefs.edit()
+                .putString(KEY_BROKER_HOST, host)
+                .putInt(KEY_BROKER_PORT, port)
+                .apply();
+            
+            // 更新 SensorCollector 的 Broker URL
+            if (FusionBridgeService.getSensorCollector() != null) {
+                FusionBridgeService.getSensorCollector().setBrokerUrl("tcp://" + host + ":" + port);
+                Log.i(TAG, "已更新 SensorCollector Broker URL: tcp://" + host + ":" + port);
+            }
+            
+            Log.i(TAG, "PC Broker 地址已保存到 SharedPreferences，SensorCollector 将在下次启动时连接");
+            
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "解析 Broker 发现消息失败: " + e.getMessage());
+        }
+    }
+    
     // ==================== MQTT 连接管理 ====================
     
     /**
@@ -352,7 +405,19 @@ public class MQTTClientService extends Service implements SensorEventListener {
                 
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    Log.d(TAG, "收到消息 - 主题：" + topic + ", 内容：" + new String(message.getPayload()));
+                    String payloadStr = new String(message.getPayload());
+                    Log.d(TAG, "收到消息 - 主题：" + topic + ", 内容：" + payloadStr);
+                    
+                    // 处理 PC Broker 发现消息
+                    if ("fusion/pc/broker".equals(topic)) {
+                        handleBrokerDiscovery(payloadStr);
+                    }
+                    
+                    // 处理设备控制命令
+                    if (topic.startsWith("devices/") && topic.endsWith("/heartbeat")) {
+                        // 心跳消息，忽略
+                        return;
+                    }
                     
                     // 通知监听器
                     if (messageListener != null) {
@@ -544,7 +609,16 @@ public class MQTTClientService extends Service implements SensorEventListener {
         // 订阅模式切换通知
         subscribeTopic("fusion/mode", 1);
         
-        Log.i(TAG, "已订阅主题：" + deviceTopic + ", fusion/broadcast, fusion/mode");
+        // 订阅 PC Broker 发现消息 (PC Bridge 启动时会广播)
+        subscribeTopic("fusion/pc/broker", 1);
+        
+        // 订阅摄像头控制命令
+        subscribeTopic("fusion/camera/" + deviceId + "/command", 1);
+        
+        // 订阅音频控制命令
+        subscribeTopic("fusion/audio/" + deviceId + "/command", 1);
+        
+        Log.i(TAG, "已订阅主题：" + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command");
     }
     
     // ==================== 传感器数据发布 ====================

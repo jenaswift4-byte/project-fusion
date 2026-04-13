@@ -35,6 +35,13 @@ from bridge.modules.screenshot_bridge import ScreenshotBridge
 from bridge.modules.sms_bridge import SMSBridge
 from bridge.modules.handoff_bridge import HandoffBridge
 from bridge.modules.audio_bridge import AudioBridge
+from bridge.modules.mqtt_bridge import MQTTBridge
+from bridge.modules.dashboard_server import DashboardServer
+from bridge.modules.command_bridge import CommandBridge
+from bridge.modules.sound_monitor import SoundMonitor
+from bridge.modules.multi_scrcpy import MultiScrcpyManager
+from bridge.modules.pc_online_broadcaster import PCOnlineBroadcaster
+from bridge.modules.distributed_scheduler import DistributedScheduler
 from bridge.listeners.kde_connect import KDEConnectListener
 from bridge.listeners.window_focus import WindowFocusListener
 from bridge.listeners.clipboard_hook import ClipboardChangeListener
@@ -93,6 +100,35 @@ class BridgeDaemon:
         self.sms_bridge = SMSBridge(self)               # 短信收发
         self.handoff_bridge = HandoffBridge(self)        # 链接接力
         self.audio_bridge = AudioBridge(self)            # 音频流转
+
+        # MQTT 通信中枢
+        self.mqtt_bridge = MQTTBridge(self)                # MQTT Broker + 数据聚合
+
+        # 命令通道 + 智能家居接口
+        self.command_bridge = CommandBridge(self)
+
+        # 声音监测 (静音分析)
+        self.sound_monitor = SoundMonitor(self)
+
+        # 多设备 Scrcpy 管理器 (分布式摄像头)
+        scrcpy_path = config.get("scrcpy", {}).get("path", "C:\\scrcpy")
+        self.multi_scrcpy = MultiScrcpyManager(
+            scrcpy_dir=scrcpy_path,
+            adb_path=config.get("adb", {}).get("path", "adb"),
+            config=config.get("multi_scrcpy", {}),
+        )
+
+        # PC 在线状态广播
+        self.pc_online_broadcaster = PCOnlineBroadcaster(
+            mqtt_bridge=None,  # 稍后在 MQTT 启动后设置
+            config=config.get("pc_online", {}),
+        )
+
+        # 分布式计算调度器
+        self.distributed_scheduler = DistributedScheduler(self)
+
+        # 仪表盘 Web 服务
+        self.dashboard_server = None
 
         # 实时通道
         self.ws_client = FusionWSClient(config)  # WebSocket 主通道
@@ -311,6 +347,70 @@ class BridgeDaemon:
             self.audio_bridge.start()
         print()
 
+        # ═══ Phase 5.5: MQTT 通信中枢 ═══
+        mqtt_cfg = self.config.get("mqtt", {})
+        if mqtt_cfg.get("enabled", True) and mqtt_cfg.get("auto_start", True):
+            print("[5.5/12] MQTT 通信中枢...")
+            if self.mqtt_bridge.start():
+                print(f"  ✅ MQTT Broker (端口 {self.config.get('mqtt', {}).get('port', 1883)})")
+
+                # 注入 PC IP 到手机 SharedPreferences，让 SensorCollector 连到 PC Broker
+                self._inject_pc_broker_url()
+
+                # 启动 Dashboard Web 服务
+                dashboard_cfg = self.config.get("dashboard", {})
+                dashboard_port = dashboard_cfg.get("port", 8080)
+                if dashboard_cfg.get("enabled", True):
+                    import os
+                    dashboard_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dashboard")
+                    self.dashboard_server = DashboardServer(port=dashboard_port, dashboard_dir=dashboard_dir)
+                    self.dashboard_server.set_bridges(self)
+                    if self.dashboard_server.start():
+                        print(f"  ✅ Dashboard (http://localhost:{dashboard_port})")
+                    else:
+                        print("  ⚠️ Dashboard 启动失败")
+
+                # MQTT → Dashboard 数据桥接
+                self.mqtt_bridge.on_sensor_data(self._on_mqtt_sensor_data)
+                self.mqtt_bridge.on_device_online(self._on_mqtt_device_online)
+                self.mqtt_bridge.on_device_offline(self._on_mqtt_device_offline)
+                self.mqtt_bridge.on_command_response(self._on_mqtt_command_response)
+                self.mqtt_bridge.on_device_state(self._on_mqtt_device_state)
+
+                # PC 在线状态广播
+                self.pc_online_broadcaster.set_mqtt_bridge(self.mqtt_bridge)
+                self.pc_online_broadcaster.start()
+                print("  ✅ PC 在线状态广播 (MQTT 心跳)")
+
+                # 命令通道
+                self.command_bridge.set_mqtt_bridge(self.mqtt_bridge)
+                self.command_bridge.start()
+                print("  ✅ 命令通道 + 智能家居接口")
+
+                # 声音监测
+                sm_cfg = self.config.get("sound_monitor", {})
+                if sm_cfg.get("enabled", True):
+                    self.sound_monitor.start()
+                    self.sound_monitor.on_alert(self._on_sound_alert)
+                    print("  ✅ 声音监测 (静音分析)")
+
+                # 分布式调度器
+                dist_cfg = self.config.get("distributed", {})
+                if dist_cfg.get("enabled", True):
+                    self.distributed_scheduler.start_monitoring()
+                    print("  ✅ 分布式计算调度器")
+
+                # 自动发现摄像头设备
+                self._auto_discover_camera_devices()
+                cam_count = len(self.multi_scrcpy.instances)
+                if cam_count > 0:
+                    print(f"  ✅ 分布式摄像头 ({cam_count} 台设备)")
+                else:
+                    print("  ⏭️ 分布式摄像头 (无额外设备)")
+            else:
+                print("  ⚠️ MQTT Broker 启动失败")
+        print()
+
         # ═══ Phase 6: KDE Connect ═══
         print("[6/9] KDE Connect...")
         if self.kde_listener.start():
@@ -323,7 +423,7 @@ class BridgeDaemon:
         print()
 
         # ═══ Phase 7: 全局热键 ═══
-        print("[7/11] 全局热键...")
+        print("[7/12] 全局热键...")
         self.hotkey_manager.start()
         if self.hotkey_manager.running:
             print("  ✅ 全局热键 (Win+Shift+S 截图 / P 聚焦 / H HOME / B BACK ...)")
@@ -332,7 +432,7 @@ class BridgeDaemon:
         print()
 
         # ═══ Phase 8: 智能免打扰 ═══
-        print("[8/11] 智能免打扰...")
+        print("[8/12] 智能免打扰...")
         self.dnd_manager.start()
         if self.dnd_manager.running:
             print("  ✅ 全屏自动静默通知")
@@ -341,7 +441,7 @@ class BridgeDaemon:
         print()
 
         # ═══ Phase 9: 近场检测 ═══
-        print("[9/11] 近场检测...")
+        print("[9/12] 近场检测...")
         self.proximity_detector.start()
         if self.proximity_detector.running:
             print("  ✅ 蓝牙近场自动连接")
@@ -350,7 +450,7 @@ class BridgeDaemon:
         print()
 
         # ═══ Phase 10: Input Leap ═══
-        print("[10/11] 键鼠流转...")
+        print("[10/12] 键鼠流转...")
         if self.input_leap.start():
             print("  ✅ Input Leap 已启动")
         else:
@@ -359,7 +459,7 @@ class BridgeDaemon:
 
         # ═══ Phase 11: 系统托盘 ═══
         if enable_tray:
-            print("[11/11] 系统托盘...")
+            print("[11/12] 系统托盘...")
             self.tray_icon.start()
             print("  ✅ 托盘图标已显示")
         else:
@@ -410,6 +510,14 @@ class BridgeDaemon:
         self.sms_bridge.stop()
         self.handoff_bridge.stop()
         self.audio_bridge.stop()
+        self.mqtt_bridge.stop()
+        self.command_bridge.stop()
+        self.sound_monitor.stop()
+        self.multi_scrcpy.cleanup()
+        self.pc_online_broadcaster.stop()
+        self.distributed_scheduler.stop_monitoring()
+        if self.dashboard_server:
+            self.dashboard_server.stop()
         self.scrcpy_ctrl.stop()
 
         print("Project Fusion 已停止")
@@ -581,6 +689,196 @@ class BridgeDaemon:
         self.tray_icon.update_status("运行中")
 
     # ══════════════════════════════════════
+    # PC IP 注入 + 设备自动发现
+    # ══════════════════════════════════════
+
+    def _get_local_ip(self) -> str:
+        """获取本机局域网 IP"""
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "127.0.0.1"
+
+    def _inject_pc_broker_url(self):
+        """通过 ADB 将 PC IP 写入手机 SharedPreferences，让 SensorCollector 连接 PC Broker"""
+        try:
+            pc_ip = self._get_local_ip()
+            mqtt_port = self.config.get("mqtt", {}).get("port", 1883)
+
+            logger.info(f"[Bridge] 注入 PC Broker 地址到手机: {pc_ip}:{mqtt_port}")
+
+            # 方案 1: 通过 app_process 直接写 SharedPreferences (需要 debuggable 或 root)
+            # 方案 2: 通过 am broadcast 通知 App 更新 (App 需要注册对应 Receiver)
+            # 方案 3: 通过 MQTT 消息广播 Broker 地址 (App 连上本地 Broker 后收到)
+
+            # 尝试多种注入方式
+            injected = False
+
+            # 方案 A: 通过 content provider 或 run-as 写入 SharedPreferences
+            # 先尝试直接用 am broadcast 通知
+            output, err, rc = self.adb_shell(
+                f"am broadcast -a com.fusion.companion.action.SET_BROKER "
+                f"--es host {pc_ip} --ei port {mqtt_port} "
+                f"--ez reconnect true "
+                f"-p com.fusion.companion"
+            )
+            if rc == 0:
+                injected = True
+                logger.info("[Bridge] 广播注入成功")
+
+            # 方案 B: 用 ADB shell 直接操作 SharedPreferences XML
+            if not injected:
+                # 检查是否为 debuggable app
+                is_debug, _, _ = self.adb_shell(
+                    "run-as com.fusion.companion echo ok 2>&1"
+                )
+                if "ok" in is_debug:
+                    # 写入 XML 文件
+                    xml_content = (
+                        f'<?xml version=\'1.0\' encoding=\'utf-8\' standalone=\'yes\' ?>'
+                        f'<map>'
+                        f'<string name=\"broker_host\">{pc_ip}</string>'
+                        f'<int name=\"broker_port\" value=\"{mqtt_port}\" />'
+                        f'</map>'
+                    )
+                    import base64
+                    b64_xml = base64.b64encode(xml_content.encode()).decode()
+                    self.adb_shell(
+                        f"run-as com.fusion.companion sh -c "
+                        f"'echo {b64_xml} | base64 -d > "
+                        f"/data/data/com.fusion.companion/shared_prefs/mqtt_client_prefs.xml'"
+                    )
+                    injected = True
+                    logger.info("[Bridge] run-as XML 注入成功")
+
+            # 方案 C: 如果有 root
+            if not injected:
+                root_check, _, _ = self.adb_shell("su -c id")
+                if "uid=0" in root_check:
+                    xml_content = (
+                        f'<?xml version=\'1.0\' encoding=\'utf-8\' standalone=\'yes\' ?>'
+                        f'<map>'
+                        f'<string name=\"broker_host\">{pc_ip}</string>'
+                        f'<int name=\"broker_port\" value=\"{mqtt_port}\" />'
+                        f'</map>'
+                    )
+                    import base64
+                    b64_xml = base64.b64encode(xml_content.encode()).decode()
+                    self.adb_shell(
+                        f"su -c 'mkdir -p /data/data/com.fusion.companion/shared_prefs && "
+                        f"echo {b64_xml} | base64 -d > "
+                        f"/data/data/com.fusion.companion/shared_prefs/mqtt_client_prefs.xml && "
+                        f"chown $(stat -c %U:%G /data/data/com.fusion.companion) "
+                        f"/data/data/com.fusion.companion/shared_prefs/mqtt_client_prefs.xml && "
+                        f"chmod 660 /data/data/com.fusion.companion/shared_prefs/mqtt_client_prefs.xml'"
+                    )
+                    injected = True
+                    logger.info("[Bridge] root XML 注入成功")
+
+            # 方案 D (兜底): 停止并重启 App，SensorCollector 会读取更新后的配置
+            if not injected:
+                logger.info("[Bridge] 无法直接注入，发送 MQTT broker 发现消息 (需手机 App 重新启动后生效)")
+                # 通过 ADB 停止 App，修改 SharedPreferences (通过 ActivityManager)
+                # 先尝试用 settings put (有些 MIUI 支持)
+                self.adb_shell(
+                    f"am force-stop com.fusion.companion",
+                    capture=False
+                )
+                time.sleep(1)
+                # 写入方式: 使用 pm clear 后 App 会重新初始化
+                # 但我们不想清除数据。最简单: 直接重启 App，然后等用户手动配置
+                logger.info("[Bridge] 请在手机 App 中手动设置 PC Broker 地址: " + pc_ip)
+
+            # 通过 MQTT 广播 Broker 发现消息 (连上本地 Broker 的设备能收到)
+            self.mqtt_bridge.publish_json("fusion/pc/broker", {
+                "host": pc_ip,
+                "port": mqtt_port,
+                "action": "connect",
+                "timestamp": int(time.time() * 1000),
+            })
+
+            print(f"  ✅ PC Broker 地址广播 ({pc_ip}:{mqtt_port})")
+
+        except Exception as e:
+            logger.error(f"[Bridge] 注入 PC Broker 地址失败: {e}")
+            print(f"  ⚠️ PC Broker 地址注入失败: {e}")
+
+    def _auto_discover_camera_devices(self):
+        """自动发现 ADB 设备并注册到 MultiScrcpy 管理器"""
+        try:
+            devices = self.multi_scrcpy.discover_devices()
+            for serial in devices:
+                if serial not in self.multi_scrcpy.instances:
+                    name = self.multi_scrcpy.get_device_name(serial)
+                    self.multi_scrcpy.add_device(serial, name)
+                    # 注册到 CommandBridge
+                    self.command_bridge.register_device(
+                        device_id=serial,
+                        device_name=name,
+                        device_type="phone",
+                        capabilities=["sensor", "camera", "notification"],
+                    )
+            if devices:
+                logger.info(f"[Bridge] 摄像头设备自动发现: {len(devices)} 台")
+        except Exception as e:
+            logger.debug(f"[Bridge] 摄像头设备发现失败: {e}")
+
+    # ══════════════════════════════════════
+    # MQTT → Dashboard 数据桥接
+    # ══════════════════════════════════════
+
+    def _on_mqtt_sensor_data(self, device_id: str, sensor_type: str, value: float, unit: str):
+        """MQTT 传感器数据 → Dashboard 推送 + 场景联动"""
+        if self.dashboard_server:
+            self.dashboard_server.update_sensor(device_id, sensor_type, value, unit)
+
+    def _on_mqtt_device_online(self, device_id: str):
+        """MQTT 设备上线 → Dashboard 推送 + 自动注册到 CommandBridge"""
+        if self.dashboard_server:
+            self.dashboard_server.update_device_status(device_id, online=True)
+        # 自动注册新设备到命令通道
+        self.command_bridge.register_device(
+            device_id=device_id,
+            device_type="phone",
+            capabilities=["sensor", "camera", "notification"],
+        )
+
+    def _on_mqtt_device_offline(self, device_id: str):
+        """MQTT 设备下线 → Dashboard 推送"""
+        if self.dashboard_server:
+            self.dashboard_server.update_device_status(device_id, online=False)
+
+    def _on_mqtt_command_response(self, cmd_id: str, response: dict):
+        """MQTT 命令响应 → 转发到 CommandBridge"""
+        self.command_bridge.handle_response(cmd_id, response)
+
+    def _on_mqtt_device_state(self, device_id: str, state: dict):
+        """MQTT 设备状态变化 → 转发到 CommandBridge"""
+        self.command_bridge.update_device_state(device_id, state)
+
+    # ═══════════════════════════════════════════════════════
+    # 声音监测回调
+    # ═══════════════════════════════════════════════════════
+
+    def _on_sound_alert(self, alert_type: str, db: float):
+        """声音告警回调 → Toast 通知"""
+        send_toast(
+            title=f"声音告警 ({alert_type})",
+            text=f"检测到异常声音: {db:.1f} dB",
+            app_name="Project Fusion",
+        )
+        logger.warning(f"[声音告警] {alert_type}: {db:.1f} dB")
+
+        # 推送到 Dashboard
+        if self.dashboard_server:
+            self.dashboard_server.push_alert("sound", alert_type, db)
+
+    # ══════════════════════════════════════
     # KDE Connect 回调
     # ══════════════════════════════════════
 
@@ -626,6 +924,7 @@ def main():
     parser.add_argument("--no-phone", action="store_true", help="禁用通话控制")
     parser.add_argument("--no-tray", action="store_true", help="不显示系统托盘")
     parser.add_argument("--no-companion", action="store_true", help="不使用 Android 伴侣 App")
+    parser.add_argument("--no-mqtt", action="store_true", help="不启动 MQTT Broker")
     parser.add_argument("--list-devices", action="store_true", help="列出已连接设备")
     parser.add_argument("--autostart", action="store_true", help="注册开机自启")
     parser.add_argument("--remove-autostart", action="store_true", help="取消开机自启")
