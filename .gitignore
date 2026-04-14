@@ -1,41 +1,67 @@
+# Build logs & artifacts
+build-log*.zip
+build-log*.txt
+build-logs*/
+build-latest-*/
+build*-extracted/
+build*/
+run*/
+v*-extracted/
+artifact*.zip
+fusion-companion-*.zip
+*.zip
+!bridge/requirements.zip
+
+# APK downloads
+apk-downloads/
+
+# Test artifacts
+camera_test_frames/
+*_test_*.py
+_tmp_*.py
+
+# Log files
+*.log
+app_logcat*.txt
+app_services.txt
+sensor_dump.txt
+errors.txt
+
+# JSON dumps (CI artifacts)
+actions-status.json
+artifacts.json
+jobs*.json
+latest_run.json
+run*.json
+
+# APK info
+apk_info.txt
+
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-.eggs/
-dist/
-build/
-*.egg
+*.pyc
+*.pyo
 .venv/
 venv/
 env/
 
-# Android
-android-companion/.gradle/
-android-companion/build/
-android-companion/app/build/
-android-companion/local.properties
-android-companion/*.iml
-android-companion/.idea/
-*.apk
-*.aab
-*.dex
-
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
-*~
 
 # OS
-.DS_Store
 Thumbs.db
+.DS_Store
 desktop.ini
 
-# Project
+# Secrets (IMPORTANT)
+*.key
+*.pem
+*.p12
+*-secret*
+token*
+
+# WorkBuddy internal
 .workbuddy/
-*.log
-.env
-fetch_logs.py

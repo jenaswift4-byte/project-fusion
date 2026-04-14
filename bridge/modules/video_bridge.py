@@ -39,7 +39,7 @@ class VideoBridge:
         self.enabled = video_cfg.get("enabled", True)
         self.default_player = video_cfg.get("default_player", "com.miui.videoplayer")
         self._supported_players = {
-            "miui": "com.miui.videoplayer",
+            "miui": "com.miui.video/.localvideoplayer.LocalPlayerActivity",
             "vlc": "org.videolan.vlc",
             "mx": "com.mxtech.videoplayer.ad",
             "bilibili": "tv.danmaku.bili",
@@ -81,12 +81,16 @@ class VideoBridge:
             package = self._supported_players.get(player, player) or ""
 
             if package:
-                # 指定播放器
+                # 指定播放器 (package 可能是完整 component 或只有包名)
+                if "/" in package:
+                    component = package  # 已包含完整 component (如 com.miui.video/.localvideoplayer.LocalPlayerActivity)
+                else:
+                    component = f"{package}/.ActivityMain"  # 只有包名，拼默认 Activity
                 cmd = (
                     f"am start -a android.intent.action.VIEW "
                     f"-d \"{url}\" "
                     f"-t \"video/*\" "
-                    f"-n {package}/.ActivityMain"
+                    f"-n {component}"
                 )
             else:
                 # 系统默认

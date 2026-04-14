@@ -1,148 +1,242 @@
-# 🔀 Project Fusion — 跨设备系统级融合 (Android + Windows)
+# 🔀 Project Fusion
 
-基于 **KDE Connect + Scrcpy + Input Leap + Android 伴侣 App** + Python 桥接中间件，实现非苹果生态的"原生级"无缝流转。
+> 废旧 Android 手机 → 分布式传感器 + 摄像头 + 算力节点，PC 端统一控制。
 
-## ✨ 功能一览
+不造轮子，只做胶水。串联现有开源组件（ADB / MQTT / WebSocket / Camera2 API），让废旧手机成为 PC 的外设集群。
 
-| 模块 | 功能 | 通道 | 延迟 |
-|------|------|------|------|
-| 🖥️ Scrcpy 投屏 | 手机画面实时投射，无边框窗口 | ADB | <50ms |
-| 📋 剪贴板同步 | 双向实时同步 + 链接自动打开 + 图片保存 | **WebSocket / Win32 Hook** | **0ms** |
-| 🔔 通知桥接 | 通知实时推送 + Toast + 自动置顶 + 包名映射 | **WebSocket** | **0ms** |
-| 📁 文件传输 | ADB push/pull + APK 安装 | ADB | - |
-| 📞 通话控制 | 来电实时弹窗 + 拨号/挂断/接听 | **WebSocket** | **0ms** |
-| 📡 KDE Connect | 设备发现 + 加密通道 + 通知/剪贴板/文件/响铃 | KDE Connect | <1s |
-| ⌨️ 键鼠流转 | Input Leap + **全局鼠标钩子边缘检测** | Win32 Hook | **0ms** |
-| 🖱️ 屏幕边缘穿越 | 鼠标滑到右边缘 → 自动聚焦 Scrcpy | **Win32 Hook** | **0ms** |
-| 📌 系统托盘 | 右键菜单 + 模块开关 + 快捷操作 | - | - |
-| 🔄 开机自启 | 注册/取消 Windows 开机自启动 | - | - |
-| 🤖 Android 伴侣 App | NotificationListenerService + ClipboardManager + TelephonyCallback + WebSocket Server | - | - |
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-### 双通道架构
+---
+
+## 🎯 核心场景
+
+| 场景 | 说明 |
+|------|------|
+| 📹 **分布式摄像头** | Camera2 API 帧流，PC 实时查看画面 |
+| 🌡️ **环境传感器网络** | 气压/光线/加速度/陀螺仪/磁场实时采集 |
+| 📋 **跨设备剪贴板** | 手机 ↔ PC 双向同步，链接自动打开 |
+| 📱 **通知转发** | 手机通知推送到 PC Toast，支持免打扰 |
+| 📩 **短信读取** | PC 端实时查看手机短信 |
+| 📺 **视频投射** | PC → 手机 URL 投射，播放控制 |
+| 🔊 **音频桥接** | 手机麦克风 → PC，PC 播放 → 手机 |
+| 🤖 **算力卸载** | 手机分担轻量计算任务 |
+| 🔋 **电池监控** | 电量/温度实时告警 |
+
+---
+
+## 🏗️ 架构
 
 ```
-手机事件 ──┬── WebSocket (伴侣 App，零延迟推送) ──► Bridge Daemon
-           └── ADB shell  (备用，轮询)        ──► Bridge Daemon
-
-PC 事件  ──┬── Win32 Hook (零延迟回调)  ──► Bridge Daemon
-           └── pyperclip (备用，轮询)   ──► Bridge Daemon
+┌─────────────────────────────────────────────────────────┐
+│                      PC (Windows)                        │
+│                                                         │
+│  ┌─────────────┐    ┌──────────────┐   ┌────────────┐  │
+│  │  Dashboard  │    │ BridgeDaemon │   │ InputLeap  │  │
+│  │  (HTTP/WS)  │    │  (Python)    │   │  键鼠跨屏  │  │
+│  └─────────────┘    └──────┬───────┘   └────────────┘  │
+│                            │                             │
+│              ┌─────────────┼─────────────┐              │
+│              │             │             │              │
+│         ADB WiFi       WebSocket     MQTT Broker        │
+│              │             │             │              │
+└──────────────┼─────────────┼─────────────┼──────────────┘
+               │             │             │
+        ┌──────┴──────┐ ┌────┴────┐ ┌──────┴──────┐
+        │   小米8     │ │ 伴侣App │ │  多设备扩展  │
+        │  Android 15 │ │ (WS)   │ │   (MQTT)   │
+        │             │ │        │ │            │
+        │ Camera2 API │ │ 通知   │ │  传感器    │
+        │ Sensor APIs │ │ 剪贴板 │ │  音频      │
+        │ AudioRecord │ │ 通话   │ │  算力      │
+        └─────────────┘ └────────┘ └────────────┘
 ```
 
-- **有伴侣 App** → 全部实时，零轮询，零 CPU 开销
-- **无伴侣 App** → 自动降级到 ADB 轮询，仍然可用
+**通信通道（三选一，自动降级）：**
+
+| 优先级 | 通道 | 延迟 | 说明 |
+|--------|------|------|------|
+| 1 | 伴侣 App (WebSocket) | **0ms** | 实时事件推送，无需轮询 |
+| 2 | ADB Shell | ~100ms | USB/WiFi 连接，备用 |
+| 3 | MQTT Broker | ~200ms | 多设备消息路由 |
+
+---
+
+## 📁 项目结构
+
+```
+project-fusion/
+├── bridge/                          # PC 端 Bridge Daemon (Python)
+│   ├── main.py                      # 主入口 (9 阶段启动 + 双通道架构)
+│   ├── config.py                    # YAML 配置管理
+│   ├── dashboard_server.py          # HTTP + WebSocket Dashboard
+│   ├── modules/                     # 功能模块
+│   │   ├── clipboard_bridge.py      # 剪贴板双向同步
+│   │   ├── notification_bridge.py   # 通知转发 + Toast
+│   │   ├── file_bridge.py           # ADB 文件传输
+│   │   ├── phone_bridge.py          # 通话控制
+│   │   ├── sms_bridge.py            # 短信读取/发送
+│   │   ├── screenshot_bridge.py     # 截图
+│   │   ├── battery_bridge.py        # 电池监控
+│   │   ├── audio_bridge.py          # 音频桥接
+│   │   ├── video_bridge.py          # 视频投射
+│   │   ├── handoff_bridge.py        # URL 接力
+│   │   ├── hotkey_manager.py        # 全局热键
+│   │   ├── dnd_manager.py          # 免打扰模式
+│   │   ├── proximity_detector.py    # 蓝牙近场检测
+│   │   ├── mqtt_bridge.py           # MQTT Broker
+│   │   ├── sound_monitor.py         # 声音监测
+│   │   ├── camera_ws_bridge.py      # 摄像头帧流接收
+│   │   ├── command_bridge.py        # 命令通道 + 场景引擎
+│   │   ├── distributed_scheduler.py # 分布式任务调度
+│   │   ├── pc_online_broadcaster.py # PC 在线广播
+│   │   ├── smart_night_light.py     # 智能夜灯
+│   │   └── whole_home_audio.py      # 全屋音响
+│   └── listeners/                   # 实时监听器
+│       ├── ws_client.py             # WebSocket 客户端 (伴侣 App)
+│       ├── clipboard_hook.py        # Win32 剪贴板 Hook (零延迟)
+│       ├── mouse_hook.py            # Win32 全局鼠标 Hook
+│       ├── window_focus.py          # Scrcpy 焦点监听
+│       └── kde_connect.py          # KDE Connect 监听
+│
+├── android-companion/               # Android 伴侣 App
+│   ├── app/src/main/java/com/fusion/companion/
+│   │   ├── MainActivity.java        # 主界面
+│   │   ├── FusionWebSocketServer.java
+│   │   ├── CameraStreamer.java      # Camera2 API 帧流
+│   │   ├── AudioStreamer.java       # AudioRecord 麦克风
+│   │   ├── SensorCollector.java     # 传感器采集
+│   │   ├── MQTTClientService.java   # MQTT 客户端
+│   │   ├── MQTTBrokerService.java   # MQTT Broker (手机端)
+│   │   └── service/
+│   │       ├── FusionBridgeService.java        # 前台服务
+│   │       └── FusionNotificationListener.java  # 通知监听
+│   └── build.gradle
+│
+├── dashboard/                       # Dashboard 前端 (单 HTML)
+│   └── index.html                   # 8 Tab 控制面板
+│
+├── termux-bridge/                   # Termux 桥接 (可选)
+│
+├── SCENARIOS.md                     # 落地场景规划
+├── Project-Fusion-TRD.md            # 技术实施需求文档
+├── config.yaml                      # 用户配置
+├── requirements.txt                # Python 依赖
+└── LICENSE                         # MIT License
+```
+
+---
 
 ## 🚀 快速开始
 
 ### 前提
 
-1. **Android 手机**：开启 USB 调试，USB 连接电脑
-2. **Windows PC**：Python 3.10+，桌面已有 `scrcpy-win64-v3.3.4/`
+- **Android 手机**：USB 调试已开启，或同一局域网内 WiFi ADB
+- **Windows PC**：Python 3.10+
+- **Scrcpy**（桌面版，已放入 PATH 或同目录）
 
-### 一键启动
-
-```
-双击 start_fusion.bat
-```
-
-### 命令行
+### 安装
 
 ```bash
-python -m bridge                    # 全功能启动 (自动检测伴侣 App)
-python -m bridge --no-companion     # 强制纯 ADB 模式
-python -m bridge --no-scrcpy        # 不启动 Scrcpy 窗口
-python -m bridge --no-tray          # 不显示托盘
-python -m bridge --list-devices     # 查看设备
-python -m bridge --autostart        # 注册开机自启
-```
-
-## 📱 Android 伴侣 App (推荐)
-
-伴侣 App 提供**系统级实时事件**，无需轮询：
-
-1. 用 Android Studio 打开 `android-companion/` 目录
-2. 编译安装到手机
-3. 打开 App → 开启通知访问权限 → 启动服务
-4. PC 端运行 `python -m bridge`，自动通过 ADB forward 连接
-
-**伴侣 App 提供：**
-- 通知实时推送 (NotificationListenerService)
-- 剪贴板实时回调 (OnPrimaryClipChangedListener)
-- 通话状态实时推送 (TelephonyCallback)
-- 手机响铃 (找手机)
-- 远程打开链接
-
-## 📁 项目结构
-
-```
-万物互联/
-├── bridge/                           # Python Bridge Daemon
-│   ├── main.py                       # 主入口 (9 阶段启动)
-│   ├── config.py                     # 配置管理
-│   ├── modules/                      # 功能模块
-│   │   ├── clipboard_bridge.py       # 剪贴板增强
-│   │   ├── notification_bridge.py    # 通知桥接
-│   │   ├── file_bridge.py            # 文件传输
-│   │   └── phone_bridge.py           # 通话控制
-│   ├── listeners/                    # 实时监听器
-│   │   ├── ws_client.py              # WebSocket 客户端 (伴侣 App)
-│   │   ├── clipboard_hook.py         # Win32 剪贴板 Hook (零延迟)
-│   │   ├── mouse_hook.py             # Win32 全局鼠标 Hook + 边缘检测
-│   │   ├── window_focus.py           # Scrcpy 焦点监听
-│   │   └── kde_connect.py            # KDE Connect 监听
-│   ├── dispatchers/                  # 调度器
-│   │   ├── input_leap.py             # Input Leap 键鼠跨屏
-│   │   ├── tray_icon.py              # 系统托盘
-│   │   └── autostart.py              # 开机自启
-│   └── utils/                        # 工具
-│       ├── scrcpy_ctrl.py            # Scrcpy 进程 + 窗口管理
-│       ├── win32_clipboard.py        # Win32 原生剪贴板
-│       └── win32_toast.py            # Windows Toast
-├── android-companion/                # Android 伴侣 App
-│   └── app/src/main/java/com/fusion/companion/
-│       ├── MainActivity.java         # 主界面
-│       ├── FusionWebSocketServer.java # WebSocket Server
-│       └── service/
-│           ├── FusionBridgeService.java     # 前台服务 + 剪贴板/通话
-│           └── FusionNotificationListener.java # 通知监听
-├── config.yaml                       # 用户配置
-├── start_fusion.bat                  # 一键启动
-├── stop_fusion.bat                   # 一键停止
-├── requirements.txt                  # Python 依赖
-├── Project-Fusion-TRD.md             # 技术实施文档
-└── README.md
-```
-
-## ⚙️ 配置
-
-编辑 `config.yaml`：
-
-```yaml
-kde_connect:
-  enabled: true             # 启用 KDE Connect
-input_leap:
-  enabled: true             # 启用键鼠跨屏
-```
-
-## 🔗 依赖
-
-### Python
-
-```
+# PC 端
+git clone https://github.com/jenaswift4-byte/project-fusion.git
+cd project-fusion/bridge
 pip install -r requirements.txt
+
+# Android 端（可选，推荐安装伴侣 App）
+# 1. 用 Android Studio 打开 android-companion/
+# 2. Build → Run
+# 3. 开启通知访问权限
 ```
 
-### Android (可选)
+### 启动
 
-Android Studio 编译 `android-companion/` 项目
+```bash
+cd bridge
+python main.py
+```
 
-### 外部工具
+打开 http://localhost:8080 查看 Dashboard。
 
-| 工具 | 用途 | 安装 |
-|------|------|------|
-| Scrcpy | 投屏 + 反向控制 | 桌面已有 |
-| KDE Connect | 通信 + 通知 + 剪贴板 | Microsoft Store (可选) |
-| Input Leap | 键鼠跨屏 | GitHub Releases (可选) |
+### 模块选择
+
+```bash
+python main.py                                    # 全功能
+python main.py --modules clipboard,notification  # 只启动指定模块
+python main.py --no-companion                     # 强制纯 ADB 模式
+python main.py --autostart                        # 注册开机自启
+```
 
 ---
 
-*不造轮子，只做胶水。系统级融合，零轮询。*
+## ⚙️ 配置
+
+编辑 `bridge/config.yaml`：
+
+```yaml
+devices:
+  "7254adb5":
+    name: "客厅监控"
+    location: "客厅"
+    wifi_ip: "192.168.40.84"
+
+clipboard:
+  enabled: true
+  sync_bidirectional: true
+  auto_open_urls: true
+
+notification:
+  enabled: true
+  dnd_mode: auto  # auto: 全屏时缓存，退出推送
+
+mqtt:
+  broker_port: 1883
+  pc_broker_enabled: true
+```
+
+---
+
+## 🔧 Android 伴侣 App
+
+伴侣 App 通过 WebSocket 提供系统级实时事件，无需轮询：
+
+| 功能 | 实现方式 |
+|------|----------|
+| 通知实时推送 | NotificationListenerService |
+| 剪贴板实时 | OnPrimaryClipChangedListener |
+| 通话状态 | TelephonyCallback |
+| 摄像头帧流 | Camera2 API → JPEG → Base64 → WS |
+| 麦克风采集 | AudioRecord → PCM → WS |
+| 传感器数据 | SensorManager 轮询 + flush |
+| MQTT 客户端 | 订阅 /cmd 主题，执行动作 |
+
+安装后首次使用需要：
+1. 开启**通知访问权限**（设置 → 无障碍 → 找到 App）
+2. 开启**后台弹出界面**权限（MIUI 额外需要）
+
+---
+
+## 📦 CI/CD
+
+APK 通过 GitHub Actions 自动构建：
+
+- 每次 push 到 `main` 分支触发构建
+- 构建产物 (artifact) 可直接从 Actions 页下载
+- Android 端零配置，无需本地 Android SDK
+
+---
+
+## 🤝 贡献
+
+欢迎 Issue 和 Pull Request！如果你有好的场景想法或发现了 Bug，请告诉我们。
+
+---
+
+## 📝 项目背景
+
+Project Fusion 起源于"废旧手机能做什么"这个问题。一台小米8（Android 15）被改造为分布式传感器节点，与 Windows PC 通过 ADB/MQTT/WebSocket 组成协同系统。
+
+**核心思路**：不造新轮子，只做胶水——串联 Camera2 API、MQTT Broker、WebSocket、ADB 这些成熟技术，让废旧设备发挥余热。
+
+---
+
+*不造轮子，只做胶水。*
