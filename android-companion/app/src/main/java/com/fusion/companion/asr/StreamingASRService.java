@@ -95,7 +95,7 @@ public class StreamingASRService implements PcmDataListener {
             config.setDecodingMethod("greedy_search");
             config.setMaxActivePaths(4);
 
-            AssetManager assetManager = appContext.getAssets();
+            AssetManager assetManager = null;  // 使用外部存储，不需要 assetManager
             recognizer = new OnlineRecognizer(assetManager, config);
 
             Log.i(TAG, "sherpa-onnx ASR 初始化成功!");
