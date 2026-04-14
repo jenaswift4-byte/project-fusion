@@ -111,7 +111,7 @@ public class StreamingASRService implements PcmDataListener {
                 modelConfig.setNumThreads(1);
                 modelConfig.setDebug(true);
                 modelConfig.setProvider("cpu");
-                modelConfig.setModelType("zipformer");  // 关键！指定模型类型为 zipformer
+                modelConfig.setModelType("zipformer2");  // 使用 zipformer2 而不是 zipformer
 
                 Log.i(TAG, "开始创建 FeatureConfig...");
                 FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
