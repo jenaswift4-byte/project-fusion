@@ -408,8 +408,189 @@ class DashboardHTTPRequestHandler(SimpleHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(e)})
             return
 
-        self.send_response(404)
-        self.end_headers()
+        # ═══ 视频流转 API ═══
+        elif path == "/api/video/cast_url":
+            """投射视频 URL 到手机"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.video_bridge:
+                    url = data.get("url", "")
+                    player = data.get("player", "")
+                    ok = self.daemon.video_bridge.cast_url_to_phone(url, player)
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False, "error": "video_bridge not available"})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/video/control":
+            """视频播放控制"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.video_bridge:
+                    action = data.get("action", "")
+                    if action == "play_pause":
+                        ok = self.daemon.video_bridge.play_pause()
+                    elif action == "stop":
+                        ok = self.daemon.video_bridge.stop_playback()
+                    elif action == "forward":
+                        ok = self.daemon.video_bridge.seek_forward()
+                    elif action == "backward":
+                        ok = self.daemon.video_bridge.seek_backward()
+                    elif action == "next":
+                        ok = self.daemon.video_bridge.next_video()
+                    elif action == "previous":
+                        ok = self.daemon.video_bridge.previous_video()
+                    elif action == "gallery":
+                        ok = self.daemon.video_bridge.open_gallery_on_phone()
+                    else:
+                        ok = False
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/video/status":
+            """获取视频流转状态"""
+            try:
+                if self.daemon and self.daemon.video_bridge:
+                    self._send_json({"ok": True, **self.daemon.video_bridge.get_status()})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        # ═══ 智能夜灯 API ═══
+        elif path == "/api/night_light/toggle":
+            """切换夜灯"""
+            try:
+                if self.daemon and self.daemon.smart_night_light:
+                    self.daemon.smart_night_light.toggle()
+                    self._send_json({"ok": True, **self.daemon.smart_night_light.get_status()})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/night_light/status":
+            """获取夜灯状态"""
+            try:
+                if self.daemon and self.daemon.smart_night_light:
+                    self._send_json({"ok": True, **self.daemon.smart_night_light.get_status()})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        # ═══ 全屋音响 API ═══
+        elif path == "/api/audio/whole_home/play":
+            """全屋音响播放"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.whole_home_audio:
+                    play_type = data.get("type", "sound")  # sound/tts/url
+                    content = data.get("content", "")
+                    volume = data.get("volume", 0)
+                    if play_type == "tts":
+                        ok = self.daemon.whole_home_audio.broadcast_tts(content, volume)
+                    elif play_type == "url":
+                        ok = self.daemon.whole_home_audio.broadcast_url(content, volume)
+                    else:
+                        ok = self.daemon.whole_home_audio.broadcast_sound(content or "beep", volume)
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/audio/whole_home/volume":
+            """设置全屋音量"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.whole_home_audio:
+                    level = data.get("volume", 50)
+                    ok = self.daemon.whole_home_audio.set_all_volume(level)
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/audio/whole_home/stop":
+            """停止全屋播放"""
+            try:
+                if self.daemon and self.daemon.whole_home_audio:
+                    ok = self.daemon.whole_home_audio.stop_all()
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/audio/whole_home/alarm":
+            """设置闹钟"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.whole_home_audio:
+                    time_str = data.get("time", "07:00")
+                    sound_type = data.get("sound", "alarm")
+                    volume = data.get("volume", 80)
+                    label = data.get("label", "")
+                    alarm_id = self.daemon.whole_home_audio.set_alarm(
+                        time_str, sound_type, volume, label
+                    )
+                    self._send_json({"ok": True, "alarm_id": alarm_id})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/audio/whole_home/sleep":
+            """设置睡眠定时器"""
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                data = json.loads(body)
+                if self.daemon and self.daemon.whole_home_audio:
+                    minutes = data.get("minutes", 30)
+                    ok = self.daemon.whole_home_audio.set_sleep_timer(minutes)
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/audio/whole_home/status":
+            """获取全屋音响状态"""
+            try:
+                if self.daemon and self.daemon.whole_home_audio:
+                    self._send_json({"ok": True, **self.daemon.whole_home_audio.get_status()})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
 
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):

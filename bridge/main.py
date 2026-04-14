@@ -42,6 +42,9 @@ from bridge.modules.sound_monitor import SoundMonitor
 from bridge.modules.multi_scrcpy import MultiScrcpyManager
 from bridge.modules.pc_online_broadcaster import PCOnlineBroadcaster
 from bridge.modules.distributed_scheduler import DistributedScheduler
+from bridge.modules.video_bridge import VideoBridge
+from bridge.modules.smart_night_light import SmartNightLight
+from bridge.modules.whole_home_audio import WholeHomeAudio
 from bridge.listeners.kde_connect import KDEConnectListener
 from bridge.listeners.window_focus import WindowFocusListener
 from bridge.listeners.clipboard_hook import ClipboardChangeListener
@@ -126,6 +129,15 @@ class BridgeDaemon:
 
         # 分布式计算调度器
         self.distributed_scheduler = DistributedScheduler(self)
+
+        # 视频流转
+        self.video_bridge = VideoBridge(self)
+
+        # 智能夜灯
+        self.smart_night_light = SmartNightLight(self)
+
+        # 全屋音响
+        self.whole_home_audio = WholeHomeAudio(self)
 
         # 仪表盘 Web 服务
         self.dashboard_server = None
@@ -412,6 +424,24 @@ class BridgeDaemon:
                     print(f"  ✅ 分布式摄像头 ({cam_count} 台设备)")
                 else:
                     print("  ⏭️ 分布式摄像头 (无额外设备)")
+
+                # 视频流转
+                video_cfg = self.config.get("video", {})
+                if video_cfg.get("enabled", True):
+                    self.video_bridge.start()
+                    print("  ✅ 视频流转 (PC↔手机)")
+
+                # 智能夜灯
+                nl_cfg = self.config.get("night_light", {})
+                if nl_cfg.get("enabled", True):
+                    self.smart_night_light.start()
+                    print("  ✅ 智能夜灯 (光线联动)")
+
+                # 全屋音响
+                wha_cfg = self.config.get("whole_home_audio", {})
+                if wha_cfg.get("enabled", True):
+                    self.whole_home_audio.start()
+                    print("  ✅ 全屋音响 (多设备同步)")
             else:
                 print("  ⚠️ MQTT Broker 启动失败")
         print()
@@ -521,6 +551,9 @@ class BridgeDaemon:
         self.multi_scrcpy.cleanup()
         self.pc_online_broadcaster.stop()
         self.distributed_scheduler.stop_monitoring()
+        self.video_bridge.stop()
+        self.smart_night_light.stop()
+        self.whole_home_audio.stop()
         if self.dashboard_server:
             self.dashboard_server.stop()
         self.scrcpy_ctrl.stop()
