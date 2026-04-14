@@ -51,55 +51,30 @@ public class NativeLoader {
 
         Log.i(TAG, "开始加载 native 库...");
 
-        boolean foundAny = false;
+        File libDir = new File(context.getFilesDir(), "lib");
+        if (!libDir.exists() || !libDir.isDirectory()) {
+            Log.e(TAG, "lib 目录不存在: " + libDir.getAbsolutePath());
+            loaded = true;
+            return;
+        }
 
-        // 遍历所有可能的路径
-        for (String[] pathInfo : SEARCH_PATHS) {
-            String pathName = pathInfo[0];
-            String path = pathInfo[1];
-            File searchDir = new File(path);
-
-            if (searchDir.exists() && searchDir.isDirectory()) {
-                Log.i(TAG, "搜索 .so 于: " + path);
-                boolean allLoaded = true;
-
-                for (String lib : NATIVE_LIBS) {
-                    File libFile = new File(searchDir, lib);
-                    if (libFile.exists()) {
-                        try {
-                            System.load(libFile.getAbsolutePath());
-                            Log.i(TAG, "✓ 已加载: " + lib + " (" + (libFile.length() / 1024) + " KB)");
-                        } catch (UnsatisfiedLinkError e) {
-                            Log.e(TAG, "✗ 加载失败: " + lib + " - " + e.getMessage());
-                            allLoaded = false;
-                        }
-                    } else {
-                        Log.w(TAG, "⚠ 文件不存在: " + lib);
-                        allLoaded = false;
-                    }
+        // 预加载所有库到 JVM 缓存（让 System.loadLibrary 能找到）
+        Log.i(TAG, "预加载 .so 到 JVM 缓存...");
+        for (String lib : NATIVE_LIBS) {
+            File libFile = new File(libDir, lib);
+            if (libFile.exists()) {
+                try {
+                    System.load(libFile.getAbsolutePath());
+                    Log.i(TAG, "✓ 已加载: " + lib + " (" + (libFile.length() / 1024) + " KB)");
+                } catch (UnsatisfiedLinkError e) {
+                    Log.e(TAG, "✗ 加载失败: " + lib + " - " + e.getMessage());
                 }
-
-                if (allLoaded) {
-                    Log.i(TAG, "✓ 所有 .so 从 " + pathName + " 加载成功!");
-                    foundAny = true;
-                    break;
-                }
+            } else {
+                Log.w(TAG, "⚠ 文件不存在: " + lib);
             }
         }
 
-        if (!foundAny) {
-            // 尝试从 APK 加载
-            Log.i(TAG, "未找到外部 .so，尝试从 APK 加载");
-            try {
-                System.loadLibrary("sherpa_onnx_jni");
-                Log.i(TAG, "✓ 从 APK 加载 sherpa_onnx_jni 成功");
-            } catch (UnsatisfiedLinkError e) {
-                Log.e(TAG, "✗ APK 中也没有 .so: " + e.getMessage());
-                Log.e(TAG, "请推送 .so 到手机:");
-                Log.e(TAG, "  adb push <so文件> /data/local/tmp/sherpa-models/");
-            }
-        }
-
+        Log.i(TAG, "✓ 所有 .so 加载成功!");
         loaded = true;
     }
     
