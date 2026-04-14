@@ -31,63 +31,39 @@ jobs:
           "build-tools;34.0.0" \
           --sdk_root=$ANDROID_HOME || true
 
-    - name: Download sherpa-onnx AAR
+    - name: Download sherpa-onnx (AAR + arm64-v8a libs only)
       run: |
         set -x
         mkdir -p android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38
-        mkdir -p /tmp/sherpa-extract
-        echo "Downloading sherpa-onnx AAR..."
-        curl -fSLk --retry 3 --retry-delay 5 \
+        mkdir -p android-companion/app/src/main/jniLibs/arm64-v8a
+        mkdir -p android-companion/app/src/main/assets/models
+        
+        # Download AAR (~31MB) - only need classes.jar + arm64 libs
+        echo "Downloading sherpa-onnx AAR (~31MB)..."
+        curl -fSLk --retry 5 --retry-delay 3 --connect-timeout 60 \
           "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.38/sherpa-onnx-1.12.38.aar" \
           -o /tmp/sherpa.aar
-        echo "Download complete, size: $(stat -c%s /tmp/sherpa.aar) bytes"
-        cd /tmp/sherpa-extract
-        unzip /tmp/sherpa.aar
-        echo "AAR contents:"
-        ls -la /tmp/sherpa-extract/
-        echo "Copying files..."
-        cp /tmp/sherpa-extract/classes.jar "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar"
-        cp -r /tmp/sherpa-extract/jni "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/"
-        cp /tmp/sherpa-extract/AndroidManifest.xml "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/" || true
+        
+        echo "Download complete: $(stat -c%s /tmp/sherpa.aar | numfmt --to=iec-i --suffix=B)"
+        
+        # Extract
+        cd /tmp && unzip -q sherpa.aar
+        
+        # Copy classes.jar for compilation
+        cp /tmp/classes.jar "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar"
+        
+        # Copy only arm64-v8a .so (小米8 is arm64)
+        cp /tmp/jni/arm64-v8a/*.so "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
+        
+        # Generate POM
         printf '<?xml version="1.0" encoding="UTF-8"?>\n<project><modelVersion>4.0.0</modelVersion><groupId>com.k2fsa.sherpa.onnx</groupId><artifactId>sherpa-onnx</artifactId><version>1.12.38</version><packaging>jar</packaging></project>\n' > "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.pom"
-        echo "Verifying maven repo:"
-        ls -la "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/"
-        echo "AAR downloaded and extracted successfully"
-
-    - name: Copy AI models to assets
-      run: |
-        mkdir -p android-companion/app/src/main/assets/models
-        curl -fSLk --retry 3 \
-          "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx" \
-          -o android-companion/app/src/main/assets/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
-        echo "Speaker model downloaded"
-        mkdir -p /tmp/asr_model
-        curl -fSLk --retry 3 \
-          "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2" \
-          -o /tmp/asr.tar.bz2
-        tar xjf /tmp/asr.tar.bz2 -C /tmp/asr_model
-        ls /tmp/asr_model/
-        cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/encoder.int8.onnx \
-           android-companion/app/src/main/assets/models/
-        cp /tmp/asr_model/sherpa-onnx-streaming-zh-int8-2025-06-30/decoder.onnx \
-           android-companion/app/src/main/assets/models/
-        cp /tmp/asr_model/sherpa-onnx-streaming-zh-int8-2025-06-30/joiner.int8.onnx \
-           android-companion/app/src/main/assets/models/
-        cp /tmp/asr_model/sherpa-onnx-streaming-zh-int8-2025-06-30/tokens.txt \
-           android-companion/app/src/main/assets/models/
-        echo "ASR model downloaded"
-
-    - name: Copy native libs (arm64-v8a only)
-      run: |
-        mkdir -p android-companion/app/src/main/jniLibs/arm64-v8a
-        cp /tmp/sherpa-extract/jni/arm64-v8a/*.so \
-           android-companion/app/src/main/jniLibs/arm64-v8a/ 2>/dev/null || true
-        if [ -z "$(ls android-companion/app/src/main/jniLibs/arm64-v8a/*.so 2>/dev/null)" ]; then
-          cp android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/jni/arm64-v8a/*.so \
-             android-companion/app/src/main/jniLibs/arm64-v8a/ 2>/dev/null || true
-        fi
-        ls -la android-companion/app/src/main/jniLibs/arm64-v8a/
-        echo "Native libs copied"
+        
+        echo "Downloaded sherpa-onnx:"
+        ls -lh android-companion/app/src/main/jniLibs/arm64-v8a/
+        
+        # Create placeholder for models (will be pushed from PC)
+        echo "# Models will be pushed from PC after install" > android-companion/app/src/main/assets/models/README.txt
+        echo "Total CI download: ~35MB (AAR only, models pushed locally)"
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
@@ -96,11 +72,9 @@ jobs:
       run: |
         cd android-companion
         if command -v gradle &> /dev/null; then
-          echo "Using system Gradle: $(gradle --version | head -1)"
           gradle wrapper --gradle-version 8.5
         else
-          curl -fSLk --retry 3 --retry-delay 5 \
-            https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
+          curl -fSLk --retry 3 https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp/
           /tmp/gradle-8.5/bin/gradle wrapper --gradle-version 8.5
         fi
@@ -136,13 +110,3 @@ jobs:
         name: app-release
         path: android-companion/app/build/outputs/apk/release/app-release.apk
         retention-days: 30
-
-    - name: Create GitHub Release (on tag)
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          android-companion/app/build/outputs/apk/release/app-release.apk
-          android-companion/app/build/outputs/apk/debug/app-debug.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
