@@ -20,7 +20,9 @@ public class NativeLoader {
     
     private static final String[] NATIVE_LIBS = {
         "libonnxruntime.so",
-        "libsherpa_onnx_jni.so"
+        "libsherpa-onnx-jni.so",
+        "libsherpa-onnx-c-api.so",
+        "libsherpa-onnx-cxx-api.so"
     };
 
     // 搜索路径优先级
