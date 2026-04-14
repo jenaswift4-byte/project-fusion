@@ -34,51 +34,52 @@ jobs:
     - name: Download sherpa-onnx AAR
       run: |
         mkdir -p android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38
-        # 下载 AAR 并提取 classes.jar 和 jni/
+        mkdir -p /tmp/sherpa-extract
         curl -fSL --retry 3 \
           "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.38/sherpa-onnx-1.12.38.aar" \
           -o /tmp/sherpa.aar
-        cd /tmp && unzip -q sherpa.aar
-        cp /tmp/classes.jar android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar
-        cp -r /tmp/jni android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/
-        cp /tmp/AndroidManifest.xml android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/
-        # 生成 POM
-        printf '<?xml version="1.0" encoding="UTF-8"?>\n<project><modelVersion>4.0.0</modelVersion><groupId>com.k2fsa.sherpa.onnx</groupId><artifactId>sherpa-onnx</artifactId><version>1.12.38</version><packaging>jar</packaging></project>\n' > android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.pom
+        cd /tmp/sherpa-extract && unzip -q /tmp/sherpa.aar
+        echo "AAR contents:"
+        ls -la /tmp/sherpa-extract/
+        cp /tmp/sherpa-extract/classes.jar "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar"
+        cp -r /tmp/sherpa-extract/jni "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/"
+        cp /tmp/sherpa-extract/AndroidManifest.xml "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/" || true
+        printf '<?xml version="1.0" encoding="UTF-8"?>\n<project><modelVersion>4.0.0</modelVersion><groupId>com.k2fsa.sherpa.onnx</groupId><artifactId>sherpa-onnx</artifactId><version>1.12.38</version><packaging>jar</packaging></project>\n' > "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.pom"
         echo "AAR downloaded and extracted"
 
     - name: Copy AI models to assets
       run: |
         mkdir -p android-companion/app/src/main/assets/models
-        # 下载声纹模型 (3D-Speaker)
         curl -fSL --retry 3 \
           "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx" \
           -o android-companion/app/src/main/assets/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
         echo "Speaker model downloaded"
-
-        # 下载 ASR 模型 (streaming Zipformer Chinese int8)
         mkdir -p /tmp/asr_model
         curl -fSL --retry 3 \
           "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2" \
           -o /tmp/asr.tar.bz2
         tar xjf /tmp/asr.tar.bz2 -C /tmp/asr_model
+        ls /tmp/asr_model/
         cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/encoder.int8.onnx \
            android-companion/app/src/main/assets/models/
-        cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/decoder.onnx \
+        cp /tmp/asr_model/sherpa-onnx-streaming-zh-int8-2025-06-30/decoder.onnx \
            android-companion/app/src/main/assets/models/
-        cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/joiner.int8.onnx \
+        cp /tmp/asr_model/sherpa-onnx-streaming-zh-int8-2025-06-30/joiner.int8.onnx \
            android-companion/app/src/main/assets/models/
-        cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/tokens.txt \
+        cp /tmp/asr_model/sherpa-onnx-streaming-zh-int8-2025-06-30/tokens.txt \
            android-companion/app/src/main/assets/models/
         echo "ASR model downloaded"
 
-    - name: Copy native libs (arm64-v8a only for CI, armeabi-v7a for debug APK)
+    - name: Copy native libs (arm64-v8a only)
       run: |
         mkdir -p android-companion/app/src/main/jniLibs/arm64-v8a
-        cp -r /tmp/sherpa.aar.extracted/jni/arm64-v8a/*.so \
+        cp /tmp/sherpa-extract/jni/arm64-v8a/*.so \
            android-companion/app/src/main/jniLibs/arm64-v8a/ 2>/dev/null || true
-        # 如果上面失败了，从之前解压的AAR复制
-        cp -r android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/jni/arm64-v8a/*.so \
-           android-companion/app/src/main/jniLibs/arm64-v8a/ 2>/dev/null || true
+        if [ -z "$(ls android-companion/app/src/main/jniLibs/arm64-v8a/*.so 2>/dev/null)" ]; then
+          cp android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/jni/arm64-v8a/*.so \
+             android-companion/app/src/main/jniLibs/arm64-v8a/ 2>/dev/null || true
+        fi
+        ls -la android-companion/app/src/main/jniLibs/arm64-v8a/
         echo "Native libs copied"
 
     - name: Setup Gradle
