@@ -33,19 +33,26 @@ jobs:
 
     - name: Download sherpa-onnx AAR
       run: |
+        set -x
         mkdir -p android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38
         mkdir -p /tmp/sherpa-extract
-        curl -fSLk --retry 3 \
+        echo "Downloading sherpa-onnx AAR..."
+        curl -fSLk --retry 3 --retry-delay 5 \
           "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.38/sherpa-onnx-1.12.38.aar" \
           -o /tmp/sherpa.aar
-        cd /tmp/sherpa-extract && unzip -q /tmp/sherpa.aar
+        echo "Download complete, size: $(stat -c%s /tmp/sherpa.aar) bytes"
+        cd /tmp/sherpa-extract
+        unzip /tmp/sherpa.aar
         echo "AAR contents:"
         ls -la /tmp/sherpa-extract/
+        echo "Copying files..."
         cp /tmp/sherpa-extract/classes.jar "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar"
         cp -r /tmp/sherpa-extract/jni "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/"
         cp /tmp/sherpa-extract/AndroidManifest.xml "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/" || true
         printf '<?xml version="1.0" encoding="UTF-8"?>\n<project><modelVersion>4.0.0</modelVersion><groupId>com.k2fsa.sherpa.onnx</groupId><artifactId>sherpa-onnx</artifactId><version>1.12.38</version><packaging>jar</packaging></project>\n' > "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.pom"
-        echo "AAR downloaded and extracted"
+        echo "Verifying maven repo:"
+        ls -la "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/"
+        echo "AAR downloaded and extracted successfully"
 
     - name: Copy AI models to assets
       run: |
