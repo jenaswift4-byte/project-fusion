@@ -197,12 +197,16 @@ public class FusionBridgeService extends Service {
         cameraStreamer.setContext(this);
         cameraStreamer.checkPermission(this);
 
-        // 初始化声纹识别
+        // 初始化声纹识别 (Sherpa-onnx)
         speakerIdentifier = new SpeakerIdentifier(this);
+        boolean spkInit = speakerIdentifier.init();
+        Log.i(TAG, "声纹引擎初始化: " + (spkInit ? "成功" : "失败(Fallback能量模式)"));
         speakerIdentifier.loadProfiles(); // 加载已注册的声纹
 
-        // 初始化流式 ASR
+        // 初始化流式 ASR (Sherpa-onnx)
         streamingASRService = new StreamingASRService(this);
+        boolean asrInit = streamingASRService.init();
+        Log.i(TAG, "ASR 引擎初始化: " + (asrInit ? "成功" : "失败")); 
 
         // 初始化日志同步
         logSyncService = new LogSyncService(this);

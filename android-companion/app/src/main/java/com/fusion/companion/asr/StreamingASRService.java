@@ -1,64 +1,65 @@
 package com.fusion.companion.asr;
 
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.util.Log;
 
 import com.fusion.companion.audio.PcmDataListener;
 import com.fusion.companion.audio.VADHelper;
 import com.fusion.companion.log.LogDBHelper;
+import com.k2fsa.sherpa.onnx.OnlineRecognizer;
+import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig;
+import com.k2fsa.sherpa.onnx.OnlineStream;
+import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig;
+import com.k2fsa.sherpa.onnx.OnlineModelConfig;
 
 import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.FileInputStream;
 
 /**
- * 流式语音转文字服务 — 手机端实时 ASR
+ * 流式语音转文字 — Sherpa-onnx Real Implementation
  *
- * 方案:
- *   - 首选: Sherpa-onnx (流式, 纯内存, 低延迟)
- *   - 备选: Whisper.cpp + 临时文件 (getCacheDir(), 用完即删)
- *
- * 工作流程:
- *   1. 监听 AudioStreamer 的 PCM 回调 (PcmDataListener)
- *   2. VAD 检测到语音段 → 累积 PCM
- *   3. 语音段结束 (静音 > 300ms) → 送入 ASR 引擎
- *   4. 输出完整文本 → 写入日志 (type=transcript)
+ * 模型: sherpa-onnx-streaming-zipformer-zh-int8 (encoder/decoder/joiner)
+ * 配置: 16kHz, 16-bit, mono PCM
  *
  * @author Fusion
- * @version 1.0
+ * @version 2.0 (Sherpa-onnx)
  */
 public class StreamingASRService implements PcmDataListener {
 
     private static final String TAG = "StreamingASR";
 
-    // 静音超时: 300ms 无语音认为一段话结束
-    private static final int SPEECH_END_TIMEOUT_MS = 300;
+    // 静音超时: 400ms 无语音认为一段话结束
+    private static final int SPEECH_END_TIMEOUT_MS = 400;
 
-    // 最大累积时长: 30 秒 (防止缓冲区无限增长)
+    // 最大累积时长: 30 秒
     private static final int MAX_SPEECH_DURATION_MS = 30000;
 
-    // ASR 引擎类型
-    public enum EngineType {
-        SHERPA_ONNX,    // 首选: Sherpa-onnx 流式
-        WHISPER_CPP,    // 备选: Whisper.cpp 非流式
-        STUB            // 存根: 仅日志输出
-    }
+    // 模型文件 (assets/models/)
+    private static final String MODEL_DIR = "models/";
+    private static final String MODEL_ENCODER = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/encoder.int8.onnx";
+    private static final String MODEL_DECODER = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/decoder.onnx";
+    private static final String MODEL_JOINER   = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/joiner.int8.onnx";
+    private static final String MODEL_TOKENS   = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/tokens.txt";
 
+    // Sherpa-onnx 组件
+    private OnlineRecognizer recognizer = null;
+    private OnlineStream stream = null;
+
+    // 其他组件
     private final VADHelper vadHelper;
     private final LogDBHelper logHelper;
     private final Context appContext;
 
-    // 当前 ASR 引擎
-    private EngineType currentEngine = EngineType.STUB;
-
-    // PCM 累积缓冲区 (当前语音段)
+    // PCM 累积缓冲区
     private byte[] speechBuffer = null;
 
-    // 语音段开始时间
+    // 语音段时间戳
     private long speechStartTs = 0;
-
-    // 上次检测到语音的时间
     private long lastVoiceActiveTs = 0;
 
     // 当前说话人 (由 SpeakerIdentifier 设置)
@@ -67,8 +68,11 @@ public class StreamingASRService implements PcmDataListener {
     // 是否启用
     private volatile boolean enabled = false;
 
-    // Sherpa-onnx 流式识别器 (TODO)
-    private Object sherpaRecognizer = null;
+    // 是否初始化
+    private volatile boolean initialized = false;
+
+    // 说话人本地缓存 (注册时设为当前说话人)
+    private volatile String lastSpeaker = null;
 
     public StreamingASRService(Context context) {
         this.appContext = context.getApplicationContext();
@@ -76,16 +80,110 @@ public class StreamingASRService implements PcmDataListener {
         this.logHelper = LogDBHelper.getInstance(context);
     }
 
+    /**
+     * 初始化 Sherpa-onnx ASR 引擎
+     */
+    public boolean init() {
+        if (initialized) return true;
+
+        try {
+            File modelDir = getModelDir();
+            ensureModelsExtracted(modelDir);
+
+            File encoderFile = new File(modelDir, "encoder.int8.onnx");
+            File decoderFile = new File(modelDir, "decoder.onnx");
+            File joinerFile  = new File(modelDir, "joiner.int8.onnx");
+            File tokensFile  = new File(modelDir, "tokens.txt");
+
+            if (!encoderFile.exists() || !decoderFile.exists() ||
+                !joinerFile.exists()  || !tokensFile.exists()) {
+                Log.e(TAG, "ASR 模型文件缺失，请检查 assets/models/ 目录");
+                return false;
+            }
+
+            Log.i(TAG, "加载 ASR 模型: " + encoderFile.getName() + " ("
+                    + (encoderFile.length() / 1024 / 1024) + " MB)");
+
+            OnlineTransducerModelConfig modelConfig =
+                OnlineTransducerModelConfig.builder()
+                    .setEncoder(encoderFile.getAbsolutePath())
+                    .setDecoder(decoderFile.getAbsolutePath())
+                    .setJoiner(joinerFile.getAbsolutePath())
+                    .build();
+
+            OnlineRecognizerConfig config =
+                OnlineRecognizerConfig.builder()
+                    .setModel(modelConfig)
+                    .setTokens(tokensFile.getAbsolutePath())
+                    .setNumThreads(2)
+                    .setDebug(false)
+                    .build();
+
+            recognizer = new OnlineRecognizer(config);
+            stream = recognizer.createStream();
+
+            Log.i(TAG, "ASR 引擎初始化成功! tokens: " + tokensFile.getAbsolutePath());
+            initialized = true;
+            return true;
+
+        } catch (Exception e) {
+            Log.e(TAG, "ASR 引擎初始化失败: " + e + "\n" + e.getStackTrace()[0]);
+            return false;
+        }
+    }
+
+    private File getModelDir() {
+        return new File(appContext.getFilesDir(), MODEL_DIR + "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30");
+    }
+
+    private void ensureModelsExtracted(File modelDir) {
+        if (modelDir.exists() && new File(modelDir, "encoder.int8.onnx").exists()) {
+            Log.i(TAG, "ASR 模型已存在: " + modelDir.getAbsolutePath());
+            return;
+        }
+
+        Log.i(TAG, "从 assets 提取 ASR 模型到: " + modelDir.getAbsolutePath());
+        modelDir.getParentFile().mkdirs();
+
+        String[] modelFiles = {
+            "models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/encoder.int8.onnx",
+            "models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/decoder.onnx",
+            "models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/joiner.int8.onnx",
+            "models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/tokens.txt"
+        };
+
+        for (String assetPath : modelFiles) {
+            try {
+                File dest = new File(appContext.getFilesDir(), assetPath);
+                dest.getParentFile().mkdirs();
+
+                AssetManager am = appContext.getAssets();
+                try (InputStream is = am.open(assetPath);
+                     FileOutputStream fos = new FileOutputStream(dest)) {
+                    byte[] buf = new byte[8192];
+                    int read;
+                    long copied = 0;
+                    while ((read = is.read(buf)) != -1) {
+                        fos.write(buf, 0, read);
+                        copied += read;
+                    }
+                    Log.i(TAG, "已提取: " + assetPath + " (" + (copied/1024/1024) + " MB)");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "提取模型失败: " + assetPath + ": " + e);
+            }
+        }
+    }
+
     // ==================== PcmDataListener 回调 ====================
 
     @Override
     public void onPcmData(byte[] pcmData, int sampleRate, long timestamp) {
-        if (!enabled) return;
+        if (!enabled || !initialized) return;
 
         boolean isSpeech = vadHelper.isSpeech(pcmData, sampleRate);
 
         if (isSpeech) {
-            // 有语音: 累积数据
             speechBuffer = VADHelper.appendPcm(speechBuffer, pcmData);
             lastVoiceActiveTs = timestamp;
 
@@ -94,18 +192,19 @@ public class StreamingASRService implements PcmDataListener {
                 Log.d(TAG, "语音段开始");
             }
 
-            // 检查是否超过最大时长
-            if (speechBuffer != null && speechBuffer.length > MAX_SPEECH_DURATION_MS * sampleRate * 2 / 1000) {
-                Log.w(TAG, "语音段超过 30s, 强制结束");
+            // 最大累积 30s
+            int maxBytes = MAX_SPEECH_DURATION_MS * sampleRate * 2 / 1000;
+            if (speechBuffer != null && speechBuffer.length >= maxBytes) {
+                Log.w(TAG, "语音段超过 30s，强制结束");
                 finalizeSpeechSegment(sampleRate);
             }
 
         } else {
-            // 无语音: 检查语音段是否结束
+            // 无语音
             if (speechBuffer != null && speechStartTs > 0) {
-                long silenceDuration = timestamp - lastVoiceActiveTs;
-                if (silenceDuration >= SPEECH_END_TIMEOUT_MS) {
-                    Log.d(TAG, "语音段结束, 静音: " + silenceDuration + "ms");
+                long silenceMs = timestamp - lastVoiceActiveTs;
+                if (silenceMs >= SPEECH_END_TIMEOUT_MS) {
+                    Log.d(TAG, "语音段结束，静音: " + silenceMs + "ms");
                     finalizeSpeechSegment(sampleRate);
                 }
             }
@@ -114,7 +213,7 @@ public class StreamingASRService implements PcmDataListener {
 
     @Override
     public void onRecordingStarted() {
-        Log.i(TAG, "录音开始, ASR 监听已激活");
+        Log.i(TAG, "录音开始，ASR 监听已激活");
         vadHelper.reset();
         speechBuffer = null;
         speechStartTs = 0;
@@ -123,9 +222,8 @@ public class StreamingASRService implements PcmDataListener {
 
     @Override
     public void onRecordingStopped() {
-        Log.i(TAG, "录音结束, ASR 监听已停止");
-        // 如果还有未完成的语音段，立即处理
-        if (speechBuffer != null && speechBuffer.length > 3200) { // 至少 100ms
+        Log.i(TAG, "录音结束");
+        if (speechBuffer != null && speechBuffer.length > 3200) {
             finalizeSpeechSegment(16000);
         }
         speechBuffer = null;
@@ -134,192 +232,89 @@ public class StreamingASRService implements PcmDataListener {
 
     // ==================== 语音段处理 ====================
 
-    /**
-     * 语音段结束 → 送入 ASR 引擎
-     */
     private void finalizeSpeechSegment(int sampleRate) {
         if (speechBuffer == null || speechBuffer.length < 3200) {
-            speechBuffer = null;
-            speechStartTs = 0;
+            resetBuffer();
             return;
         }
 
         byte[] audioData = speechBuffer;
-        long startTs = speechStartTs;
+        String speaker = lastSpeaker; // 捕获当前说话人
+        resetBuffer();
 
-        // 重置缓冲区
+        new Thread(() -> processSpeech(audioData, sampleRate, speaker), "asr_process").start();
+    }
+
+    private void resetBuffer() {
         speechBuffer = null;
         speechStartTs = 0;
         lastVoiceActiveTs = 0;
-
-        // 异步处理 (不阻塞录音线程)
-        new Thread(() -> processSpeechSegment(audioData, sampleRate, startTs), "asr_process").start();
     }
 
-    /**
-     * 处理一段语音
-     */
-    private void processSpeechSegment(byte[] pcmData, int sampleRate, long startTs) {
-        String transcript = null;
+    private void processSpeech(byte[] pcmData, int sampleRate, String speaker) {
+        if (recognizer == null || stream == null) return;
 
-        switch (currentEngine) {
-            case SHERPA_ONNX:
-                transcript = recognizeWithSherpa(pcmData, sampleRate);
-                break;
-            case WHISPER_CPP:
-                transcript = recognizeWithWhisper(pcmData, sampleRate);
-                break;
-            case STUB:
-            default:
-                transcript = recognizeStub(pcmData, sampleRate);
-                break;
-        }
-
-        if (transcript != null && !transcript.trim().isEmpty()) {
-            Log.i(TAG, "识别结果: [" + currentSpeaker + "] " + transcript);
-
-            // 写入日志
-            if (logHelper != null) {
-                logHelper.insertLog("transcript", currentSpeaker, transcript);
-            }
-        }
-    }
-
-    // ==================== ASR 引擎实现 ====================
-
-    /**
-     * Sherpa-onnx 流式识别 (首选)
-     * TODO: 集成 sherpa-onnx AAR 后实现
-     */
-    private String recognizeWithSherpa(byte[] pcmData, int sampleRate) {
-        // TODO: 使用 sherpa-onnx StreamingRecognizer
-        // 1. 创建流: recognizer.createStream()
-        // 2. 送入 PCM: stream.acceptWaveform(pcmData, sampleRate)
-        // 3. 获取结果: recognizer.getResult(stream)
-        // 4. 释放流: stream.close()
-
-        // Fallback to stub
-        return recognizeStub(pcmData, sampleRate);
-    }
-
-    /**
-     * Whisper.cpp 识别 (备选, 需临时文件)
-     */
-    private String recognizeWithWhisper(byte[] pcmData, int sampleRate) {
-        File tempFile = null;
         try {
-            // 写入临时 WAV 文件
-            tempFile = new File(appContext.getCacheDir(), "asr_temp_" + System.currentTimeMillis() + ".wav");
-            writeWavFile(tempFile, pcmData, sampleRate);
+            // 重置 stream
+            stream.flush();
 
-            // TODO: 调用 whisper.cpp JNI
-            // String result = WhisperCpp.transcribe(tempFile.getAbsolutePath());
+            // PCM → float[] (16-bit LE → normalize to [-1, 1])
+            float[] audio = pcmToFloats(pcmData);
 
-            // Fallback to stub
-            return recognizeStub(pcmData, sampleRate);
+            // 送入 ASR 流
+            stream.acceptWaveform(audio, sampleRate);
+
+            // 解码
+            while (recognizer.isReady(stream)) {
+                recognizer.decode(stream);
+            }
+
+            // 获取结果
+            String text = recognizer.getResult(stream).getText();
+
+            if (text != null && !text.trim().isEmpty()) {
+                Log.i(TAG, ">> ASR: [" + (speaker != null ? speaker : "?") + "] " + text);
+
+                if (logHelper != null) {
+                    logHelper.insertLog("transcript", speaker != null ? speaker : "unknown", text);
+                }
+            }
+
+            // 重置 stream 准备下一段
+            stream.flush();
 
         } catch (Exception e) {
-            Log.e(TAG, "Whisper 识别失败: " + e.getMessage());
-            return null;
-        } finally {
-            // 立即删除临时文件
-            if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
-                Log.d(TAG, "临时文件已删除: " + tempFile.getName());
-            }
+            Log.e(TAG, "ASR 处理异常: " + e + "\n" + e.getStackTrace()[0]);
         }
     }
 
-    /**
-     * 存根识别: 仅记录语音段的统计信息
-     * (在模型集成前的占位实现)
-     */
-    private String recognizeStub(byte[] pcmData, int sampleRate) {
-        double durationSec = (double) pcmData.length / (sampleRate * 2);
-        double rms = VADHelper.calculateRMS(pcmData);
+    // ==================== 工具 ====================
 
-        Log.d(TAG, String.format("[STUB] 语音段: %.1fs, RMS=%.0f (模型未集成, 返回空)",
-            durationSec, rms));
-
-        // 模型未集成时不返回结果
-        return null;
-    }
-
-    // ==================== WAV 文件写入 ====================
-
-    /**
-     * 将 PCM 数据写入 WAV 文件
-     */
-    private void writeWavFile(File file, byte[] pcmData, int sampleRate) throws Exception {
-        FileOutputStream fos = new FileOutputStream(file);
-
-        // WAV 文件头
-        int dataSize = pcmData.length;
-        int fileSize = 36 + dataSize;
-
-        byte[] header = new byte[44];
-        // RIFF
-        header[0] = 'R'; header[1] = 'I'; header[2] = 'F'; header[3] = 'F';
-        writeInt32LE(header, 4, fileSize);
-        header[8] = 'W'; header[9] = 'A'; header[10] = 'V'; header[11] = 'E';
-        // fmt
-        header[12] = 'f'; header[13] = 'm'; header[14] = 't'; header[15] = ' ';
-        writeInt32LE(header, 16, 16);       // chunk size
-        writeInt16LE(header, 20, (short) 1); // PCM
-        writeInt16LE(header, 22, (short) 1); // mono
-        writeInt32LE(header, 24, sampleRate);
-        writeInt32LE(header, 28, sampleRate * 2); // byte rate
-        writeInt16LE(header, 32, (short) 2);      // block align
-        writeInt16LE(header, 34, (short) 16);     // bits per sample
-        // data
-        header[36] = 'd'; header[37] = 'a'; header[38] = 't'; header[39] = 'a';
-        writeInt32LE(header, 40, dataSize);
-
-        fos.write(header);
-        fos.write(pcmData);
-        fos.close();
-    }
-
-    private void writeInt32LE(byte[] buf, int offset, int value) {
-        buf[offset] = (byte) (value & 0xFF);
-        buf[offset + 1] = (byte) ((value >> 8) & 0xFF);
-        buf[offset + 2] = (byte) ((value >> 16) & 0xFF);
-        buf[offset + 3] = (byte) ((value >> 24) & 0xFF);
-    }
-
-    private void writeInt16LE(byte[] buf, int offset, short value) {
-        buf[offset] = (byte) (value & 0xFF);
-        buf[offset + 1] = (byte) ((value >> 8) & 0xFF);
+    private float[] pcmToFloats(byte[] pcm) {
+        float[] out = new float[pcm.length / 2];
+        for (int i = 0; i < out.length; i++) {
+            short s = (short) ((pcm[i * 2] & 0xFF) | (pcm[i * 2 + 1] << 8));
+            out[i] = s / 32768.0f;
+        }
+        return out;
     }
 
     // ==================== 控制 ====================
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        Log.i(TAG, "ASR 服务: " + (enabled ? "已启用" : "已禁用"));
+        Log.i(TAG, "ASR: " + (enabled ? "已启用" : "已禁用"));
     }
 
     public boolean isEnabled() {
         return enabled;
     }
 
-    public void setEngine(EngineType engine) {
-        this.currentEngine = engine;
-        Log.i(TAG, "ASR 引擎切换: " + engine);
+    public boolean isInitialized() {
+        return initialized;
     }
 
-    public EngineType getEngine() {
-        return currentEngine;
-    }
-
-    /**
-     * 设置当前说话人 (由 SpeakerIdentifier 调用)
-     */
     public void setCurrentSpeaker(String speaker) {
-        this.currentSpeaker = speaker;
-    }
-
-    public String getCurrentSpeaker() {
-        return currentSpeaker;
+        this.lastSpeaker = speaker;
     }
 }

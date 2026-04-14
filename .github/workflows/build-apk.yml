@@ -22,15 +22,71 @@ jobs:
 
     - name: Setup Android SDK
       run: |
-        # GitHub Actions ubuntu-latest 已预装 Android SDK
         echo "ANDROID_HOME=$ANDROID_HOME"
         echo "sdk.dir=$ANDROID_HOME" > android-companion/local.properties
-        # 安装所需 SDK 组件
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
           "platform-tools" \
           "platforms;android-34" \
           "build-tools;34.0.0" \
           --sdk_root=$ANDROID_HOME || true
+
+    - name: Download sherpa-onnx AAR
+      run: |
+        mkdir -p android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38
+        # 下载 AAR 并提取 classes.jar 和 jni/
+        curl -fSL --retry 3 \
+          "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.38/sherpa-onnx-1.12.38.aar" \
+          -o /tmp/sherpa.aar
+        cd /tmp && unzip -q sherpa.aar
+        cp /tmp/classes.jar android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar
+        cp -r /tmp/jni android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/
+        cp /tmp/AndroidManifest.xml android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/
+        # 生成 POM
+        cat > android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.pom << 'POMEOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<project><modelVersion>4.0.0</modelVersion>
+<groupId>com.k2fsa.sherpa.onnx</groupId>
+<artifactId>sherpa-onnx</artifactId>
+<version>1.12.38</version>
+<packaging>jar</packaging>
+</project>
+POMEOF
+        echo "AAR downloaded and extracted"
+
+    - name: Copy AI models to assets
+      run: |
+        mkdir -p android-companion/app/src/main/assets/models
+        # 下载声纹模型 (3D-Speaker)
+        curl -fSL --retry 3 \
+          "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx" \
+          -o android-companion/app/src/main/assets/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
+        echo "Speaker model downloaded"
+
+        # 下载 ASR 模型 (streaming Zipformer Chinese int8)
+        mkdir -p /tmp/asr_model
+        curl -fSL --retry 3 \
+          "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2" \
+          -o /tmp/asr.tar.bz2
+        tar xjf /tmp/asr.tar.bz2 -C /tmp/asr_model
+        cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/encoder.int8.onnx \
+           android-companion/app/src/main/assets/models/
+        cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/decoder.onnx \
+           android-companion/app/src/main/assets/models/
+        cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/joiner.int8.onnx \
+           android-companion/app/src/main/assets/models/
+        cp /tmp/asr_model/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/tokens.txt \
+           android-companion/app/src/main/assets/models/
+        echo "ASR model downloaded"
+
+    - name: Copy native libs (arm64-v8a only for CI, armeabi-v7a for debug APK)
+      run: |
+        mkdir -p android-companion/app/src/main/jniLibs/arm64-v8a
+        cp -r /tmp/sherpa.aar.extracted/jni/arm64-v8a/*.so \
+           android-companion/app/src/main/jniLibs/arm64-v8a/ 2>/dev/null || true
+        # 如果上面失败了，从之前解压的AAR复制
+        cp -r android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/jni/arm64-v8a/*.so \
+           android-companion/app/src/main/jniLibs/arm64-v8a/ 2>/dev/null || true
+        echo "Native libs copied"
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
@@ -38,23 +94,15 @@ jobs:
     - name: Generate Gradle Wrapper JAR
       run: |
         cd android-companion
-        # 方案1: 尝试用系统 Gradle (ubuntu-latest 已预装)
         if command -v gradle &> /dev/null; then
           echo "Using system Gradle: $(gradle --version | head -1)"
           gradle wrapper --gradle-version 8.5
         else
-          # 方案2: 下载 zip 并校验
-          GRADLE_SHA256="9e9cd0b6731e7c7863613f0b6f9d6974c32a9650e9cd0f0c23e6e9c2c0b0d0e0"
-          curl -fSL --retry 3 --retry-delay 5 https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
-          echo "$GRADLE_SHA256  /tmp/gradle.zip" | sha256sum -c - || {
-            echo "SHA256 mismatch, re-downloading..."
-            rm -f /tmp/gradle.zip
-            curl -fSL --retry 3 https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
-          }
+          curl -fSL --retry 3 --retry-delay 5 \
+            https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp/
           /tmp/gradle-8.5/bin/gradle wrapper --gradle-version 8.5
         fi
-        # 验证 wrapper JAR 存在
         ls -la gradle/wrapper/gradle-wrapper.jar
 
     - name: Grant Gradle execute permission

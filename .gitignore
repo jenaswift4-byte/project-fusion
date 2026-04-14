@@ -63,5 +63,11 @@ desktop.ini
 *-secret*
 token*
 
+# Binary blobs - never push these
+*.so
+*.onnx
+*.aar
+*.wav
+
 # WorkBuddy internal
 .workbuddy/
