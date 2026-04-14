@@ -35,7 +35,7 @@ jobs:
       run: |
         mkdir -p android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38
         mkdir -p /tmp/sherpa-extract
-        curl -fSL --retry 3 \
+        curl -fSLk --retry 3 \
           "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.38/sherpa-onnx-1.12.38.aar" \
           -o /tmp/sherpa.aar
         cd /tmp/sherpa-extract && unzip -q /tmp/sherpa.aar
@@ -50,12 +50,12 @@ jobs:
     - name: Copy AI models to assets
       run: |
         mkdir -p android-companion/app/src/main/assets/models
-        curl -fSL --retry 3 \
+        curl -fSLk --retry 3 \
           "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx" \
           -o android-companion/app/src/main/assets/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
         echo "Speaker model downloaded"
         mkdir -p /tmp/asr_model
-        curl -fSL --retry 3 \
+        curl -fSLk --retry 3 \
           "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2" \
           -o /tmp/asr.tar.bz2
         tar xjf /tmp/asr.tar.bz2 -C /tmp/asr_model
@@ -92,7 +92,7 @@ jobs:
           echo "Using system Gradle: $(gradle --version | head -1)"
           gradle wrapper --gradle-version 8.5
         else
-          curl -fSL --retry 3 --retry-delay 5 \
+          curl -fSLk --retry 3 --retry-delay 5 \
             https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp/
           /tmp/gradle-8.5/bin/gradle wrapper --gradle-version 8.5
