@@ -62,28 +62,40 @@ jobs:
           echo "sherpa_downloaded=true" >> $GITHUB_OUTPUT
         else
           echo "⚠ Download failed, creating stub classes.jar (runtime will load from files/lib/)"
-          
-          # Create minimal stub JAR (just enough to compile)
+
           mkdir -p /tmp/stub/com/k2fsa/sherpa/onnx
-          
+
           # OnlineRecognizer.java
           printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineRecognizer {\n  public OnlineRecognizer(Object config) {}\n  public OnlineStream createStream() { return new OnlineStream(); }\n  public boolean isReady(OnlineStream s) { return false; }\n  public void decode(OnlineStream s) {}\n  public Result getResult(OnlineStream s) { return new Result(); }\n  public static class Result { public String getText() { return ""; } }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineRecognizer.java
-          
+
           # OnlineStream.java
           printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineStream {\n  public void flush() {}\n  public void acceptWaveform(float[] audio, int sampleRate) {}\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineStream.java
-          
+
           # OnlineRecognizerConfig.java
           printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineRecognizerConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setModel(Object m) { return this; }\n    public Builder setTokens(String t) { return this; }\n    public Builder setNumThreads(int n) { return this; }\n    public Builder setDebug(boolean d) { return this; }\n    public OnlineRecognizerConfig build() { return new OnlineRecognizerConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineRecognizerConfig.java
-          
+
           # OnlineTransducerModelConfig.java
           printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineTransducerModelConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setEncoder(String e) { return this; }\n    public Builder setDecoder(String d) { return this; }\n    public Builder setJoiner(String j) { return this; }\n    public OnlineTransducerModelConfig build() { return new OnlineTransducerModelConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineTransducerModelConfig.java
-          
-          # Compile stub classes
-          javac -d . com/k2fsa/sherpa/onnx/*.java
-          jar cf "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar" com/
-          
+
+          # OnlineModelConfig.java (required by StreamingASRService)
+          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineModelConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setTransducer(Object t) { return this; }\n    public Builder setTokens(String t) { return this; }\n    public OnlineModelConfig build() { return new OnlineModelConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineModelConfig.java
+
+          # SpeakerEmbeddingExtractor.java (required by SpeakerIdentifier)
+          printf 'package com.k2fsa.sherpa.onnx;\npublic class SpeakerEmbeddingExtractor {\n  public SpeakerEmbeddingExtractor(Object config) {}\n  public float[] createEmbedding(String wavPath) { return new float[512]; }\n  public int getEmbeddingSize() { return 512; }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingExtractor.java
+
+          # SpeakerEmbeddingExtractorConfig.java
+          printf 'package com.k2fsa.sherpa.onnx;\npublic class SpeakerEmbeddingExtractorConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setModel(String m) { return this; }\n    public Builder setNumThreads(int n) { return this; }\n    public SpeakerEmbeddingExtractorConfig build() { return new SpeakerEmbeddingExtractorConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingExtractorConfig.java
+
+          # SpeakerEmbeddingManager.java
+          printf 'package com.k2fsa.sherpa.onnx;\nimport java.util.Map;\npublic class SpeakerEmbeddingManager {\n  public SpeakerEmbeddingManager(int numThreads) {}\n  public int addSpeaker(String name, float[] embedding) { return 0; }\n  public int getSpeakerId(String name) { return 0; }\n  public String getSpeakerName(int id) { return ""; }\n  public int getNumSpeakers() { return 0; }\n  public void dump(String path) {}\n  public void load(String path) {}\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingManager.java
+
           echo "✓ Stub JAR created (runtime will load .so from files/lib/)"
           echo "sherpa_downloaded=false" >> $GITHUB_OUTPUT
+
+          # Compile stub classes
+          cd /tmp/stub
+          javac -d . com/k2fsa/sherpa/onnx/*.java
+          jar cf "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar" com/
         fi
         
         # Generate POM

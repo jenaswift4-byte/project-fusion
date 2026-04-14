@@ -65,7 +65,7 @@ echo ========================================
 echo 推送完成！
 echo.
 echo 目标路径:
-echo   .so  : /data/local/tmp/sherpa-models/
+echo   .so  : /data/local/tmp/sherpa-models/ (NativeLoader 会自动搜索)
 echo   模型 : /sdcard/Android/data/%PACKAGE%/files/models/
 echo ========================================
 
