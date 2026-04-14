@@ -31,13 +31,36 @@ jobs:
           "build-tools;34.0.0" \
           --sdk_root=$ANDROID_HOME || true
 
-    - name: Setup sherpa-onnx stub (pre-built)
+    - name: Setup sherpa-onnx AAR (download real .so for APK bundling)
       run: |
-        echo "Using pre-built sherpa-onnx stub JAR for compilation"
+        echo "Downloading sherpa-onnx AAR to extract .so files..."
         mkdir -p android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38
+        mkdir -p android-companion/app/src/main/jniLibs/arm64-v8a
         mkdir -p android-companion/app/src/main/assets/models
-        echo '<?xml version="1.0" encoding="UTF-8"?><project><modelVersion>4.0.0</modelVersion><groupId>com.k2fsa.sherpa.onnx</groupId><artifactId>sherpa-onnx</artifactId><version>1.12.38</version><packaging>jar</packaging></project>' > android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.pom
-        echo "# Stub JAR - .so will be loaded from files/lib/ at runtime" > android-companion/app/src/main/assets/models/README.txt
+        
+        if curl -fSLk --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 300 \
+          "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.38/sherpa-onnx-1.12.38.aar" \
+          -o /tmp/sherpa.aar 2>/dev/null; then
+          
+          echo "✓ Download complete: $(stat -c%s /tmp/sherpa.aar | numfmt --to=iec-i --suffix=B)"
+          
+          cd /tmp && unzip -q sherpa.aar -d sherpa_extracted
+          
+          cp /tmp/sherpa_extracted/classes.jar "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar"
+          
+          if [ -d /tmp/sherpa_extracted/jni/arm64-v8a ]; then
+            cp /tmp/sherpa_extracted/jni/arm64-v8a/*.so "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
+            echo "✓ Copied .so files to jniLibs:"
+            ls -lh android-companion/app/src/main/jniLibs/arm64-v8a/
+          else
+            echo "⚠ No arm64-v8a jni directory found in AAR"
+          fi
+        else
+          echo "⚠ Download failed, using stub JAR"
+          echo '# Stub' > android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/stub.txt
+        fi
+        
+        echo '# Placeholder for models' > android-companion/app/src/main/assets/models/README.txt
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
