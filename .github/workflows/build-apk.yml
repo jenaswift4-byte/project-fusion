@@ -33,6 +33,7 @@ jobs:
 
     - name: Download sherpa-onnx AAR (optional - fallback to stub)
       id: sherpa
+      continue-on-error: true
       run: |
         set -x
         mkdir -p android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38
