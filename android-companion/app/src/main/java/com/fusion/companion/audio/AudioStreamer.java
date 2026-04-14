@@ -57,6 +57,7 @@ public class AudioStreamer {
     private Thread streamThread;
     private Handler mainHandler;
     private FusionWebSocketServer wsServer;
+    private android.content.Context appContext;
 
     // 录音权限检查
     private boolean permissionGranted = false;
@@ -64,6 +65,13 @@ public class AudioStreamer {
     public AudioStreamer(FusionWebSocketServer wsServer) {
         this.wsServer = wsServer;
         this.mainHandler = new Handler(Looper.getMainLooper());
+    }
+
+    /**
+     * 设置 Application Context (用于动态权限检查)
+     */
+    public void setContext(android.content.Context context) {
+        this.appContext = context.getApplicationContext();
     }
 
     /**
@@ -91,6 +99,11 @@ public class AudioStreamer {
         if (isStreaming.get()) {
             Log.w(TAG, "已在录音中");
             return false;
+        }
+
+        // 动态检查权限 (用户可能事后授权)
+        if (!permissionGranted && appContext != null) {
+            checkPermission(appContext);
         }
 
         if (!permissionGranted) {

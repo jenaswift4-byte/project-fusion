@@ -159,6 +159,7 @@ public class FusionBridgeService extends Service {
 
         // 初始化音频流传输器
         audioStreamer = new AudioStreamer(wsServer);
+        audioStreamer.setContext(this);
         audioStreamer.checkPermission(this);
 
         startClipboardMonitor();
