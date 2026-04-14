@@ -68,35 +68,65 @@ public class StreamingASRService implements PcmDataListener {
             String tokensPath = new File(modelDir, MODEL_TOKENS).getAbsolutePath();
 
             Log.i(TAG, "初始化 sherpa-onnx ASR...");
-            Log.i(TAG, "模型目录: " + modelDir.getAbsolutePath());
+            Log.i(TAG, "模型目录：" + modelDir.getAbsolutePath());
+            Log.i(TAG, "Encoder: " + encoderPath);
+            Log.i(TAG, "Decoder: " + decoderPath);
+            Log.i(TAG, "Joiner: " + joinerPath);
+            Log.i(TAG, "Tokens: " + tokensPath);
 
             // 检查模型文件是否存在
             if (!new File(encoderPath).exists()) {
-                Log.e(TAG, "Encoder 文件不存在: " + encoderPath);
+                Log.e(TAG, "Encoder 文件不存在：" + encoderPath);
+                return false;
+            }
+            if (!new File(decoderPath).exists()) {
+                Log.e(TAG, "Decoder 文件不存在：" + decoderPath);
+                return false;
+            }
+            if (!new File(joinerPath).exists()) {
+                Log.e(TAG, "Joiner 文件不存在：" + joinerPath);
+                return false;
+            }
+            if (!new File(tokensPath).exists()) {
+                Log.e(TAG, "Tokens 文件不存在：" + tokensPath);
                 return false;
             }
 
-            OnlineTransducerModelConfig transducerConfig =
-                new OnlineTransducerModelConfig(encoderPath, decoderPath, joinerPath);
+            // 记录文件大小
+            Log.i(TAG, "Encoder 大小：" + new File(encoderPath).length() + " bytes");
+            Log.i(TAG, "Decoder 大小：" + new File(decoderPath).length() + " bytes");
+            Log.i(TAG, "Joiner 大小：" + new File(joinerPath).length() + " bytes");
+            Log.i(TAG, "Tokens 大小：" + new File(tokensPath).length() + " bytes");
 
-            OnlineModelConfig modelConfig = new OnlineModelConfig();
-            modelConfig.setTransducer(transducerConfig);
-            modelConfig.setTokens(tokensPath);
-            modelConfig.setNumThreads(4);
-            modelConfig.setDebug(false);
-            modelConfig.setProvider("cpu");
+            try {
+                OnlineTransducerModelConfig transducerConfig =
+                    new OnlineTransducerModelConfig(encoderPath, decoderPath, joinerPath);
 
-            FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
+                OnlineModelConfig modelConfig = new OnlineModelConfig();
+                modelConfig.setTransducer(transducerConfig);
+                modelConfig.setTokens(tokensPath);
+                modelConfig.setNumThreads(2);
+                modelConfig.setDebug(true);  // 开启调试模式
+                modelConfig.setProvider("cpu");
 
-            OnlineRecognizerConfig config = new OnlineRecognizerConfig();
-            config.setFeatConfig(featureConfig);
-            config.setModelConfig(modelConfig);
-            config.setEnableEndpoint(false);
-            config.setDecodingMethod("greedy_search");
-            config.setMaxActivePaths(4);
+                FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
 
-            AssetManager assetManager = null;  // 使用外部存储，不需要 assetManager
-            recognizer = new OnlineRecognizer(assetManager, config);
+                OnlineRecognizerConfig config = new OnlineRecognizerConfig();
+                config.setFeatConfig(featureConfig);
+                config.setModelConfig(modelConfig);
+                config.setEnableEndpoint(false);
+                config.setDecodingMethod("greedy_search");
+                config.setMaxActivePaths(2);
+
+                AssetManager assetManager = null;  // 使用外部存储，不需要 assetManager
+                Log.i(TAG, "开始创建 OnlineRecognizer...");
+                recognizer = new OnlineRecognizer(assetManager, config);
+                Log.i(TAG, "OnlineRecognizer 创建成功!");
+            } catch (Exception e) {
+                Log.e(TAG, "创建 OnlineRecognizer 失败：" + e.getMessage());
+                e.printStackTrace();
+                throw e;
+            }
 
             Log.i(TAG, "sherpa-onnx ASR 初始化成功!");
             initialized = true;
