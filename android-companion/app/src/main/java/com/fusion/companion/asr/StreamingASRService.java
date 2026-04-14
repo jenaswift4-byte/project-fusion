@@ -79,40 +79,21 @@ public class StreamingASRService implements PcmDataListener {
             OnlineTransducerModelConfig transducerConfig =
                 new OnlineTransducerModelConfig(encoderPath, decoderPath, joinerPath);
 
-            OnlineModelConfig modelConfig = new OnlineModelConfig(
-                transducerConfig,
-                null,
-                null,
-                null,
-                null,
-                null,
-                tokensPath,
-                4,
-                false,
-                "cpu",
-                "",
-                "",
-                ""
-            );
+            OnlineModelConfig modelConfig = new OnlineModelConfig();
+            modelConfig.setTransducer(transducerConfig);
+            modelConfig.setTokens(tokensPath);
+            modelConfig.setNumThreads(4);
+            modelConfig.setDebug(false);
+            modelConfig.setProvider("cpu");
 
             FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
 
-            OnlineRecognizerConfig config = new OnlineRecognizerConfig(
-                featureConfig,
-                modelConfig,
-                null,
-                null,
-                null,
-                null,
-                false,
-                "greedy_search",
-                4,
-                "",
-                0.0f,
-                "",
-                "",
-                0.0f
-            );
+            OnlineRecognizerConfig config = new OnlineRecognizerConfig();
+            config.setFeatConfig(featureConfig);
+            config.setModelConfig(modelConfig);
+            config.setEnableEndpoint(false);
+            config.setDecodingMethod("greedy_search");
+            config.setMaxActivePaths(4);
 
             AssetManager assetManager = appContext.getAssets();
             recognizer = new OnlineRecognizer(assetManager, config);
