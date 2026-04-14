@@ -214,9 +214,6 @@ public class DailySummaryService {
      */
     private String stubSummary(String prompt) {
         try {
-            JSONArray transcripts = new JSONObject()
-                .put("records", prompt); // 简单处理
-
             int recordCount = prompt.split("\n").length;
             return String.format("今日共有 %d 条语音记录，日常交流正常。", recordCount);
         } catch (Exception e) {
