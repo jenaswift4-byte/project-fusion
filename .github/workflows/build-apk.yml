@@ -64,54 +64,18 @@ jobs:
           
           # Create minimal stub JAR (just enough to compile)
           mkdir -p /tmp/stub/com/k2fsa/sherpa/onnx
-          cd /tmp/stub
           
-          # Create stub classes
-          cat > com/k2fsa/sherpa/onnx/OnlineRecognizer.java << 'EOF'
-package com.k2fsa.sherpa.onnx;
-public class OnlineRecognizer {
-    public OnlineRecognizer(Object config) {}
-    public OnlineStream createStream() { return new OnlineStream(); }
-    public boolean isReady(OnlineStream s) { return false; }
-    public void decode(OnlineStream s) {}
-    public Result getResult(OnlineStream s) { return new Result(); }
-    public static class Result {
-        public String getText() { return ""; }
-    }
-}
-EOF
-          cat > com/k2fsa/sherpa/onnx/OnlineStream.java << 'EOF'
-package com.k2fsa.sherpa.onnx;
-public class OnlineStream {
-    public void flush() {}
-    public void acceptWaveform(float[] audio, int sampleRate) {}
-}
-EOF
-          cat > com/k2fsa/sherpa/onnx/OnlineRecognizerConfig.java << 'EOF'
-package com.k2fsa.sherpa.onnx;
-public class OnlineRecognizerConfig {
-    public static Builder builder() { return new Builder(); }
-    public static class Builder {
-        public Builder setModel(Object m) { return this; }
-        public Builder setTokens(String t) { return this; }
-        public Builder setNumThreads(int n) { return this; }
-        public Builder setDebug(boolean d) { return this; }
-        public OnlineRecognizerConfig build() { return new OnlineRecognizerConfig(); }
-    }
-}
-EOF
-          cat > com/k2fsa/sherpa/onnx/OnlineTransducerModelConfig.java << 'EOF'
-package com.k2fsa.sherpa.onnx;
-public class OnlineTransducerModelConfig {
-    public static Builder builder() { return new Builder(); }
-    public static class Builder {
-        public Builder setEncoder(String e) { return this; }
-        public Builder setDecoder(String d) { return this; }
-        public Builder setJoiner(String j) { return this; }
-        public OnlineTransducerModelConfig build() { return new OnlineTransducerModelConfig(); }
-    }
-}
-EOF
+          # OnlineRecognizer.java
+          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineRecognizer {\n  public OnlineRecognizer(Object config) {}\n  public OnlineStream createStream() { return new OnlineStream(); }\n  public boolean isReady(OnlineStream s) { return false; }\n  public void decode(OnlineStream s) {}\n  public Result getResult(OnlineStream s) { return new Result(); }\n  public static class Result { public String getText() { return ""; } }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineRecognizer.java
+          
+          # OnlineStream.java
+          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineStream {\n  public void flush() {}\n  public void acceptWaveform(float[] audio, int sampleRate) {}\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineStream.java
+          
+          # OnlineRecognizerConfig.java
+          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineRecognizerConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setModel(Object m) { return this; }\n    public Builder setTokens(String t) { return this; }\n    public Builder setNumThreads(int n) { return this; }\n    public Builder setDebug(boolean d) { return this; }\n    public OnlineRecognizerConfig build() { return new OnlineRecognizerConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineRecognizerConfig.java
+          
+          # OnlineTransducerModelConfig.java
+          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineTransducerModelConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setEncoder(String e) { return this; }\n    public Builder setDecoder(String d) { return this; }\n    public Builder setJoiner(String j) { return this; }\n    public OnlineTransducerModelConfig build() { return new OnlineTransducerModelConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineTransducerModelConfig.java
           
           # Compile stub classes
           javac -d . com/k2fsa/sherpa/onnx/*.java
