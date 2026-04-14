@@ -474,6 +474,18 @@ public class MQTTClientService extends Service implements SensorEventListener {
                         return;
                     }
                     
+                    // ═══ 声纹注册命令 (speaker/enroll) ═══
+                    if ("speaker/enroll".equals(topic)) {
+                        handleSpeakerEnroll(payloadStr);
+                        return;
+                    }
+                    
+                    // ═══ 日志同步命令 (fusion/log/*/sync) ═══
+                    if (topic.startsWith("fusion/log/") && topic.endsWith("/sync")) {
+                        handleLogSync(topic, payloadStr);
+                        return;
+                    }
+                    
                     // 通知监听器
                     if (messageListener != null) {
                         messageListener.onMessageReceived(topic, message.getPayload());
@@ -698,7 +710,13 @@ public class MQTTClientService extends Service implements SensorEventListener {
         // 订阅全设备命令 (通配符)
         subscribeTopic("fusion/cmd/#", 1);
         
-        Log.i(TAG, "已订阅主题: " + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command, fusion/audio/" + deviceId + "/command, fusion/cmd/#");
+        // 订阅声纹注册命令 (PC 端 voice_enroll.py 下发)
+        subscribeTopic("speaker/enroll", 1);
+        
+        // 订阅日志同步命令 (PC 端 log_sync_service.py 请求)
+        subscribeTopic("fusion/log/" + deviceId + "/sync", 1);
+        
+        Log.i(TAG, "已订阅主题: " + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command, fusion/audio/" + deviceId + "/command, fusion/cmd/#, speaker/enroll, fusion/log/" + deviceId + "/sync");
     }
     
     // ==================== 传感器数据发布 ====================
@@ -1602,6 +1620,64 @@ public class MQTTClientService extends Service implements SensorEventListener {
         } catch (Exception e) {
             Log.e(TAG, "算力任务失败: " + e.getMessage());
             return "{\"error\": \"" + e.getMessage() + "\"}";
+        }
+    }
+    
+    // ==================== 声纹注册处理 ====================
+    
+    /**
+     * 处理 PC 端下发的声纹注册命令
+     * 
+     * 消息格式: {"action": "enroll", "label": "user", "format": "vector", "data": "0.1,0.2,..."}
+     */
+    private void handleSpeakerEnroll(String payload) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(payload);
+            String action = json.optString("action", "");
+            
+            if (!"enroll".equals(action)) {
+                Log.w(TAG, "未知声纹命令: " + action);
+                return;
+            }
+            
+            String label = json.optString("label", "");
+            String format = json.optString("format", "vector");
+            String data = json.optString("data", "");
+            
+            Log.i(TAG, "收到声纹注册: " + label + ", 格式: " + format);
+            
+            // 委托给 SpeakerIdentifier 处理
+            if (FusionBridgeService.getSpeakerIdentifier() != null) {
+                FusionBridgeService.getSpeakerIdentifier().enroll(label, data, format);
+            } else {
+                Log.w(TAG, "SpeakerIdentifier 未初始化, 无法注册声纹");
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "处理声纹注册失败: " + e.getMessage());
+        }
+    }
+    
+    // ==================== 日志同步处理 ====================
+    
+    /**
+     * 处理 PC 端的日志同步请求
+     * 
+     * PC → 手机: fusion/log/{deviceId}/sync  {"action": "sync", "since_id": 123}
+     * 手机 → PC: fusion/log/{deviceId}/data   {"logs": [...], "max_id": 456}
+     */
+    private void handleLogSync(String topic, String payload) {
+        try {
+            Log.i(TAG, "收到日志同步请求");
+            
+            if (FusionBridgeService.getLogSyncService() != null) {
+                FusionBridgeService.getLogSyncService().handleSyncRequest(payload);
+            } else {
+                Log.w(TAG, "LogSyncService 未初始化, 无法处理同步请求");
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "处理日志同步请求失败: " + e.getMessage());
         }
     }
 }

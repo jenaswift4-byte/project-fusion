@@ -26,6 +26,10 @@ import android.graphics.PixelFormat;
 import com.fusion.companion.FusionWebSocketServer;
 import com.fusion.companion.audio.AudioStreamer;
 import com.fusion.companion.camera.CameraStreamer;
+import com.fusion.companion.speaker.SpeakerIdentifier;
+import com.fusion.companion.asr.StreamingASRService;
+import com.fusion.companion.log.LogSyncService;
+import com.fusion.companion.summary.DailySummaryService;
 
 import org.json.JSONObject;
 
@@ -66,6 +70,12 @@ public class FusionBridgeService extends Service {
     // 传感器采集器
     private static SensorCollector sensorCollector;
     private static boolean sensorCollectionRunning = false;
+
+    // 声纹识别 / ASR / 日志同步 / 每日摘要
+    private static SpeakerIdentifier speakerIdentifier;
+    private static StreamingASRService streamingASRService;
+    private static LogSyncService logSyncService;
+    private static DailySummaryService dailySummaryService;
 
     // 电池状态
     private int lastBatteryLevel = -1;
@@ -115,6 +125,22 @@ public class FusionBridgeService extends Service {
      */
     public static SensorCollector getSensorCollector() {
         return sensorCollector;
+    }
+
+    public static SpeakerIdentifier getSpeakerIdentifier() {
+        return speakerIdentifier;
+    }
+
+    public static StreamingASRService getStreamingASRService() {
+        return streamingASRService;
+    }
+
+    public static LogSyncService getLogSyncService() {
+        return logSyncService;
+    }
+
+    public static DailySummaryService getDailySummaryService() {
+        return dailySummaryService;
     }
 
     @Override
@@ -170,6 +196,24 @@ public class FusionBridgeService extends Service {
         cameraStreamer = new CameraStreamer(wsServer);
         cameraStreamer.setContext(this);
         cameraStreamer.checkPermission(this);
+
+        // 初始化声纹识别
+        speakerIdentifier = new SpeakerIdentifier(this);
+        speakerIdentifier.loadProfiles(); // 加载已注册的声纹
+
+        // 初始化流式 ASR
+        streamingASRService = new StreamingASRService(this);
+
+        // 初始化日志同步
+        logSyncService = new LogSyncService(this);
+
+        // 初始化每日摘要
+        dailySummaryService = new DailySummaryService(this);
+        dailySummaryService.scheduleDailySummary(); // 注册 23:59 定时任务
+
+        // 将声纹识别和 ASR 注册为 AudioStreamer 的 PCM 监听器
+        audioStreamer.addPcmDataListener(speakerIdentifier);
+        audioStreamer.addPcmDataListener(streamingASRService);
 
         startClipboardMonitor();
         startTelephonyMonitor();

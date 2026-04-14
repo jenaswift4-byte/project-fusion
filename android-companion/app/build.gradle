@@ -47,6 +47,9 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     // MQTT Client 依赖 - 标准 Paho MQTT 客户端（Maven Central 可用）
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+    // WorkManager - 每日摘要定时任务
+    implementation 'androidx.work:work-runtime:2.9.0'
     // 注意：org.eclipse.paho.broker 包不在 Maven Central，已用内置实现替代
     // 注意：com.alibaba.mnn 包不在 Maven Central，AI 模块已改为存根实现
+    // 注意：sherpa-onnx / vosk / llama.cpp 需手动集成 AAR，当前为存根实现
 }

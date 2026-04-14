@@ -12,6 +12,8 @@ import com.fusion.companion.FusionWebSocketServer;
 
 import org.json.JSONObject;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -61,6 +63,9 @@ public class AudioStreamer {
 
     // 录音权限检查
     private boolean permissionGranted = false;
+
+    // PCM 数据监听器列表 (声纹识别、ASR 等)
+    private final CopyOnWriteArrayList<PcmDataListener> pcmListeners = new CopyOnWriteArrayList<>();
 
     public AudioStreamer(FusionWebSocketServer wsServer) {
         this.wsServer = wsServer;
@@ -162,6 +167,11 @@ public class AudioStreamer {
         // 通知 PC 端录音已开始
         notifyStatus("started", "麦克风录音已开始");
 
+        // 通知 PCM 监听器
+        for (PcmDataListener listener : pcmListeners) {
+            listener.onRecordingStarted();
+        }
+
         // 启动录音线程
         streamThread = new Thread(this::streamLoop, "audio_stream");
         streamThread.setDaemon(true);
@@ -203,6 +213,11 @@ public class AudioStreamer {
 
         Log.i(TAG, "麦克风录音已停止");
 
+        // 通知 PCM 监听器
+        for (PcmDataListener listener : pcmListeners) {
+            listener.onRecordingStopped();
+        }
+
         // 通知 PC 端
         notifyStatus("stopped", "麦克风录音已停止");
     }
@@ -230,6 +245,18 @@ public class AudioStreamer {
                     // 格式: {"type": "audio_pcm", "seq": N, "data": "base64...", "ts": timestamp}
                     byte[] pcmData = new byte[bytesRead];
                     System.arraycopy(buffer, 0, pcmData, 0, bytesRead);
+
+                    // 通知 PCM 监听器 (声纹识别、ASR 等消费 PCM 原始数据)
+                    if (!pcmListeners.isEmpty()) {
+                        long ts = System.currentTimeMillis();
+                        for (PcmDataListener listener : pcmListeners) {
+                            try {
+                                listener.onPcmData(pcmData, SAMPLE_RATE, ts);
+                            } catch (Exception e) {
+                                Log.w(TAG, "PCM 监听器异常: " + e.getMessage());
+                            }
+                        }
+                    }
 
                     String base64Data = Base64.encodeToString(pcmData, Base64.NO_WRAP);
 
@@ -294,6 +321,24 @@ public class AudioStreamer {
      */
     public void updateWsServer(FusionWebSocketServer wsServer) {
         this.wsServer = wsServer;
+    }
+
+    /**
+     * 添加 PCM 数据监听器 (声纹识别、ASR 等模块)
+     */
+    public void addPcmDataListener(PcmDataListener listener) {
+        if (!pcmListeners.contains(listener)) {
+            pcmListeners.add(listener);
+            Log.i(TAG, "PCM 监听器已注册: " + listener.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * 移除 PCM 数据监听器
+     */
+    public void removePcmDataListener(PcmDataListener listener) {
+        pcmListeners.remove(listener);
+        Log.i(TAG, "PCM 监听器已移除: " + listener.getClass().getSimpleName());
     }
 
     /**
