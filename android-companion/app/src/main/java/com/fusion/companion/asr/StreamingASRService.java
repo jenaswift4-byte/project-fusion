@@ -8,21 +8,17 @@ import com.fusion.companion.audio.PcmDataListener;
 import com.fusion.companion.audio.VADHelper;
 import com.fusion.companion.log.LogDBHelper;
 
-import org.json.JSONObject;
+import com.k2fsa.sherpa.onnx.FeatureConfig;
+import com.k2fsa.sherpa.onnx.OnlineModelConfig;
+import com.k2fsa.sherpa.onnx.OnlineRecognizer;
+import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig;
+import com.k2fsa.sherpa.onnx.OnlineStream;
+import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 
-/**
- * 流式语音转文字 — Sherpa-onnx Stub Implementation
- *
- * 注意: sherpa-onnx 代码已暂时替换为 stub，CI 编译通过后需要适配真实 API
- * .so 和模型文件需要从 PC 推送到手机
- *
- * @author Fusion
- * @version 2.1-stub
- */
 public class StreamingASRService implements PcmDataListener {
 
     private static final String TAG = "StreamingASR";
@@ -30,6 +26,13 @@ public class StreamingASRService implements PcmDataListener {
     private static final int SPEECH_END_TIMEOUT_MS = 400;
     private static final int MAX_SPEECH_DURATION_MS = 30000;
 
+    private static final String MODEL_DIR = "models/";
+    private static final String MODEL_ENCODER = "encoder.int8.onnx";
+    private static final String MODEL_DECODER = "decoder.onnx";
+    private static final String MODEL_JOINER   = "joiner.int8.onnx";
+    private static final String MODEL_TOKENS   = "tokens.txt";
+
+    private OnlineRecognizer recognizer = null;
     private final VADHelper vadHelper;
     private final LogDBHelper logHelper;
     private final Context appContext;
@@ -48,27 +51,86 @@ public class StreamingASRService implements PcmDataListener {
         this.logHelper = LogDBHelper.getInstance(context);
     }
 
-    /**
-     * 初始化 Sherpa-onnx ASR 引擎 (stub 版本)
-     */
     public boolean init() {
         if (initialized) return true;
 
         try {
-            Log.i(TAG, "ASR 引擎初始化 (stub 版本，sherpa-onnx 将从 files/lib/ 加载)");
+            // 模型文件从外部存储加载 (adb push 推送的位置)
+            File externalDir = appContext.getExternalFilesDir(null);
+            File modelDir = new File(externalDir, "models");
+            if (!modelDir.exists()) {
+                modelDir.mkdirs();
+            }
+
+            String encoderPath = new File(modelDir, MODEL_ENCODER).getAbsolutePath();
+            String decoderPath = new File(modelDir, MODEL_DECODER).getAbsolutePath();
+            String joinerPath = new File(modelDir, MODEL_JOINER).getAbsolutePath();
+            String tokensPath = new File(modelDir, MODEL_TOKENS).getAbsolutePath();
+
+            Log.i(TAG, "初始化 sherpa-onnx ASR...");
+            Log.i(TAG, "模型目录: " + modelDir.getAbsolutePath());
+
+            // 检查模型文件是否存在
+            if (!new File(encoderPath).exists()) {
+                Log.e(TAG, "Encoder 文件不存在: " + encoderPath);
+                return false;
+            }
+
+            OnlineTransducerModelConfig transducerConfig =
+                new OnlineTransducerModelConfig(encoderPath, decoderPath, joinerPath);
+
+            OnlineModelConfig modelConfig = new OnlineModelConfig(
+                transducerConfig,
+                null,
+                null,
+                null,
+                null,
+                null,
+                tokensPath,
+                4,
+                false,
+                "cpu",
+                null,
+                null,
+                null
+            );
+
+            FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
+
+            OnlineRecognizerConfig config = new OnlineRecognizerConfig(
+                featureConfig,
+                modelConfig,
+                null,
+                null,
+                null,
+                null,
+                false,
+                "greedy_search",
+                4,
+                null,
+                0.0f,
+                null,
+                null,
+                0.0f
+            );
+
+            AssetManager assetManager = appContext.getAssets();
+            recognizer = new OnlineRecognizer(assetManager, config);
+
+            Log.i(TAG, "sherpa-onnx ASR 初始化成功!");
             initialized = true;
             return true;
+
         } catch (Exception e) {
             Log.e(TAG, "ASR 引擎初始化失败: " + e);
+            e.printStackTrace();
             return false;
         }
     }
 
-    // ==================== PcmDataListener 回调 ====================
-
     @Override
     public void onPcmData(byte[] pcmData, int sampleRate, long timestamp) {
-        if (!enabled || !initialized) return;
+        if (!enabled || !initialized || recognizer == null) return;
 
         boolean isSpeech = vadHelper.isSpeech(pcmData, sampleRate);
 
@@ -137,12 +199,46 @@ public class StreamingASRService implements PcmDataListener {
     }
 
     private void processSpeech(byte[] pcmData, int sampleRate, String speaker) {
-        // Stub: 不进行实际 ASR 处理
-        // TODO: 适配真实 sherpa-onnx API
-        Log.d(TAG, "收到语音数据 " + pcmData.length + " bytes (speaker: " + speaker + ")");
-    }
+        try {
+            short[] shorts = new short[pcmData.length / 2];
+            for (int i = 0; i < shorts.length; i++) {
+                shorts[i] = (short) ((pcmData[i * 2 + 1] << 8) | (pcmData[i * 2] & 0xFF));
+            }
+            float[] floats = new float[shorts.length];
+            for (int i = 0; i < floats.length; i++) {
+                floats[i] = shorts[i] / 32768.0f;
+            }
 
-    // ==================== 控制 ====================
+            OnlineStream stream = recognizer.createStream("");
+            stream.acceptWaveform(floats, sampleRate);
+            stream.inputFinished();
+
+            StringBuilder text = new StringBuilder();
+            while (recognizer.isReady(stream)) {
+                recognizer.decode(stream);
+            }
+
+            while (!recognizer.getResult(stream).getText().isEmpty()) {
+                String partial = recognizer.getResult(stream).getText();
+                text.append(partial);
+                recognizer.decode(stream);
+            }
+
+            String result = text.toString().trim();
+            if (!result.isEmpty()) {
+                Log.i(TAG, "ASR 结果: " + result);
+                if (logHelper != null) {
+                    logHelper.insertLog("asr_result", speaker, result);
+                }
+            }
+
+            stream.release();
+
+        } catch (Exception e) {
+            Log.e(TAG, "ASR 处理失败: " + e);
+            e.printStackTrace();
+        }
+    }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
