@@ -99,31 +99,37 @@ public class StreamingASRService implements PcmDataListener {
             Log.i(TAG, "Tokens 大小：" + new File(tokensPath).length() + " bytes");
 
             try {
+                Log.i(TAG, "开始创建 OnlineTransducerModelConfig...");
                 OnlineTransducerModelConfig transducerConfig =
                     new OnlineTransducerModelConfig(encoderPath, decoderPath, joinerPath);
+                Log.i(TAG, "OnlineTransducerModelConfig 创建成功");
 
+                Log.i(TAG, "开始创建 OnlineModelConfig...");
                 OnlineModelConfig modelConfig = new OnlineModelConfig();
                 modelConfig.setTransducer(transducerConfig);
                 modelConfig.setTokens(tokensPath);
-                modelConfig.setNumThreads(2);
-                modelConfig.setDebug(true);  // 开启调试模式
+                modelConfig.setNumThreads(1);
+                modelConfig.setDebug(true);
                 modelConfig.setProvider("cpu");
 
+                Log.i(TAG, "开始创建 FeatureConfig...");
                 FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
 
+                Log.i(TAG, "开始创建 OnlineRecognizerConfig...");
                 OnlineRecognizerConfig config = new OnlineRecognizerConfig();
                 config.setFeatConfig(featureConfig);
                 config.setModelConfig(modelConfig);
                 config.setEnableEndpoint(false);
                 config.setDecodingMethod("greedy_search");
-                config.setMaxActivePaths(2);
+                config.setMaxActivePaths(1);
 
-                AssetManager assetManager = null;  // 使用外部存储，不需要 assetManager
-                Log.i(TAG, "开始创建 OnlineRecognizer...");
+                Log.i(TAG, "开始创建 OnlineRecognizer (使用 null assetManager)...");
+                AssetManager assetManager = null;
                 recognizer = new OnlineRecognizer(assetManager, config);
-                Log.i(TAG, "OnlineRecognizer 创建成功!");
+                Log.i(TAG, "✓✓✓ OnlineRecognizer 创建成功！✓✓✓");
             } catch (Exception e) {
-                Log.e(TAG, "创建 OnlineRecognizer 失败：" + e.getMessage());
+                Log.e(TAG, "❌❌❌ 创建失败：" + e.getClass().getName() + ": " + e.getMessage());
+                Log.e(TAG, "详细错误: " + e);
                 e.printStackTrace();
                 throw e;
             }
