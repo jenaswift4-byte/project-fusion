@@ -90,9 +90,9 @@ public class StreamingASRService implements PcmDataListener {
                 4,
                 false,
                 "cpu",
-                null,
-                null,
-                null
+                "",
+                "",
+                ""
             );
 
             FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
@@ -107,10 +107,10 @@ public class StreamingASRService implements PcmDataListener {
                 false,
                 "greedy_search",
                 4,
-                null,
+                "",
                 0.0f,
-                null,
-                null,
+                "",
+                "",
                 0.0f
             );
 
