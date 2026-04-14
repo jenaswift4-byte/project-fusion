@@ -48,19 +48,25 @@ jobs:
           
           cp /tmp/sherpa_extracted/classes.jar "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar"
           
-          if [ -d /tmp/sherpa_extracted/jni/arm64-v8a ]; then
-            cp /tmp/sherpa_extracted/jni/arm64-v8a/*.so "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
-            echo "✓ Copied .so files to jniLibs:"
-            ls -lh android-companion/app/src/main/jniLibs/arm64-v8a/
+          # Find and copy .so files
+          SO_DIR="/tmp/sherpa_extracted"
+          if [ -d "$SO_DIR/jni/arm64-v8a" ]; then
+            cp "$SO_DIR/jni/arm64-v8a/"*.so "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
+            echo "✓ Copied .so files:"
+            ls -lh "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
+          elif find "$SO_DIR" -name "*.so" -type f | head -1 | grep -q .; then
+            find "$SO_DIR" -name "*.so" -type f -exec cp {} "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/" \;
+            echo "✓ Copied .so files (from various dirs):"
+            ls -lh "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
           else
-            echo "⚠ No arm64-v8a jni directory found in AAR"
+            echo "⚠ No .so files found in AAR"
           fi
         else
           echo "⚠ Download failed, using stub JAR"
-          echo '# Stub' > android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/stub.txt
+          echo '# Stub' > "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/stub.txt"
         fi
         
-        echo '# Placeholder for models' > android-companion/app/src/main/assets/models/README.txt
+        echo '# Placeholder for models' > "$GITHUB_WORKSPACE/android-companion/app/src/main/assets/models/README.txt"
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
