@@ -43,15 +43,7 @@ jobs:
         cp -r /tmp/jni android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/
         cp /tmp/AndroidManifest.xml android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/
         # 生成 POM
-        cat > android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.pom << 'POMEOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<project><modelVersion>4.0.0</modelVersion>
-<groupId>com.k2fsa.sherpa.onnx</groupId>
-<artifactId>sherpa-onnx</artifactId>
-<version>1.12.38</version>
-<packaging>jar</packaging>
-</project>
-POMEOF
+        printf '<?xml version="1.0" encoding="UTF-8"?>\n<project><modelVersion>4.0.0</modelVersion><groupId>com.k2fsa.sherpa.onnx</groupId><artifactId>sherpa-onnx</artifactId><version>1.12.38</version><packaging>jar</packaging></project>\n' > android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.pom
         echo "AAR downloaded and extracted"
 
     - name: Copy AI models to assets
