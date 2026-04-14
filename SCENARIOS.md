@@ -38,10 +38,10 @@
 |---|------|------|------|--------|
 | 10 | 🔔 **来电弹窗** | phone_bridge | 代码就绪 | 需来电话实测 |
 | 11 | 🔊 **PC声音监测** | sound_monitor | ✅ 2026-04-13 验证通过 | -74.5dB 环境底噪，80dB告警阈值，3秒持续触发 |
-| 12 | 🎤 **手机麦克风→PC** | audio_bridge | ❌ 非root不可用 | arecord/tinycap 需root，需改用App端MediaRecorder+WS |
+| 12 | 🎤 **手机麦克风→PC** | audio_bridge | ✅ 已验证 | AudioRecord+WS 非root方案，10s=49分片=314KB PCM，动态权限检查已修 |
 | 13 | ⌨️ **全局热键** | hotkey_manager | 代码就绪，keyboard库已安装 | 需手动按Win+Shift+S/P/H/B等测试 |
 | 14 | 📡 **近场检测** | proximity_detector | 代码就绪 | 需蓝牙 RSSI 测试 |
-| 15 | 🤖 **算力卸载** | distributed_scheduler | ⚠️ 命令通道不通 | PC→手机MQTT命令被fallback阻断，需双向桥接 |
+| 15 | 🤖 **算力卸载** | distributed_scheduler | ✅ 已验证 | Pi benchmark 43ms完成，评分23M~43M，PhoneBridge双向桥接已通 |
 | 16 | 🏠 **智能家居** | command_bridge | 代码就绪 | 需 ESP32/MCU 硬件 |
 
 ### 📋 待开发

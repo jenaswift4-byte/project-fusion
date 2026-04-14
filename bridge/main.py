@@ -45,6 +45,7 @@ from bridge.modules.distributed_scheduler import DistributedScheduler
 from bridge.modules.video_bridge import VideoBridge
 from bridge.modules.smart_night_light import SmartNightLight
 from bridge.modules.whole_home_audio import WholeHomeAudio
+from bridge.modules.camera_ws_bridge import CameraStreamBridge
 from bridge.listeners.kde_connect import KDEConnectListener
 from bridge.listeners.window_focus import WindowFocusListener
 from bridge.listeners.clipboard_hook import ClipboardChangeListener
@@ -138,6 +139,9 @@ class BridgeDaemon:
 
         # 全屋音响
         self.whole_home_audio = WholeHomeAudio(self)
+
+        # 摄像头流桥接 (Camera2 API → WS → PC)
+        self.camera_stream_bridge = CameraStreamBridge(self.config)
 
         # 仪表盘 Web 服务
         self.dashboard_server = None
@@ -442,6 +446,15 @@ class BridgeDaemon:
                 if wha_cfg.get("enabled", True):
                     self.whole_home_audio.start()
                     print("  ✅ 全屋音响 (多设备同步)")
+
+                # 摄像头流桥接
+                cam_cfg = self.config.get("camera_stream", {})
+                if cam_cfg.get("enabled", True):
+                    self.camera_stream_bridge.start(
+                        ws_client=self.ws_client,
+                        mqtt_client=self.mqtt_bridge
+                    )
+                    print("  ✅ 摄像头流桥接 (Camera2→WS→PC)")
             else:
                 print("  ⚠️ MQTT Broker 启动失败")
         print()
@@ -554,6 +567,7 @@ class BridgeDaemon:
         self.video_bridge.stop()
         self.smart_night_light.stop()
         self.whole_home_audio.stop()
+        self.camera_stream_bridge.stop()
         if self.dashboard_server:
             self.dashboard_server.stop()
         self.scrcpy_ctrl.stop()

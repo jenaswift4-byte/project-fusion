@@ -592,6 +592,124 @@ class DashboardHTTPRequestHandler(SimpleHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(e)})
             return
 
+        # ═══ 摄像头流 API ═══
+        elif path == "/api/camera/start":
+            """启动摄像头流"""
+            try:
+                data = json.loads(body) if body else {}
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    ok = self.daemon.camera_stream_bridge.start_stream(
+                        camera_id=data.get("camera_id", 0),
+                        width=data.get("width", 640),
+                        height=data.get("height", 480),
+                        quality=data.get("quality", 60),
+                        fps=data.get("fps", 10),
+                    )
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/stop":
+            """停止摄像头流"""
+            try:
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    ok = self.daemon.camera_stream_bridge.stop_stream()
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/switch":
+            """切换前后摄像头"""
+            try:
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    ok = self.daemon.camera_stream_bridge.switch_camera()
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/snapshot":
+            """请求截图"""
+            try:
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    ok = self.daemon.camera_stream_bridge.take_snapshot()
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/info":
+            """查询摄像头信息"""
+            try:
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    self.daemon.camera_stream_bridge.get_camera_info()
+                    self._send_json({"ok": True})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/status":
+            """获取摄像头流状态"""
+            try:
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    self._send_json({"ok": True, **self.daemon.camera_stream_bridge.get_status()})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/frame":
+            """获取最新帧 (Base64 JPEG)"""
+            try:
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    frame = self.daemon.camera_stream_bridge.get_latest_frame()
+                    if frame:
+                        self._send_json({"ok": True, "data": frame, "ts": self.daemon.camera_stream_bridge._latest_frame_time})
+                    else:
+                        self._send_json({"ok": False, "error": "no frame available"})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/record/start":
+            """开始录制"""
+            try:
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    ok = self.daemon.camera_stream_bridge.start_recording()
+                    self._send_json({"ok": ok})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
+        elif path == "/api/camera/record/stop":
+            """停止录制"""
+            try:
+                if self.daemon and self.daemon.camera_stream_bridge:
+                    filepath = self.daemon.camera_stream_bridge.stop_recording()
+                    self._send_json({"ok": True, "filepath": filepath})
+                else:
+                    self._send_json({"ok": False})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)})
+            return
+
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     """多线程 HTTP 服务器"""

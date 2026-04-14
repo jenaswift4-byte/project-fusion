@@ -25,6 +25,7 @@ import android.graphics.PixelFormat;
 
 import com.fusion.companion.FusionWebSocketServer;
 import com.fusion.companion.audio.AudioStreamer;
+import com.fusion.companion.camera.CameraStreamer;
 
 import org.json.JSONObject;
 
@@ -80,6 +81,9 @@ public class FusionBridgeService extends Service {
 
     // 音频流传输器 (手机麦克风 → PC)
     private AudioStreamer audioStreamer;
+
+    // 摄像头流传输器 (手机摄像头 → PC)
+    private CameraStreamer cameraStreamer;
 
     public static boolean isRunning() {
         return running;
@@ -162,6 +166,11 @@ public class FusionBridgeService extends Service {
         audioStreamer.setContext(this);
         audioStreamer.checkPermission(this);
 
+        // 初始化摄像头流传输器
+        cameraStreamer = new CameraStreamer(wsServer);
+        cameraStreamer.setContext(this);
+        cameraStreamer.checkPermission(this);
+
         startClipboardMonitor();
         startTelephonyMonitor();
         startBatteryMonitor();
@@ -231,6 +240,12 @@ public class FusionBridgeService extends Service {
         if (audioStreamer != null) {
             audioStreamer.release();
             audioStreamer = null;
+        }
+
+        // 停止摄像头流传输
+        if (cameraStreamer != null) {
+            cameraStreamer.release();
+            cameraStreamer = null;
         }
 
         if (wakeLock != null && wakeLock.isHeld()) {
@@ -636,6 +651,48 @@ public class FusionBridgeService extends Service {
                             if (audioStreamer != null) {
                                 audioStreamer.stopStreaming();
                                 Log.i(TAG, "麦克风录音: 已停止");
+                            }
+                        }
+                        break;
+
+                    case "camera_control":
+                        // PC → 手机摄像头流控制
+                        JSONObject camObj = new JSONObject(data);
+                        String camAction = camObj.optString("action", "");
+                        if ("start".equals(camAction)) {
+                            if (cameraStreamer != null) {
+                                int camId = camObj.optInt("camera_id", 0);
+                                int w = camObj.optInt("width", 640);
+                                int h = camObj.optInt("height", 480);
+                                int q = camObj.optInt("quality", 60);
+                                int fps = camObj.optInt("fps", 10);
+                                boolean ok = cameraStreamer.startStreaming(camId, w, h, q, fps);
+                                Log.i(TAG, "摄像头流: " + (ok ? "已启动" : "启动失败"));
+                            }
+                        } else if ("stop".equals(camAction)) {
+                            if (cameraStreamer != null) {
+                                cameraStreamer.stopStreaming();
+                                Log.i(TAG, "摄像头流: 已停止");
+                            }
+                        } else if ("switch".equals(camAction)) {
+                            if (cameraStreamer != null) {
+                                cameraStreamer.switchCamera();
+                                Log.i(TAG, "摄像头: 切换前后");
+                            }
+                        } else if ("snapshot".equals(camAction)) {
+                            if (cameraStreamer != null) {
+                                cameraStreamer.takeSnapshot();
+                                Log.i(TAG, "摄像头: 截图请求");
+                            }
+                        } else if ("info".equals(camAction)) {
+                            if (cameraStreamer != null) {
+                                String info = cameraStreamer.getCameraInfo();
+                                JSONObject infoMsg = new JSONObject();
+                                infoMsg.put("type", "camera_info");
+                                infoMsg.put("cameras", new JSONObject(info));
+                                infoMsg.put("streaming", cameraStreamer.isStreaming());
+                                infoMsg.put("current_camera", cameraStreamer.getCurrentCameraId());
+                                wsServer.broadcast(infoMsg.toString());
                             }
                         }
                         break;

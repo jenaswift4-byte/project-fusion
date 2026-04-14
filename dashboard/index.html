@@ -250,12 +250,61 @@
 
 <!-- 摄像头 Tab -->
 <div id="tab-cameras" class="tab-content">
-    <div style="margin-bottom:16px;display:flex;gap:12px">
-        <button class="audio-btn audio-btn-primary" onclick="refreshCameras()">📷 刷新画面</button>
-        <button class="audio-btn audio-btn-secondary" onclick="captureAll()">📸 全部截图</button>
+    <!-- 实时摄像头流 (Camera2 API → WS) -->
+    <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+            <div class="card-title">📹 实时摄像头流</div>
+            <span id="cameraStreamStatus" style="font-size:12px;color:var(--text-muted)">未启动</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+            <button class="audio-btn audio-btn-primary" onclick="cameraStreamStart(0)">📷 后置</button>
+            <button class="audio-btn audio-btn-primary" onclick="cameraStreamStart(1)">🤳 前置</button>
+            <button class="audio-btn audio-btn-secondary" onclick="cameraStreamSwitch()">🔄 切换</button>
+            <button class="audio-btn audio-btn-danger" onclick="cameraStreamStop()">⏹ 停止</button>
+            <button class="audio-btn audio-btn-secondary" onclick="cameraSnapshot()">📸 截图</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+            <label style="font-size:12px;color:var(--text-secondary)">分辨率</label>
+            <select id="cameraRes" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-primary);font-size:12px">
+                <option value="320x240">320×240</option>
+                <option value="640x480" selected>640×480</option>
+                <option value="1280x720">1280×720</option>
+            </select>
+            <label style="font-size:12px;color:var(--text-secondary)">质量</label>
+            <select id="cameraQuality" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-primary);font-size:12px">
+                <option value="30">低</option>
+                <option value="60" selected>中</option>
+                <option value="85">高</option>
+            </select>
+            <label style="font-size:12px;color:var(--text-secondary)">帧率</label>
+            <select id="cameraFps" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-primary);font-size:12px">
+                <option value="5">5fps</option>
+                <option value="10" selected>10fps</option>
+                <option value="15">15fps</option>
+                <option value="20">20fps</option>
+            </select>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:12px">
+            <button class="audio-btn audio-btn-secondary" onclick="cameraRecordStart()">⏺ 录制</button>
+            <button class="audio-btn audio-btn-danger" onclick="cameraRecordStop()">⏹ 停止录制</button>
+        </div>
+        <div id="cameraLiveView" style="background:#000;border-radius:8px;min-height:240px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <span style="color:#555;font-size:14px">点击「后置」或「前置」启动实时画面</span>
+        </div>
     </div>
-    <div class="camera-grid" id="cameraGrid">
-        <div class="camera-feed"><div class="camera-placeholder">等待摄像头连接...</div></div>
+
+    <!-- Scrcpy 投屏控制 (旧方案) -->
+    <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+            <div class="card-title">🖥️ Scrcpy 投屏</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+            <button class="audio-btn audio-btn-primary" onclick="refreshCameras()">📷 刷新画面</button>
+            <button class="audio-btn audio-btn-secondary" onclick="captureAll()">📸 全部截图</button>
+        </div>
+        <div class="camera-grid" id="cameraGrid">
+            <div class="camera-feed"><div class="camera-placeholder">等待摄像头连接...</div></div>
+        </div>
     </div>
 </div>
 
@@ -617,6 +666,90 @@ function captureAll() {
             }
         }
     });
+}
+
+// ═══ 摄像头实时流 (Camera2 API → WS) ═══
+
+let cameraStreamInterval = null;
+
+function cameraStreamStart(cameraId) {
+    const res = document.getElementById('cameraRes').value.split('x');
+    const quality = parseInt(document.getElementById('cameraQuality').value);
+    const fps = parseInt(document.getElementById('cameraFps').value);
+    
+    fetch('/api/camera/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            camera_id: cameraId,
+            width: parseInt(res[0]),
+            height: parseInt(res[1]),
+            quality: quality,
+            fps: fps
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            document.getElementById('cameraStreamStatus').textContent = '🟢 传输中';
+            document.getElementById('cameraStreamStatus').style.color = '#4caf50';
+            // 开始轮询帧
+            if (cameraStreamInterval) clearInterval(cameraStreamInterval);
+            cameraStreamInterval = setInterval(pollCameraFrame, 200);  // 5fps 显示
+        } else {
+            document.getElementById('cameraStreamStatus').textContent = '❌ 启动失败';
+            document.getElementById('cameraStreamStatus').style.color = '#f44336';
+        }
+    });
+}
+
+function cameraStreamStop() {
+    fetch('/api/camera/stop', {method: 'POST'}).then(r => r.json()).then(data => {
+        if (cameraStreamInterval) {
+            clearInterval(cameraStreamInterval);
+            cameraStreamInterval = null;
+        }
+        document.getElementById('cameraStreamStatus').textContent = '⏹ 已停止';
+        document.getElementById('cameraStreamStatus').style.color = 'var(--text-muted)';
+        document.getElementById('cameraLiveView').innerHTML = '<span style="color:#555;font-size:14px">已停止</span>';
+    });
+}
+
+function cameraStreamSwitch() {
+    fetch('/api/camera/switch', {method: 'POST'}).then(r => r.json()).then(data => {});
+}
+
+function cameraSnapshot() {
+    fetch('/api/camera/snapshot', {method: 'POST'}).then(r => r.json()).then(data => {
+        if (data.ok) showToast('截图请求已发送');
+    });
+}
+
+function cameraRecordStart() {
+    fetch('/api/camera/record/start', {method: 'POST'}).then(r => r.json()).then(data => {
+        if (data.ok) {
+            document.getElementById('cameraStreamStatus').textContent = '🔴 录制中';
+            document.getElementById('cameraStreamStatus').style.color = '#f44336';
+            showToast('录制已开始');
+        }
+    });
+}
+
+function cameraRecordStop() {
+    fetch('/api/camera/record/stop', {method: 'POST'}).then(r => r.json()).then(data => {
+        if (data.ok) {
+            document.getElementById('cameraStreamStatus').textContent = '🟢 传输中';
+            document.getElementById('cameraStreamStatus').style.color = '#4caf50';
+            showToast('录制已停止: ' + (data.filepath || ''));
+        }
+    });
+}
+
+function pollCameraFrame() {
+    fetch('/api/camera/frame').then(r => r.json()).then(data => {
+        if (data.ok && data.data) {
+            const view = document.getElementById('cameraLiveView');
+            view.innerHTML = `<img src="data:image/jpeg;base64,${data.data}" style="width:100%;max-height:400px;object-fit:contain" alt="live">`;
+        }
+    }).catch(() => {});
 }
 
 // ═══ 音频控制 ═══

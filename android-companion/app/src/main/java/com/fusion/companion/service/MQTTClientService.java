@@ -1287,12 +1287,46 @@ public class MQTTClientService extends Service implements SensorEventListener {
                     // 截图并通过 MQTT 发送
                     captureAndSendScreenshot();
                     break;
+                case "start_camera":
                 case "start_stream":
-                    // TODO: 启动视频流 (需要 native 代码)
-                    Log.i(TAG, "视频流启动请求 (暂不支持)");
+                    // 启动摄像头流 (通过 WS 传输)
+                    try {
+                        org.json.JSONObject msg = new org.json.JSONObject();
+                        msg.put("type", "camera_control");
+                        msg.put("action", "start");
+                        msg.put("camera_id", cmd.optInt("camera_id", 0));
+                        msg.put("width", cmd.optInt("width", 640));
+                        msg.put("height", cmd.optInt("height", 480));
+                        msg.put("quality", cmd.optInt("quality", 60));
+                        msg.put("fps", cmd.optInt("fps", 10));
+                        FusionBridgeService.getWebSocketServer().broadcast(msg.toString());
+                        Log.i(TAG, "摄像头流启动命令已转发");
+                    } catch (Exception e) {
+                        Log.e(TAG, "转发摄像头启动命令失败: " + e.getMessage());
+                    }
                     break;
+                case "stop_camera":
                 case "stop_stream":
-                    Log.i(TAG, "视频流停止请求");
+                    try {
+                        org.json.JSONObject msg = new org.json.JSONObject();
+                        msg.put("type", "camera_control");
+                        msg.put("action", "stop");
+                        FusionBridgeService.getWebSocketServer().broadcast(msg.toString());
+                        Log.i(TAG, "摄像头流停止命令已转发");
+                    } catch (Exception e) {
+                        Log.e(TAG, "转发摄像头停止命令失败: " + e.getMessage());
+                    }
+                    break;
+                case "switch_camera":
+                    try {
+                        org.json.JSONObject msg = new org.json.JSONObject();
+                        msg.put("type", "camera_control");
+                        msg.put("action", "switch");
+                        FusionBridgeService.getWebSocketServer().broadcast(msg.toString());
+                        Log.i(TAG, "摄像头切换命令已转发");
+                    } catch (Exception e) {
+                        Log.e(TAG, "转发摄像头切换命令失败: " + e.getMessage());
+                    }
                     break;
                 default:
                     Log.w(TAG, "未知摄像头命令: " + action);
