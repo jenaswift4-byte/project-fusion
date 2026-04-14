@@ -66,28 +66,106 @@ jobs:
           mkdir -p /tmp/stub/com/k2fsa/sherpa/onnx
 
           # OnlineRecognizer.java
-          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineRecognizer {\n  public OnlineRecognizer(Object config) {}\n  public OnlineStream createStream() { return new OnlineStream(); }\n  public boolean isReady(OnlineStream s) { return false; }\n  public void decode(OnlineStream s) {}\n  public Result getResult(OnlineStream s) { return new Result(); }\n  public static class Result { public String getText() { return ""; } }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineRecognizer.java
+          cat > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineRecognizer.java << 'JAVAEOF'
+package com.k2fsa.sherpa.onnx;
+public class OnlineRecognizer {
+  public OnlineRecognizer(Object config) {}
+  public OnlineStream createStream() { return new OnlineStream(); }
+  public boolean isReady(OnlineStream s) { return false; }
+  public void decode(OnlineStream s) {}
+  public Result getResult(OnlineStream s) { return new Result(); }
+  public static class Result { public String getText() { return ""; } }
+}
+JAVAEOF
 
           # OnlineStream.java
-          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineStream {\n  public void flush() {}\n  public void acceptWaveform(float[] audio, int sampleRate) {}\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineStream.java
+          cat > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineStream.java << 'JAVAEOF'
+package com.k2fsa.sherpa.onnx;
+public class OnlineStream {
+  public void flush() {}
+  public void acceptWaveform(float[] audio, int sampleRate) {}
+}
+JAVAEOF
 
           # OnlineRecognizerConfig.java
-          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineRecognizerConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setModel(Object m) { return this; }\n    public Builder setTokens(String t) { return this; }\n    public Builder setNumThreads(int n) { return this; }\n    public Builder setDebug(boolean d) { return this; }\n    public OnlineRecognizerConfig build() { return new OnlineRecognizerConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineRecognizerConfig.java
+          cat > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineRecognizerConfig.java << 'JAVAEOF'
+package com.k2fsa.sherpa.onnx;
+public class OnlineRecognizerConfig {
+  public static Builder builder() { return new Builder(); }
+  public static class Builder {
+    public Builder setModel(Object m) { return this; }
+    public Builder setTokens(String t) { return this; }
+    public Builder setNumThreads(int n) { return this; }
+    public Builder setDebug(boolean d) { return this; }
+    public OnlineRecognizerConfig build() { return new OnlineRecognizerConfig(); }
+  }
+}
+JAVAEOF
 
           # OnlineTransducerModelConfig.java
-          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineTransducerModelConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setEncoder(String e) { return this; }\n    public Builder setDecoder(String d) { return this; }\n    public Builder setJoiner(String j) { return this; }\n    public OnlineTransducerModelConfig build() { return new OnlineTransducerModelConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineTransducerModelConfig.java
+          cat > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineTransducerModelConfig.java << 'JAVAEOF'
+package com.k2fsa.sherpa.onnx;
+public class OnlineTransducerModelConfig {
+  public static Builder builder() { return new Builder(); }
+  public static class Builder {
+    public Builder setEncoder(String e) { return this; }
+    public Builder setDecoder(String d) { return this; }
+    public Builder setJoiner(String j) { return this; }
+    public OnlineTransducerModelConfig build() { return new OnlineTransducerModelConfig(); }
+  }
+}
+JAVAEOF
 
           # OnlineModelConfig.java (required by StreamingASRService)
-          printf 'package com.k2fsa.sherpa.onnx;\npublic class OnlineModelConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setTransducer(Object t) { return this; }\n    public Builder setTokens(String t) { return this; }\n    public OnlineModelConfig build() { return new OnlineModelConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineModelConfig.java
+          cat > /tmp/stub/com/k2fsa/sherpa/onnx/OnlineModelConfig.java << 'JAVAEOF'
+package com.k2fsa.sherpa.onnx;
+public class OnlineModelConfig {
+  public static Builder builder() { return new Builder(); }
+  public static class Builder {
+    public Builder setTransducer(Object t) { return this; }
+    public Builder setTokens(String t) { return this; }
+    public OnlineModelConfig build() { return new OnlineModelConfig(); }
+  }
+}
+JAVAEOF
 
           # SpeakerEmbeddingExtractor.java (required by SpeakerIdentifier)
-          printf 'package com.k2fsa.sherpa.onnx;\npublic class SpeakerEmbeddingExtractor {\n  public SpeakerEmbeddingExtractor(Object config) {}\n  public float[] createEmbedding(String wavPath) { return new float[512]; }\n  public int getEmbeddingSize() { return 512; }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingExtractor.java
+          cat > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingExtractor.java << 'JAVAEOF'
+package com.k2fsa.sherpa.onnx;
+public class SpeakerEmbeddingExtractor {
+  public SpeakerEmbeddingExtractor(Object config) {}
+  public float[] createEmbedding(String wavPath) { return new float[512]; }
+  public int getEmbeddingSize() { return 512; }
+}
+JAVAEOF
 
           # SpeakerEmbeddingExtractorConfig.java
-          printf 'package com.k2fsa.sherpa.onnx;\npublic class SpeakerEmbeddingExtractorConfig {\n  public static Builder builder() { return new Builder(); }\n  public static class Builder {\n    public Builder setModel(String m) { return this; }\n    public Builder setNumThreads(int n) { return this; }\n    public SpeakerEmbeddingExtractorConfig build() { return new SpeakerEmbeddingExtractorConfig(); }\n  }\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingExtractorConfig.java
+          cat > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingExtractorConfig.java << 'JAVAEOF'
+package com.k2fsa.sherpa.onnx;
+public class SpeakerEmbeddingExtractorConfig {
+  public static Builder builder() { return new Builder(); }
+  public static class Builder {
+    public Builder setModel(String m) { return this; }
+    public Builder setNumThreads(int n) { return this; }
+    public SpeakerEmbeddingExtractorConfig build() { return new SpeakerEmbeddingExtractorConfig(); }
+  }
+}
+JAVAEOF
 
           # SpeakerEmbeddingManager.java
-          printf 'package com.k2fsa.sherpa.onnx;\nimport java.util.Map;\npublic class SpeakerEmbeddingManager {\n  public SpeakerEmbeddingManager(int numThreads) {}\n  public int addSpeaker(String name, float[] embedding) { return 0; }\n  public int getSpeakerId(String name) { return 0; }\n  public String getSpeakerName(int id) { return ""; }\n  public int getNumSpeakers() { return 0; }\n  public void dump(String path) {}\n  public void load(String path) {}\n}\n' > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingManager.java
+          cat > /tmp/stub/com/k2fsa/sherpa/onnx/SpeakerEmbeddingManager.java << 'JAVAEOF'
+package com.k2fsa.sherpa.onnx;
+import java.util.Map;
+public class SpeakerEmbeddingManager {
+  public SpeakerEmbeddingManager(int numThreads) {}
+  public int addSpeaker(String name, float[] embedding) { return 0; }
+  public int getSpeakerId(String name) { return 0; }
+  public String getSpeakerName(int id) { return ""; }
+  public int getNumSpeakers() { return 0; }
+  public void dump(String path) {}
+  public void load(String path) {}
+}
+JAVAEOF
 
           echo "✓ Stub JAR created (runtime will load .so from files/lib/)"
           echo "sherpa_downloaded=false" >> $GITHUB_OUTPUT
