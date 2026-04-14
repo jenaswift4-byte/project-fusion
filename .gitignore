@@ -65,6 +65,7 @@ token*
 
 # Binary blobs - never push these
 *.so
+!android-companion/app/src/main/jniLibs/**/*.so
 *.onnx
 *.aar
 *.wav
