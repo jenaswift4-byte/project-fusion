@@ -53,6 +53,6 @@ dependencies {
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
     // WorkManager - 每日摘要定时任务
     implementation 'androidx.work:work-runtime:2.9.0'
-    // Sherpa-onnx - 流式 ASR + 声纹识别 (stub JAR)
-    implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.15.3'
+    // Sherpa-onnx - 流式 ASR + 声纹识别 (使用稳定版本)
+    implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.10.0'
 }
