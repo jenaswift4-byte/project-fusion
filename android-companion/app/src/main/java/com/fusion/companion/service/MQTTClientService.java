@@ -1466,34 +1466,24 @@ public class MQTTClientService extends Service implements SensorEventListener {
     }
     
     private void startMicRecording() {
-        // 通过 AudioStreamer 直接录音 (非 root 方案: AudioRecord → WS 传输)
         Log.i(TAG, "麦克风录音请求 (AudioRecord 非root方案)");
-        if (FusionBridgeService.getWebSocketServer() != null) {
-            // 兼容: 仍然发送 WS 消息通知
-            try {
-                org.json.JSONObject msg = new org.json.JSONObject();
-                msg.put("type", "mic_control");
-                msg.put("action", "start");
-                FusionBridgeService.getWebSocketServer().broadcast(msg.toString());
-            } catch (Exception e) {
-                Log.e(TAG, "转发录音命令失败: " + e.getMessage());
-            }
+        try {
+            android.content.Intent intent = new android.content.Intent("com.fusion.companion.ACTION_AUDIO_CONTROL");
+            intent.putExtra("action", "start");
+            sendBroadcast(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "广播录音命令失败: " + e.getMessage());
         }
-        // 同时通过 FusionBridgeService 的 handleClientCommand 触发录音
-        // (由 FusionBridgeService 的 AudioStreamer 实际执行)
     }
     
     private void stopMicRecording() {
         Log.i(TAG, "停止录音请求");
-        if (FusionBridgeService.getWebSocketServer() != null) {
-            try {
-                org.json.JSONObject msg = new org.json.JSONObject();
-                msg.put("type", "mic_control");
-                msg.put("action", "stop");
-                FusionBridgeService.getWebSocketServer().broadcast(msg.toString());
-            } catch (Exception e) {
-                Log.e(TAG, "转发停止录音命令失败: " + e.getMessage());
-            }
+        try {
+            android.content.Intent intent = new android.content.Intent("com.fusion.companion.ACTION_AUDIO_CONTROL");
+            intent.putExtra("action", "stop");
+            sendBroadcast(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "广播停止命令失败: " + e.getMessage());
         }
     }
     

@@ -223,6 +223,7 @@ public class FusionBridgeService extends Service {
         startTelephonyMonitor();
         startBatteryMonitor();
         startSmsMonitor();
+        startAudioControlReceiver();  // 启动音频控制接收器
         startMQTTBroker();  // 启动 MQTT Broker
 
         // 启动 MQTT 客户端连接 PC Broker (后台线程，不能阻塞主线程)
@@ -550,6 +551,32 @@ public class FusionBridgeService extends Service {
         registerReceiver(smsReceiver, smsFilter);
 
         Log.i(TAG, "短信监听已启动");
+    }
+
+    // === 音频控制 BroadcastReceiver ===
+    private android.content.BroadcastReceiver audioControlReceiver;
+
+    private void startAudioControlReceiver() {
+        audioControlReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, Intent intent) {
+                String action = intent.getStringExtra("action");
+                if ("start".equals(action)) {
+                    if (audioStreamer != null) {
+                        boolean ok = audioStreamer.startStreaming();
+                        Log.i(TAG, "麦克风录音: " + (ok ? "已启动" : "启动失败"));
+                    }
+                } else if ("stop".equals(action)) {
+                    if (audioStreamer != null) {
+                        audioStreamer.stopStreaming();
+                        Log.i(TAG, "麦克风录音: 已停止");
+                    }
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter("com.fusion.companion.ACTION_AUDIO_CONTROL");
+        registerReceiver(audioControlReceiver, filter);
+        Log.i(TAG, "音频控制接收器已启动");
     }
 
     /**
