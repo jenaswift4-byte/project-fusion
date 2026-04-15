@@ -29,6 +29,9 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
+import com.fusion.companion.voice.AndroidSpeechRecognizer;
+import com.fusion.companion.voice.VoiceRecognitionListener;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -108,6 +111,9 @@ public class MQTTClientService extends Service implements SensorEventListener {
     
     // 主线程 Handler
     private Handler handler;
+    
+    // Android 原生语音识别器 (零模型依赖，利用小爱同学引擎)
+    private AndroidSpeechRecognizer speechRecognizer;
     private HandlerThread handlerThread;
     
     // 传感器管理器
@@ -183,6 +189,42 @@ public class MQTTClientService extends Service implements SensorEventListener {
         batteryManager = (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
         powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         
+        // 初始化 Android 原生语音识别器 (零模型，用小爱同学引擎)
+        if (AndroidSpeechRecognizer.isAvailable(this)) {
+            speechRecognizer = new AndroidSpeechRecognizer(this);
+            speechRecognizer.setDeviceId(deviceId);
+            speechRecognizer.setRecognitionListener(new VoiceRecognitionListener() {
+                @Override public void onReadyForSpeech() {
+                    Log.i(TAG, "语音识别: 准备就绪");
+                    publishVoiceStatus("ready", null);
+                }
+                @Override public void onBeginOfSpeech() {
+                    Log.i(TAG, "语音识别: 检测到说话");
+                    publishVoiceStatus("listening", null);
+                }
+                @Override public void onEndOfSpeech() {
+                    Log.i(TAG, "语音识别: 说话结束");
+                    publishVoiceStatus("end", null);
+                }
+                @Override public void onPartialResult(String text) {
+                    Log.d(TAG, "语音识别(实时): " + text);
+                    publishVoiceResult(text, true);
+                }
+                @Override public void onResult(String text) {
+                    Log.i(TAG, "语音识别(最终): " + text);
+                    publishVoiceResult(text, false);
+                }
+                @Override public void onError(int errorCode, String message) {
+                    Log.e(TAG, "语音识别错误: " + errorCode + " - " + message);
+                    publishVoiceStatus("error", message);
+                }
+                @Override public void onVolumeChanged(int rmsdB) {}
+            });
+            Log.i(TAG, "Android 语音识别器初始化完成");
+        } else {
+            Log.w(TAG, "设备不支持 Android 语音识别");
+        }
+        
         // 加载配置
         loadConfiguration();
         
@@ -211,6 +253,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
     @Override
     public void onDestroy() {
         Log.i(TAG, "MQTT Client Service 销毁");
+        
+        // 销毁语音识别器
+        if (speechRecognizer != null) {
+            speechRecognizer.destroy();
+            speechRecognizer = null;
+        }
         
         // 停止定时任务
         stopPeriodicTasks();
@@ -1234,6 +1282,30 @@ public class MQTTClientService extends Service implements SensorEventListener {
                     String result = handleComputeTask(taskType, params);
                     response.put("result", result);
                     break;
+                
+                case "speech_recognize":
+                    // Android 原生语音识别 (零模型，利用小爱同学引擎)
+                    if (speechRecognizer != null) {
+                        // SpeechRecognizer 必须在主线程操作
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            boolean ok = speechRecognizer.startRecognition();
+                            Log.i(TAG, "语音识别启动: " + (ok ? "成功" : "失败"));
+                        });
+                        response.put("result", "started");
+                    } else {
+                        response.put("result", "not_available");
+                        response.put("status", "error");
+                    }
+                    break;
+                    
+                case "speech_stop":
+                    if (speechRecognizer != null) {
+                        new Handler(Looper.getMainLooper()).post(() -> speechRecognizer.stopRecognition());
+                        response.put("result", "stopped");
+                    } else {
+                        response.put("result", "not_available");
+                    }
+                    break;
                     
                 default:
                     response.put("status", "unknown_action");
@@ -1485,6 +1557,41 @@ public class MQTTClientService extends Service implements SensorEventListener {
             sendBroadcast(intent);
         } catch (Exception e) {
             Log.e(TAG, "广播停止命令失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 发布语音识别状态到 MQTT
+     */
+    private void publishVoiceStatus(String status, String error) {
+        try {
+            org.json.JSONObject msg = new org.json.JSONObject();
+            msg.put("type", "voice_status");
+            msg.put("device_id", deviceId);
+            msg.put("status", status);
+            msg.put("timestamp", System.currentTimeMillis());
+            if (error != null) msg.put("error", error);
+            publishTextMessage("fusion/voice/" + deviceId, msg.toString(), 0);
+        } catch (Exception e) {
+            Log.e(TAG, "发布语音状态失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 发布语音识别结果到 MQTT
+     * @param text 识别文本
+     * @param partial 是否为实时部分结果
+     */
+    private void publishVoiceResult(String text, boolean partial) {
+        try {
+            org.json.JSONObject msg = new org.json.JSONObject();
+            msg.put("type", partial ? "voice_partial" : "voice_result");
+            msg.put("device_id", deviceId);
+            msg.put("text", text);
+            msg.put("timestamp", System.currentTimeMillis());
+            publishTextMessage("fusion/voice/" + deviceId, msg.toString(), 0);
+        } catch (Exception e) {
+            Log.e(TAG, "发布语音结果失败: " + e.getMessage());
         }
     }
     
