@@ -27,12 +27,12 @@ public class StreamingASRService implements PcmDataListener {
     private static final int SPEECH_END_TIMEOUT_MS = 400;
     private static final int MAX_SPEECH_DURATION_MS = 30000;
 
-    // assets/models/ 中的文件名
+    // assets/models/ 中的文件名 (与 HuggingFace 仓库名一致)
     private static final String[] MODEL_FILES = {
-        "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_encoder.int8.onnx",
-        "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_decoder.onnx",
-        "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_joiner.int8.onnx",
-        "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_tokens.txt"
+        "encoder.int8.onnx",
+        "decoder.onnx",
+        "joiner.int8.onnx",
+        "tokens.txt"
     };
     private static final String ASSET_DIR = "models";
     private static final String LOCAL_DIR = "sherpa_models";

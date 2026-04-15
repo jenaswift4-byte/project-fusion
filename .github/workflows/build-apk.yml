@@ -68,6 +68,22 @@ jobs:
         
         echo '# Placeholder for models' > "$GITHUB_WORKSPACE/android-companion/app/src/main/assets/models/README.txt"
 
+    - name: Download sherpa-onnx ASR models
+      run: |
+        MODEL_DIR="$GITHUB_WORKSPACE/android-companion/app/src/main/assets/models"
+        HF_BASE="https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/main"
+        
+        echo "Downloading Chinese streaming zipformer model (~167MB total)..."
+        for f in encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt; do
+          echo "  Downloading $f ..."
+          curl -fSLk --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 600 \
+            "$HF_BASE/$f?download=true" \
+            -o "$MODEL_DIR/$f" && echo "  ✓ $f done" || echo "  ✗ $f failed"
+        done
+        
+        echo "Model files in assets/models/:"
+        ls -lh "$MODEL_DIR/"
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
 
