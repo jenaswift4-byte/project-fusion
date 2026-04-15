@@ -167,11 +167,24 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
                 }
             });
             
-            Intent intent = new Intent(context, SpeechRecognitionActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
+            // 先把 App 带到前台 (MIUI 不允许后台启动 Activity)
+            Intent bringToFront = new Intent(context, com.fusion.companion.MainActivity.class);
+            bringToFront.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+            context.startActivity(bringToFront);
             
-            Log.i(TAG, "已启动 Activity 方式语音识别");
+            // 短暂延迟后启动语音识别 Activity
+            mainHandler.postDelayed(() -> {
+                try {
+                    Intent intent = new Intent(context, SpeechRecognitionActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(intent);
+                    Log.i(TAG, "已启动 Activity 方式语音识别");
+                } catch (Exception e) {
+                    Log.e(TAG, "Activity 方式启动失败", e);
+                    postError(VoiceRecognitionListener.ERROR_CLIENT, "Activity 方式启动失败: " + e.getMessage());
+                }
+            }, 500);
+            
         } catch (Exception e) {
             Log.e(TAG, "Activity 方式启动失败", e);
             postError(VoiceRecognitionListener.ERROR_CLIENT, "Activity 方式启动失败: " + e.getMessage());

@@ -42,6 +42,11 @@ public class SpeechRecognitionActivity extends Activity {
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "请说话...");
         
+        // 在 MIUI 上显式指定小爱同学 ASR Activity (绑定 Service 方式不可用)
+        intent.setComponent(new android.content.ComponentName(
+                "com.xiaomi.mibrain.speech",
+                "com.xiaomi.mibrain.speech.asr.AsrActivity"));
+        
         try {
             startActivityForResult(intent, SPEECH_REQUEST_CODE);
         } catch (Exception e) {
