@@ -15,6 +15,11 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig;
 import com.k2fsa.sherpa.onnx.OnlineStream;
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 public class StreamingASRService implements PcmDataListener {
 
     private static final String TAG = "StreamingASR";
@@ -22,12 +27,15 @@ public class StreamingASRService implements PcmDataListener {
     private static final int SPEECH_END_TIMEOUT_MS = 400;
     private static final int MAX_SPEECH_DURATION_MS = 30000;
 
-    // 模型文件在 assets/models/ 中的相对路径 (AssetManager 直接加载，无需复制)
-    private static final String MODEL_DIR = "models";
-    private static final String MODEL_ENCODER = MODEL_DIR + "/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_encoder.int8.onnx";
-    private static final String MODEL_DECODER = MODEL_DIR + "/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_decoder.onnx";
-    private static final String MODEL_JOINER   = MODEL_DIR + "/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_joiner.int8.onnx";
-    private static final String MODEL_TOKENS   = MODEL_DIR + "/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_tokens.txt";
+    // assets/models/ 中的文件名
+    private static final String[] MODEL_FILES = {
+        "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_encoder.int8.onnx",
+        "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_decoder.onnx",
+        "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_joiner.int8.onnx",
+        "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_tokens.txt"
+    };
+    private static final String ASSET_DIR = "models";
+    private static final String LOCAL_DIR = "sherpa_models";
 
     private OnlineRecognizer recognizer = null;
     private final VADHelper vadHelper;
@@ -52,29 +60,57 @@ public class StreamingASRService implements PcmDataListener {
         if (initialized) return true;
 
         try {
-            Log.i(TAG, "初始化 sherpa-onnx ASR (AssetManager 直接加载模式)...");
+            Log.i(TAG, "初始化 sherpa-onnx ASR...");
+
+            // 步骤1: 确保 assets 中的模型已复制到内部存储
+            File modelDir = new File(appContext.getFilesDir(), LOCAL_DIR);
+            if (!modelDir.exists()) modelDir.mkdirs();
+
+            boolean needCopy = false;
+            for (String name : MODEL_FILES) {
+                File f = new File(modelDir, name);
+                if (!f.exists() || f.length() == 0) {
+                    needCopy = true;
+                    break;
+                }
+            }
+
+            if (needCopy) {
+                Log.i(TAG, "首次运行，复制模型到: " + modelDir.getAbsolutePath());
+                for (String name : MODEL_FILES) {
+                    File dest = new File(modelDir, name);
+                    if (!dest.exists() || dest.length() == 0) {
+                        copyAsset(ASSET_DIR + "/" + name, dest);
+                    }
+                }
+                Log.i(TAG, "模型复制完成");
+            } else {
+                Log.i(TAG, "模型已就绪，跳过复制");
+            }
+
+            // 步骤2: 用绝对路径创建 sherpa-onnx 识别器
+            String encoderPath = new File(modelDir, MODEL_FILES[0]).getAbsolutePath();
+            String decoderPath = new File(modelDir, MODEL_FILES[1]).getAbsolutePath();
+            String joinerPath = new File(modelDir, MODEL_FILES[2]).getAbsolutePath();
+            String tokensPath = new File(modelDir, MODEL_FILES[3]).getAbsolutePath();
+
+            Log.i(TAG, "Encoder: " + encoderPath + " (" + new File(encoderPath).length() + " bytes)");
+            Log.i(TAG, "Decoder: " + decoderPath + " (" + new File(decoderPath).length() + " bytes)");
 
             try {
-                AssetManager assetManager = appContext.getAssets();
-
-                Log.i(TAG, "开始创建 OnlineTransducerModelConfig...");
                 OnlineTransducerModelConfig transducerConfig =
-                    new OnlineTransducerModelConfig(MODEL_ENCODER, MODEL_DECODER, MODEL_JOINER);
-                Log.i(TAG, "OnlineTransducerModelConfig 创建成功");
+                    new OnlineTransducerModelConfig(encoderPath, decoderPath, joinerPath);
 
-                Log.i(TAG, "开始创建 OnlineModelConfig...");
                 OnlineModelConfig modelConfig = new OnlineModelConfig();
                 modelConfig.setTransducer(transducerConfig);
-                modelConfig.setTokens(MODEL_TOKENS);
-                modelConfig.setNumThreads(1);
+                modelConfig.setTokens(tokensPath);
+                modelConfig.setNumThreads(2);
                 modelConfig.setDebug(false);
                 modelConfig.setProvider("cpu");
                 modelConfig.setModelType("zipformer");
 
-                Log.i(TAG, "开始创建 FeatureConfig...");
                 FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
 
-                Log.i(TAG, "开始创建 OnlineRecognizerConfig...");
                 OnlineRecognizerConfig config = new OnlineRecognizerConfig();
                 config.setFeatConfig(featureConfig);
                 config.setModelConfig(modelConfig);
@@ -82,18 +118,15 @@ public class StreamingASRService implements PcmDataListener {
                 config.setDecodingMethod("greedy_search");
                 config.setMaxActivePaths(1);
 
-                Log.i(TAG, "创建 OnlineRecognizer (AssetManager 直接加载)...");
-                recognizer = new OnlineRecognizer(assetManager, config);
+                // null AssetManager = 从文件系统绝对路径加载
+                recognizer = new OnlineRecognizer(null, config);
                 Log.i(TAG, "✓ OnlineRecognizer 创建成功！");
 
             } catch (UnsatisfiedLinkError e) {
-                Log.e(TAG, "❌ JNI 库加载失败：" + e.getMessage());
-                Log.e(TAG, "请检查 .so 文件是否正确打包到 APK 中");
-                e.printStackTrace();
+                Log.e(TAG, "❌ JNI 库加载失败: " + e.getMessage());
                 throw e;
             } catch (Exception e) {
-                Log.e(TAG, "❌ 创建失败：" + e.getClass().getName() + ": " + e.getMessage());
-                e.printStackTrace();
+                Log.e(TAG, "❌ 创建失败: " + e.getClass().getName() + ": " + e.getMessage());
                 throw e;
             }
 
@@ -105,6 +138,24 @@ public class StreamingASRService implements PcmDataListener {
             Log.e(TAG, "ASR 引擎初始化失败: " + e);
             e.printStackTrace();
             return false;
+        }
+    }
+
+    /**
+     * 从 assets 复制单个文件到内部存储
+     */
+    private void copyAsset(String assetPath, File destFile) throws Exception {
+        Log.i(TAG, "复制: " + assetPath + " -> " + destFile.getName());
+        try (InputStream is = appContext.getAssets().open(assetPath);
+             OutputStream os = new FileOutputStream(destFile)) {
+            byte[] buf = new byte[65536];
+            int n;
+            long total = 0;
+            while ((n = is.read(buf)) != -1) {
+                os.write(buf, 0, n);
+                total += n;
+            }
+            Log.i(TAG, "  已复制 " + total + " bytes");
         }
     }
 
