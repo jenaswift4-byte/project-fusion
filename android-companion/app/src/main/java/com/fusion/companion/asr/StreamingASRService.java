@@ -126,11 +126,22 @@ public class StreamingASRService implements PcmDataListener {
 
                 Log.i(TAG, "开始创建 OnlineRecognizer (使用 null assetManager)...");
                 AssetManager assetManager = null;
+                Log.i(TAG, "调用 new OnlineRecognizer 之前...");
                 recognizer = new OnlineRecognizer(assetManager, config);
                 Log.i(TAG, "✓✓✓ OnlineRecognizer 创建成功！✓✓✓");
+            } catch (UnsatisfiedLinkError e) {
+                Log.e(TAG, "❌❌❌ JNI 库加载失败：" + e.getMessage());
+                Log.e(TAG, "请检查 .so 文件是否正确打包到 APK 中");
+                e.printStackTrace();
+                throw e;
             } catch (Exception e) {
                 Log.e(TAG, "❌❌❌ 创建失败：" + e.getClass().getName() + ": " + e.getMessage());
-                Log.e(TAG, "详细错误: " + e);
+                Log.e(TAG, "详细错误：" + e);
+                Log.e(TAG, "模型路径检查：");
+                Log.e(TAG, "  Encoder: " + encoderPath + " (存在=" + new File(encoderPath).exists() + ")");
+                Log.e(TAG, "  Decoder: " + decoderPath + " (存在=" + new File(decoderPath).exists() + ")");
+                Log.e(TAG, "  Joiner: " + joinerPath + " (存在=" + new File(joinerPath).exists() + ")");
+                Log.e(TAG, "  Tokens: " + tokensPath + " (存在=" + new File(tokensPath).exists() + ")");
                 e.printStackTrace();
                 throw e;
             }
