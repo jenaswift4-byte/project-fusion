@@ -197,16 +197,17 @@ public class FusionBridgeService extends Service {
         cameraStreamer.setContext(this);
         cameraStreamer.checkPermission(this);
 
-        // 初始化声纹识别 (Sherpa-onnx)
+        // 初始化声纹识别 (Sherpa-onnx - stub 模式，不崩溃)
         speakerIdentifier = new SpeakerIdentifier(this);
         boolean spkInit = speakerIdentifier.init();
         Log.i(TAG, "声纹引擎初始化: " + (spkInit ? "成功" : "失败(Fallback能量模式)"));
         speakerIdentifier.loadProfiles(); // 加载已注册的声纹
 
-        // 初始化流式 ASR (Sherpa-onnx)
-        streamingASRService = new StreamingASRService(this);
-        boolean asrInit = streamingASRService.init();
-        Log.i(TAG, "ASR 引擎初始化: " + (asrInit ? "成功" : "失败")); 
+        // sherpa-onnx ASR 暂时跳过 — 模型与库版本不兼容会导致 SIGABRT
+        // 改用 AndroidSpeechRecognizer (MQTTClientService 中初始化，零模型依赖)
+        // streamingASRService = new StreamingASRService(this);
+        // boolean asrInit = streamingASRService.init();
+        Log.i(TAG, "ASR 引擎: 使用 AndroidSpeechRecognizer (小爱同学引擎，无需模型)"); 
 
         // 初始化日志同步
         logSyncService = new LogSyncService(this);
@@ -215,9 +216,10 @@ public class FusionBridgeService extends Service {
         dailySummaryService = new DailySummaryService(this);
         dailySummaryService.scheduleDailySummary(); // 注册 23:59 定时任务
 
-        // 将声纹识别和 ASR 注册为 AudioStreamer 的 PCM 监听器
+        // 将声纹识别注册为 AudioStreamer 的 PCM 监听器
+        // (sherpa-onnx ASR 已禁用，语音识别改用 AndroidSpeechRecognizer)
         audioStreamer.addPcmDataListener(speakerIdentifier);
-        audioStreamer.addPcmDataListener(streamingASRService);
+        // audioStreamer.addPcmDataListener(streamingASRService);
 
         startClipboardMonitor();
         startTelephonyMonitor();
