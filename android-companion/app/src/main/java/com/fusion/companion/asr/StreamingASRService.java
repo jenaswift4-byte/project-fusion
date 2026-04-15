@@ -27,9 +27,9 @@ public class StreamingASRService implements PcmDataListener {
     private static final int MAX_SPEECH_DURATION_MS = 30000;
 
     private static final String MODEL_DIR = "models/";
-    private static final String MODEL_ENCODER = "encoder.int8.onnx";
-    private static final String MODEL_DECODER = "decoder.onnx";
-    private static final String MODEL_JOINER   = "joiner.int8.onnx";
+    private static final String MODEL_ENCODER = "encoder-epoch-99-avg-1.onnx";
+    private static final String MODEL_DECODER = "decoder-epoch-99-avg-1.onnx";
+    private static final String MODEL_JOINER   = "joiner-epoch-99-avg-1.onnx";
     private static final String MODEL_TOKENS   = "tokens.txt";
 
     private OnlineRecognizer recognizer = null;
@@ -112,6 +112,7 @@ public class StreamingASRService implements PcmDataListener {
                 modelConfig.setDebug(true);
                 modelConfig.setProvider("cpu");  // 使用 CPU provider
                 modelConfig.setModelType("zipformer");  // zipformer 模型
+                modelConfig.setUseGPU(false);  // 强制使用 CPU
 
                 Log.i(TAG, "开始创建 FeatureConfig...");
                 FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
