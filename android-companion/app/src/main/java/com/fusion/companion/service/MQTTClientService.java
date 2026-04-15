@@ -64,9 +64,9 @@ public class MQTTClientService extends Service implements SensorEventListener {
     private static final String TAG = "MQTTClient";
     
     // ==================== 配置常量 ====================
-    
+
     // 默认 Broker 地址（先尝试 PC，失败 fallback 本地）
-    private static final String DEFAULT_BROKER_HOST = "192.168.1.100";
+    private static final String DEFAULT_BROKER_HOST = "192.168.42.244";
     private static final int DEFAULT_BROKER_PORT = 1883;
     private static final String FALLBACK_BROKER_HOST = "127.0.0.1";
     private static final int FALLBACK_BROKER_PORT = 1883;
