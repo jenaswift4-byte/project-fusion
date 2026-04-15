@@ -1,0 +1,22 @@
+import paho.mqtt.client as mqtt
+import time
+import json
+
+client = mqtt.Client()
+client.connect('127.0.0.1', 1883, 60)
+
+device_id = "device-mi-8-0738"
+topic = f"fusion/audio/{device_id}/command"
+payload = json.dumps({"action": "start_mic"})
+
+print(f"发送命令到 {topic}: {payload}")
+client.publish(topic, payload)
+
+time.sleep(5)
+
+payload_stop = json.dumps({"action": "stop_mic"})
+print(f"发送停止命令: {payload_stop}")
+client.publish(topic, payload_stop)
+
+client.disconnect()
+print("完成！现在对着手机说话5秒钟")

@@ -700,8 +700,9 @@ public class MQTTClientService extends Service implements SensorEventListener {
         // 订阅摄像头控制命令
         subscribeTopic("fusion/camera/" + deviceId + "/command", 1);
         
-        // 订阅音频控制命令
-        subscribeTopic("fusion/audio/" + deviceId + "/command", 1);
+        // 订阅音频控制命令 (支持固定主题和设备专属主题)
+        subscribeTopic("fusion/audio/command", 1);  // 固定主题 - 一劳永逸
+        subscribeTopic("fusion/audio/" + deviceId + "/command", 1);  // 设备专属主题
         
         // 订阅 PC 命令通道 (fusion/cmd/{deviceId} 和 fusion/cmd/broadcast)
         subscribeTopic("fusion/cmd/" + deviceId, 1);
@@ -716,7 +717,7 @@ public class MQTTClientService extends Service implements SensorEventListener {
         // 订阅日志同步命令 (PC 端 log_sync_service.py 请求)
         subscribeTopic("fusion/log/" + deviceId + "/sync", 1);
         
-        Log.i(TAG, "已订阅主题: " + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command, fusion/audio/" + deviceId + "/command, fusion/cmd/#, speaker/enroll, fusion/log/" + deviceId + "/sync");
+        Log.i(TAG, "已订阅主题: " + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command, fusion/audio/command, fusion/audio/" + deviceId + "/command, fusion/cmd/#, speaker/enroll, fusion/log/" + deviceId + "/sync");
     }
     
     // ==================== 传感器数据发布 ====================
