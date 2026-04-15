@@ -35,9 +35,10 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    // 允许 PNG 压缩
+    // 允许 PNG 压缩，大模型文件不压缩（避免 getAssets().open() 失败）
     aaptOptions {
         cruncherEnabled = true
+        noCompress '.onnx', '.txt', '.wav', '.bin'
     }
 
     lint {
