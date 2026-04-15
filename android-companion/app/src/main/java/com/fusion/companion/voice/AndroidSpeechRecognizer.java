@@ -1,8 +1,10 @@
 package com.fusion.companion.voice;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,6 +14,7 @@ import android.speech.SpeechRecognizer;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -82,6 +85,12 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
     // 是否正在识别
     private boolean isRecognizing;
     
+    // 绑定是否成功
+    private boolean bindSucceeded;
+    
+    // 绑定超时检测
+    private Runnable bindTimeoutRunnable;
+    
     // 识别结果缓存
     private StringBuilder resultCache;
     
@@ -108,11 +117,85 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
             return;
         }
         
-        // 创建 SpeechRecognizer
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context);
+        // 尝试找到可用的 RecognitionService
+        ComponentName serviceComponent = findBestRecognitionService(context);
+        
+        if (serviceComponent != null) {
+            Log.i(TAG, "使用语音识别服务: " + serviceComponent.flattenToString());
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context, serviceComponent);
+        } else {
+            Log.w(TAG, "未找到可用的 RecognitionService，使用默认");
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context);
+        }
+        
         speechRecognizer.setRecognitionListener(this);
         
+        // 绑定超时检测: 如果 5 秒后还没触发 onReadyForSpeech 或 onError，
+        // 说明绑定失败，主动回调错误
+        bindTimeoutRunnable = () -> {
+            if (isRecognizing && !bindSucceeded) {
+                Log.e(TAG, "语音识别服务绑定超时 (5s)，可能服务不可用");
+                isRecognizing = false;
+                postError(VoiceRecognitionListener.ERROR_CLIENT, "语音识别服务绑定超时");
+            }
+        };
+        
         Log.i(TAG, "AndroidSpeechRecognizer 初始化完成");
+    }
+    
+    /**
+     * 查找最佳可用的语音识别服务
+     * 优先选择 Google 语音识别，其次选择其他可用服务
+     */
+    private ComponentName findBestRecognitionService(Context context) {
+        try {
+            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            PackageManager pm = context.getPackageManager();
+            List<ResolveInfo> resolveInfoList = pm.queryIntentActivities(intent, 0);
+            
+            Log.i(TAG, "找到 " + resolveInfoList.size() + " 个语音识别 Activity");
+            for (ResolveInfo info : resolveInfoList) {
+                Log.d(TAG, "  - " + info.activityInfo.packageName + "/" + info.activityInfo.name);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "查询语音识别 Activity 失败", e);
+        }
+        
+        // 直接查询 RecognitionService
+        try {
+            Intent serviceIntent = new Intent("android.speech.RecognitionService");
+            PackageManager pm = context.getPackageManager();
+            List<ResolveInfo> services = pm.queryIntentServices(serviceIntent, 0);
+            
+            Log.i(TAG, "找到 " + services.size() + " 个 RecognitionService");
+            
+            ComponentName best = null;
+            for (ResolveInfo info : services) {
+                String pkg = info.serviceInfo.packageName;
+                String cls = info.serviceInfo.name;
+                Log.d(TAG, "  - " + pkg + "/" + cls);
+                
+                // 优先 Google
+                if (pkg.contains("google")) {
+                    best = new ComponentName(pkg, cls);
+                    break;
+                }
+                // 小爱同学的 AsrService 绑定会失败，跳过
+                if (pkg.contains("xiaomi") && cls.contains("mibrain")) {
+                    Log.w(TAG, "  跳过小爱同学 ASR (绑定会失败)");
+                    continue;
+                }
+                // 其他可用服务
+                if (best == null) {
+                    best = new ComponentName(pkg, cls);
+                }
+            }
+            
+            return best;
+        } catch (Exception e) {
+            Log.w(TAG, "查询 RecognitionService 失败", e);
+            return null;
+        }
     }
     
     /**
@@ -188,7 +271,10 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
             // 1. 清空缓存
             resultCache.setLength(0);
             
-            // 2. 创建识别意图
+            // 2. 重置绑定状态
+            bindSucceeded = false;
+            
+            // 3. 创建识别意图
             Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, 
                     RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -202,6 +288,10 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
             // 3. 开始识别
             speechRecognizer.startListening(intent);
             isRecognizing = true;
+            
+            // 4. 启动绑定超时检测 (5秒)
+            mainHandler.removeCallbacks(bindTimeoutRunnable);
+            mainHandler.postDelayed(bindTimeoutRunnable, 5000);
             
             // 通知监听器
             postReadyForSpeech();
@@ -279,6 +369,8 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
     @Override
     public void onReadyForSpeech(Bundle params) {
         Log.d(TAG, "准备就绪，可以开始说话");
+        bindSucceeded = true;
+        mainHandler.removeCallbacks(bindTimeoutRunnable);
         postReadyForSpeech();
     }
     
@@ -304,6 +396,7 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
     public void onEndOfSpeech() {
         Log.d(TAG, "说话结束");
         isRecognizing = false;
+        mainHandler.removeCallbacks(bindTimeoutRunnable);
         postEndOfSpeech();
     }
     
@@ -313,6 +406,7 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
         Log.e(TAG, "识别错误：" + error + " - " + errorMessage);
         
         isRecognizing = false;
+        mainHandler.removeCallbacks(bindTimeoutRunnable);
         postError(error, errorMessage);
     }
     
