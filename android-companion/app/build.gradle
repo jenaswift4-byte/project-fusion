@@ -54,5 +54,5 @@ dependencies {
     // WorkManager - 每日摘要定时任务
     implementation 'androidx.work:work-runtime:2.9.0'
     // Sherpa-onnx - 流式 ASR + 声纹识别 (stub JAR)
-    implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.12.38'
+    implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.15.3'
 }
