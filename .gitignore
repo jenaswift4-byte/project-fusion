@@ -72,3 +72,6 @@ token*
 
 # WorkBuddy internal
 .workbuddy/
+
+# Test scripts archive
+.test-scripts/
