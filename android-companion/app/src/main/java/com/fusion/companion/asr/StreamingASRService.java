@@ -26,11 +26,12 @@ public class StreamingASRService implements PcmDataListener {
     private static final int SPEECH_END_TIMEOUT_MS = 400;
     private static final int MAX_SPEECH_DURATION_MS = 30000;
 
-    private static final String MODEL_DIR = "models/";
-    private static final String MODEL_ENCODER = "encoder-epoch-99-avg-1.onnx";
-    private static final String MODEL_DECODER = "decoder-epoch-99-avg-1.onnx";
-    private static final String MODEL_JOINER   = "joiner-epoch-99-avg-1.onnx";
-    private static final String MODEL_TOKENS   = "tokens.txt";
+    // 模型文件名 (assets/models/ 目录下的实际文件名)
+    private static final String MODEL_ENCODER = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_encoder.int8.onnx";
+    private static final String MODEL_DECODER = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_decoder.onnx";
+    private static final String MODEL_JOINER   = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_joiner.int8.onnx";
+    private static final String MODEL_TOKENS   = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_tokens.txt";
+    private static final String ASSET_MODEL_DIR = "models";
 
     private OnlineRecognizer recognizer = null;
     private final VADHelper vadHelper;
@@ -55,14 +56,23 @@ public class StreamingASRService implements PcmDataListener {
         if (initialized) return true;
 
         try {
-            // 模型文件从外部存储加载 (adb push 推送的位置)
-            File externalDir = appContext.getExternalFilesDir(null);
-            File modelDir = new File(externalDir, "models");
+            // 模型文件从 assets 复制到内部存储
+            File modelDir = new File(appContext.getFilesDir(), "sherpa_models");
             if (!modelDir.exists()) {
                 modelDir.mkdirs();
             }
 
-            String encoderPath = new File(modelDir, MODEL_ENCODER).getAbsolutePath();
+            // 检查是否需要从 assets 复制模型
+            File encoderFile = new File(modelDir, MODEL_ENCODER);
+            if (!encoderFile.exists()) {
+                Log.i(TAG, "首次运行，从 assets 复制模型到: " + modelDir.getAbsolutePath());
+                copyAssetModel(encoderFile, MODEL_ENCODER);
+                copyAssetModel(new File(modelDir, MODEL_DECODER), MODEL_DECODER);
+                copyAssetModel(new File(modelDir, MODEL_JOINER), MODEL_JOINER);
+                copyAssetModel(new File(modelDir, MODEL_TOKENS), MODEL_TOKENS);
+            }
+
+            String encoderPath = encoderFile.getAbsolutePath();
             String decoderPath = new File(modelDir, MODEL_DECODER).getAbsolutePath();
             String joinerPath = new File(modelDir, MODEL_JOINER).getAbsolutePath();
             String tokensPath = new File(modelDir, MODEL_TOKENS).getAbsolutePath();
@@ -284,5 +294,35 @@ public class StreamingASRService implements PcmDataListener {
 
     public void setCurrentSpeaker(String speaker) {
         this.lastSpeaker = speaker;
+    }
+
+    /**
+     * 从 assets 目录复制模型文件到内部存储
+     */
+    private void copyAssetModel(File destFile, String assetName) {
+        try {
+            AssetManager assetManager = appContext.getAssets();
+            String assetPath = ASSET_MODEL_DIR + "/" + assetName;
+
+            if (!destFile.exists()) {
+                Log.i(TAG, "复制模型: " + assetName + " -> " + destFile.getAbsolutePath());
+                try (InputStream is = assetManager.open(assetPath);
+                     FileOutputStream fos = new FileOutputStream(destFile)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    long totalBytes = 0;
+                    while ((bytesRead = is.read(buffer)) != -1) {
+                        fos.write(buffer, 0, bytesRead);
+                        totalBytes += bytesRead;
+                    }
+                    Log.i(TAG, "复制完成: " + assetName + " (" + totalBytes + " bytes)");
+                }
+            } else {
+                Log.i(TAG, "模型已存在，跳过: " + assetName);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "复制模型失败: " + assetName + " - " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
