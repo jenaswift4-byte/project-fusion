@@ -589,18 +589,20 @@ public class FusionBridgeService extends Service {
             public void onReceive(android.content.Context context, Intent intent) {
                 boolean start = intent.getBooleanExtra("start", false);
                 boolean stop = intent.getBooleanExtra("stop", false);
-                if (start) {
-                    // 触发 MQTTClientService 的 speech_recognize
-                    Intent speechIntent = new Intent(FusionBridgeService.this, MQTTClientService.class);
-                    speechIntent.putExtra("action", "speech_recognize");
-                    startService(speechIntent);
-                    Log.i(TAG, "语音识别: 已通过广播触发");
-                } else if (stop) {
-                    Intent speechIntent = new Intent(FusionBridgeService.this, MQTTClientService.class);
-                    speechIntent.putExtra("action", "speech_stop");
-                    startService(speechIntent);
-                    Log.i(TAG, "语音识别: 已通过广播停止");
-                }
+                // 使用异步执行避免阻塞广播接收器 (SpeechRecognizer.bindService 会阻塞)
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (start) {
+                        Intent speechIntent = new Intent(FusionBridgeService.this, MQTTClientService.class);
+                        speechIntent.putExtra("action", "speech_recognize");
+                        startService(speechIntent);
+                        Log.i(TAG, "语音识别: 已通过广播触发");
+                    } else if (stop) {
+                        Intent speechIntent = new Intent(FusionBridgeService.this, MQTTClientService.class);
+                        speechIntent.putExtra("action", "speech_stop");
+                        startService(speechIntent);
+                        Log.i(TAG, "语音识别: 已通过广播停止");
+                    }
+                });
             }
         };
         IntentFilter speechFilter = new IntentFilter("com.fusion.companion.ACTION_SPEECH");
