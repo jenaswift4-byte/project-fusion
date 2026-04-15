@@ -131,16 +131,51 @@ public class AndroidSpeechRecognizer implements RecognitionListener {
         speechRecognizer.setRecognitionListener(this);
         
         // 绑定超时检测: 如果 5 秒后还没触发 onReadyForSpeech 或 onError，
-        // 说明绑定失败，主动回调错误
+        // 说明绑定失败，尝试 Activity 方式 fallback
         bindTimeoutRunnable = () -> {
             if (isRecognizing && !bindSucceeded) {
-                Log.e(TAG, "语音识别服务绑定超时 (5s)，可能服务不可用");
+                Log.w(TAG, "语音识别服务绑定超时 (5s)，尝试 Activity 方式");
                 isRecognizing = false;
-                postError(VoiceRecognitionListener.ERROR_CLIENT, "语音识别服务绑定超时");
+                // 尝试 Activity 方式
+                startRecognitionViaActivity();
             }
         };
         
         Log.i(TAG, "AndroidSpeechRecognizer 初始化完成");
+    }
+    
+    /**
+     * 通过 Activity 方式启动语音识别 (fallback)
+     * 当 SpeechRecognizer Service 绑定失败时使用
+     */
+    private void startRecognitionViaActivity() {
+        try {
+            SpeechRecognitionActivity.setCallback(new SpeechRecognitionActivity.SpeechResultCallback() {
+                @Override
+                public void onResult(String text) {
+                    Log.i(TAG, "Activity 方式识别结果: " + text);
+                    // 发布到 MQTT
+                    sendToMqtt(text);
+                    // 通知监听器
+                    postResult(text);
+                }
+                
+                @Override
+                public void onError(int errorCode, String message) {
+                    Log.e(TAG, "Activity 方式识别错误: " + message);
+                    postError(errorCode, message);
+                }
+            });
+            
+            Intent intent = new Intent(context, SpeechRecognitionActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            
+            Log.i(TAG, "已启动 Activity 方式语音识别");
+        } catch (Exception e) {
+            Log.e(TAG, "Activity 方式启动失败", e);
+            postError(VoiceRecognitionListener.ERROR_CLIENT, "Activity 方式启动失败: " + e.getMessage());
+        }
     }
     
     /**
