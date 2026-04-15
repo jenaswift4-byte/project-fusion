@@ -557,8 +557,11 @@ public class FusionBridgeService extends Service {
 
     // === 音频控制 BroadcastReceiver ===
     private android.content.BroadcastReceiver audioControlReceiver;
+    // === 语音识别 BroadcastReceiver ===
+    private android.content.BroadcastReceiver speechControlReceiver;
 
     private void startAudioControlReceiver() {
+        // 音频控制
         audioControlReceiver = new android.content.BroadcastReceiver() {
             @Override
             public void onReceive(android.content.Context context, Intent intent) {
@@ -579,6 +582,30 @@ public class FusionBridgeService extends Service {
         IntentFilter filter = new IntentFilter("com.fusion.companion.ACTION_AUDIO_CONTROL");
         registerReceiver(audioControlReceiver, filter);
         Log.i(TAG, "音频控制接收器已启动");
+
+        // 语音识别控制 (可通过 ADB 触发: am broadcast -a com.fusion.companion.ACTION_SPEECH --ez start true)
+        speechControlReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, Intent intent) {
+                boolean start = intent.getBooleanExtra("start", false);
+                boolean stop = intent.getBooleanExtra("stop", false);
+                if (start) {
+                    // 触发 MQTTClientService 的 speech_recognize
+                    Intent speechIntent = new Intent(FusionBridgeService.this, MQTTClientService.class);
+                    speechIntent.putExtra("action", "speech_recognize");
+                    startService(speechIntent);
+                    Log.i(TAG, "语音识别: 已通过广播触发");
+                } else if (stop) {
+                    Intent speechIntent = new Intent(FusionBridgeService.this, MQTTClientService.class);
+                    speechIntent.putExtra("action", "speech_stop");
+                    startService(speechIntent);
+                    Log.i(TAG, "语音识别: 已通过广播停止");
+                }
+            }
+        };
+        IntentFilter speechFilter = new IntentFilter("com.fusion.companion.ACTION_SPEECH");
+        registerReceiver(speechControlReceiver, speechFilter);
+        Log.i(TAG, "语音识别控制接收器已启动");
     }
 
     /**

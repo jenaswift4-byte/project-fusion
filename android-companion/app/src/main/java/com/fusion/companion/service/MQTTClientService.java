@@ -236,6 +236,19 @@ public class MQTTClientService extends Service implements SensorEventListener {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "MQTT Client Service 启动请求");
         
+        // 处理来自 FusionBridgeService 广播触发的语音识别命令
+        if (intent != null) {
+            String action = intent.getStringExtra("action");
+            if ("speech_recognize".equals(action) && speechRecognizer != null) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    boolean ok = speechRecognizer.startRecognition();
+                    Log.i(TAG, "语音识别 (Intent 触发): " + (ok ? "成功" : "失败"));
+                });
+            } else if ("speech_stop".equals(action) && speechRecognizer != null) {
+                new Handler(Looper.getMainLooper()).post(() -> speechRecognizer.stopRecognition());
+            }
+        }
+        
         // 创建前台通知（防止被系统杀死）
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, createNotification());
