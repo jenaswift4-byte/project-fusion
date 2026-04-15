@@ -15,10 +15,6 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig;
 import com.k2fsa.sherpa.onnx.OnlineStream;
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-
 public class StreamingASRService implements PcmDataListener {
 
     private static final String TAG = "StreamingASR";
@@ -26,12 +22,12 @@ public class StreamingASRService implements PcmDataListener {
     private static final int SPEECH_END_TIMEOUT_MS = 400;
     private static final int MAX_SPEECH_DURATION_MS = 30000;
 
-    // 模型文件名 (assets/models/ 目录下的实际文件名)
-    private static final String MODEL_ENCODER = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_encoder.int8.onnx";
-    private static final String MODEL_DECODER = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_decoder.onnx";
-    private static final String MODEL_JOINER   = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_joiner.int8.onnx";
-    private static final String MODEL_TOKENS   = "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_tokens.txt";
-    private static final String ASSET_MODEL_DIR = "models";
+    // 模型文件在 assets/models/ 中的相对路径 (AssetManager 直接加载，无需复制)
+    private static final String MODEL_DIR = "models";
+    private static final String MODEL_ENCODER = MODEL_DIR + "/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_encoder.int8.onnx";
+    private static final String MODEL_DECODER = MODEL_DIR + "/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_decoder.onnx";
+    private static final String MODEL_JOINER   = MODEL_DIR + "/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_joiner.int8.onnx";
+    private static final String MODEL_TOKENS   = MODEL_DIR + "/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30_tokens.txt";
 
     private OnlineRecognizer recognizer = null;
     private final VADHelper vadHelper;
@@ -56,70 +52,22 @@ public class StreamingASRService implements PcmDataListener {
         if (initialized) return true;
 
         try {
-            // 模型文件从 assets 复制到内部存储
-            File modelDir = new File(appContext.getFilesDir(), "sherpa_models");
-            if (!modelDir.exists()) {
-                modelDir.mkdirs();
-            }
-
-            // 检查是否需要从 assets 复制模型
-            File encoderFile = new File(modelDir, MODEL_ENCODER);
-            if (!encoderFile.exists()) {
-                Log.i(TAG, "首次运行，从 assets 复制模型到: " + modelDir.getAbsolutePath());
-                copyAssetModel(encoderFile, MODEL_ENCODER);
-                copyAssetModel(new File(modelDir, MODEL_DECODER), MODEL_DECODER);
-                copyAssetModel(new File(modelDir, MODEL_JOINER), MODEL_JOINER);
-                copyAssetModel(new File(modelDir, MODEL_TOKENS), MODEL_TOKENS);
-            }
-
-            String encoderPath = encoderFile.getAbsolutePath();
-            String decoderPath = new File(modelDir, MODEL_DECODER).getAbsolutePath();
-            String joinerPath = new File(modelDir, MODEL_JOINER).getAbsolutePath();
-            String tokensPath = new File(modelDir, MODEL_TOKENS).getAbsolutePath();
-
-            Log.i(TAG, "初始化 sherpa-onnx ASR...");
-            Log.i(TAG, "模型目录：" + modelDir.getAbsolutePath());
-            Log.i(TAG, "Encoder: " + encoderPath);
-            Log.i(TAG, "Decoder: " + decoderPath);
-            Log.i(TAG, "Joiner: " + joinerPath);
-            Log.i(TAG, "Tokens: " + tokensPath);
-
-            // 检查模型文件是否存在
-            if (!new File(encoderPath).exists()) {
-                Log.e(TAG, "Encoder 文件不存在：" + encoderPath);
-                return false;
-            }
-            if (!new File(decoderPath).exists()) {
-                Log.e(TAG, "Decoder 文件不存在：" + decoderPath);
-                return false;
-            }
-            if (!new File(joinerPath).exists()) {
-                Log.e(TAG, "Joiner 文件不存在：" + joinerPath);
-                return false;
-            }
-            if (!new File(tokensPath).exists()) {
-                Log.e(TAG, "Tokens 文件不存在：" + tokensPath);
-                return false;
-            }
-
-            // 记录文件大小
-            Log.i(TAG, "Encoder 大小：" + new File(encoderPath).length() + " bytes");
-            Log.i(TAG, "Decoder 大小：" + new File(decoderPath).length() + " bytes");
-            Log.i(TAG, "Joiner 大小：" + new File(joinerPath).length() + " bytes");
-            Log.i(TAG, "Tokens 大小：" + new File(tokensPath).length() + " bytes");
+            Log.i(TAG, "初始化 sherpa-onnx ASR (AssetManager 直接加载模式)...");
 
             try {
+                AssetManager assetManager = appContext.getAssets();
+
                 Log.i(TAG, "开始创建 OnlineTransducerModelConfig...");
                 OnlineTransducerModelConfig transducerConfig =
-                    new OnlineTransducerModelConfig(encoderPath, decoderPath, joinerPath);
+                    new OnlineTransducerModelConfig(MODEL_ENCODER, MODEL_DECODER, MODEL_JOINER);
                 Log.i(TAG, "OnlineTransducerModelConfig 创建成功");
 
                 Log.i(TAG, "开始创建 OnlineModelConfig...");
                 OnlineModelConfig modelConfig = new OnlineModelConfig();
                 modelConfig.setTransducer(transducerConfig);
-                modelConfig.setTokens(tokensPath);
+                modelConfig.setTokens(MODEL_TOKENS);
                 modelConfig.setNumThreads(1);
-                modelConfig.setDebug(true);
+                modelConfig.setDebug(false);
                 modelConfig.setProvider("cpu");
                 modelConfig.setModelType("zipformer");
 
@@ -134,24 +82,17 @@ public class StreamingASRService implements PcmDataListener {
                 config.setDecodingMethod("greedy_search");
                 config.setMaxActivePaths(1);
 
-                Log.i(TAG, "开始创建 OnlineRecognizer (使用 null assetManager)...");
-                AssetManager assetManager = null;
-                Log.i(TAG, "调用 new OnlineRecognizer 之前...");
+                Log.i(TAG, "创建 OnlineRecognizer (AssetManager 直接加载)...");
                 recognizer = new OnlineRecognizer(assetManager, config);
-                Log.i(TAG, "✓✓✓ OnlineRecognizer 创建成功！✓✓✓");
+                Log.i(TAG, "✓ OnlineRecognizer 创建成功！");
+
             } catch (UnsatisfiedLinkError e) {
-                Log.e(TAG, "❌❌❌ JNI 库加载失败：" + e.getMessage());
+                Log.e(TAG, "❌ JNI 库加载失败：" + e.getMessage());
                 Log.e(TAG, "请检查 .so 文件是否正确打包到 APK 中");
                 e.printStackTrace();
                 throw e;
             } catch (Exception e) {
-                Log.e(TAG, "❌❌❌ 创建失败：" + e.getClass().getName() + ": " + e.getMessage());
-                Log.e(TAG, "详细错误：" + e);
-                Log.e(TAG, "模型路径检查：");
-                Log.e(TAG, "  Encoder: " + encoderPath + " (存在=" + new File(encoderPath).exists() + ")");
-                Log.e(TAG, "  Decoder: " + decoderPath + " (存在=" + new File(decoderPath).exists() + ")");
-                Log.e(TAG, "  Joiner: " + joinerPath + " (存在=" + new File(joinerPath).exists() + ")");
-                Log.e(TAG, "  Tokens: " + tokensPath + " (存在=" + new File(tokensPath).exists() + ")");
+                Log.e(TAG, "❌ 创建失败：" + e.getClass().getName() + ": " + e.getMessage());
                 e.printStackTrace();
                 throw e;
             }
@@ -294,35 +235,5 @@ public class StreamingASRService implements PcmDataListener {
 
     public void setCurrentSpeaker(String speaker) {
         this.lastSpeaker = speaker;
-    }
-
-    /**
-     * 从 assets 目录复制模型文件到内部存储
-     */
-    private void copyAssetModel(File destFile, String assetName) {
-        try {
-            AssetManager assetManager = appContext.getAssets();
-            String assetPath = ASSET_MODEL_DIR + "/" + assetName;
-
-            if (!destFile.exists()) {
-                Log.i(TAG, "复制模型: " + assetName + " -> " + destFile.getAbsolutePath());
-                try (InputStream is = assetManager.open(assetPath);
-                     FileOutputStream fos = new FileOutputStream(destFile)) {
-                    byte[] buffer = new byte[8192];
-                    int bytesRead;
-                    long totalBytes = 0;
-                    while ((bytesRead = is.read(buffer)) != -1) {
-                        fos.write(buffer, 0, bytesRead);
-                        totalBytes += bytesRead;
-                    }
-                    Log.i(TAG, "复制完成: " + assetName + " (" + totalBytes + " bytes)");
-                }
-            } else {
-                Log.i(TAG, "模型已存在，跳过: " + assetName);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "复制模型失败: " + assetName + " - " + e.getMessage());
-            e.printStackTrace();
-        }
     }
 }
