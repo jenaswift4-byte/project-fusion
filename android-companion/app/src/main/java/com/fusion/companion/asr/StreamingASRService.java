@@ -74,7 +74,12 @@ public class StreamingASRService implements PcmDataListener {
             }
 
             // 步骤2: 加载模型
-            File modelPath = modelDir;
+            // Vosk zip 解压后会有子目录，需要指向包含 am/conf/graph 的实际目录
+            File modelPath = new File(modelDir, "vosk-model-small-cn-0.22");
+            if (!modelPath.exists()) {
+                // 如果没有子目录，可能模型直接解压到了 modelDir
+                modelPath = modelDir;
+            }
             try {
                 model = new Model(modelPath.getAbsolutePath());
                 Log.i(TAG, "✓ Model 加载成功!");
