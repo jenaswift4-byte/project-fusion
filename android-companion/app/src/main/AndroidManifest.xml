@@ -26,9 +26,6 @@
     <!-- 摄像头权限 -->
     <uses-permission android:name="android.permission.CAMERA" />
     
-    <!-- TTS 相关权限 -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    
     <!-- 媒体播放权限 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
@@ -83,6 +80,11 @@
             android:name=".service.MQTTClientService"
             android:exported="true"
             android:foregroundServiceType="connectedDevice" />
+
+        <!-- LLM 推理服务 (Qwen3.5-0.8B) -->
+        <service
+            android:name=".service.LLMService"
+            android:exported="false" />
 
     </application>
 </manifest>
