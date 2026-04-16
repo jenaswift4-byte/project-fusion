@@ -194,6 +194,45 @@ public class LLMService extends Service {
     }
 
     /**
+     * 同步初始化 LLM（阻塞当前线程直到完成）
+     * 用于推理前确保引擎已就绪
+     */
+    private void initLLMSync() {
+        try {
+            String modelPath = findModelPath();
+            boolean modelExists = modelPath != null;
+
+            if (modelExists) {
+                Log.i(TAG, "同步初始化: 发现模型文件: " + modelPath);
+                NexaEngine nexaEngine = new NexaEngine(this);
+                boolean nexaSuccess = nexaEngine.initialize(modelPath);
+
+                if (nexaSuccess) {
+                    this.llmEngine = nexaEngine;
+                    Log.i(TAG, "✓ Nexa SDK 同步初始化成功");
+                    notifyEngineReady(nexaEngine.getEngineInfo());
+                    return;
+                } else {
+                    Log.w(TAG, "Nexa SDK 同步初始化失败，回退到简化版引擎");
+                }
+            } else {
+                Log.i(TAG, "同步初始化: 未发现模型文件");
+            }
+
+            // 回退到简化版引擎
+            this.llmEngine = new LLMEngineSimple();
+            ((LLMEngineSimple) this.llmEngine).loadModel(null);
+            Log.i(TAG, "✓ 简化版引擎初始化成功（关键词提取模式）");
+            notifyEngineReady("LLMEngineSimple (关键词提取)");
+
+        } catch (Exception e) {
+            Log.e(TAG, "LLM 同步初始化异常", e);
+            this.llmEngine = new LLMEngineSimple();
+            ((LLMEngineSimple) this.llmEngine).loadModel(null);
+        }
+    }
+
+    /**
      * 查找可用的 GGUF 模型文件路径
      *
      * 搜索顺序：
@@ -264,10 +303,8 @@ public class LLMService extends Service {
         }
         
         if (llmEngine == null || !llmEngine.isInitialized()) {
-            Log.w(TAG, "LLM 引擎未初始化，先初始化");
-            initLLM();
-            // 等待初始化完成
-            try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
+            Log.w(TAG, "LLM 引擎未初始化，同步初始化...");
+            initLLMSync();
         }
         
         if (llmEngine == null || !llmEngine.isInitialized()) {

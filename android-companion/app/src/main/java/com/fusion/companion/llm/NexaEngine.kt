@@ -116,23 +116,39 @@ class NexaEngine(private val context: Context) : LLMEngine {
 
             // Step 5: LlmWrapper.builder().llmCreateInput(input).build()
             // build() 是 suspend 函数，需要协程调用
+            Log.i(TAG, "开始构建 LlmWrapper (model_path=$effectivePath)...")
             val buildResult = runBlocking {
                 try {
-                    LlmWrapper.builder()
-                        .llmCreateInput(llmCreateInput)
-                        .build()
+                    withTimeoutOrNull(60_000L) {
+                        LlmWrapper.builder()
+                            .llmCreateInput(llmCreateInput)
+                            .build()
+                    } ?: run {
+                        Log.e(TAG, "✗ LlmWrapper 构建超时 (60s)")
+                        Result.failure<LlmWrapper>(java.util.concurrent.TimeoutException("LlmWrapper build timeout"))
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    Log.e(TAG, "✗ LlmWrapper 构建被取消: ${e.message}")
+                    Result.failure<LlmWrapper>(e)
+                } catch (e: UnsatisfiedLinkError) {
+                    Log.e(TAG, "✗ Native 库链接失败: ${e.message}")
+                    Result.failure<LlmWrapper>(e)
                 } catch (e: Exception) {
-                    Log.e(TAG, "LlmWrapper 构建异常: ${e.message}")
-                    Result.failure(e)
+                    Log.e(TAG, "✗ LlmWrapper 构建异常: ${e.javaClass.simpleName}: ${e.message}")
+                    e.cause?.let { Log.e(TAG, "  原因: ${it.javaClass.simpleName}: ${it.message}") }
+                    Result.failure<LlmWrapper>(e)
                 }
             }
 
             val wrapper = buildResult.getOrNull()
             if (wrapper == null) {
                 val exception = buildResult.exceptionOrNull()
-                Log.e(TAG, "✗ LlmWrapper 构建失败: ${exception?.message}")
+                Log.e(TAG, "✗ LlmWrapper 构建失败: ${exception?.javaClass?.simpleName}: ${exception?.message}")
                 Log.e(TAG, "  模型路径: $effectivePath")
                 Log.e(TAG, "  请确认模型文件存在且为有效的 GGUF 格式")
+                // 检查模型文件是否可读
+                val modelFile = java.io.File(effectivePath)
+                Log.e(TAG, "  文件存在: ${modelFile.exists()}, 大小: ${if (modelFile.exists()) modelFile.length() else -1}")
                 return false
             }
 
