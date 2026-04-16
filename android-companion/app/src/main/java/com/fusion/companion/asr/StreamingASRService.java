@@ -236,15 +236,8 @@ public class StreamingASRService implements PcmDataListener {
             Log.d(TAG, "Vosk 原始结果: " + result);
             if (!text.isEmpty()) {
                 Log.i(TAG, "ASR 结果: " + text);
-                    if (logHelper != null) {
-                        logHelper.insertLog("asr_result", speaker, text);
-                    }
-                }
-            } else {
-                String partial = recognizer.getPartialResult();
-                String text = extractText(partial);
-                if (!text.isEmpty()) {
-                    Log.d(TAG, "ASR 部分: " + text);
+                if (logHelper != null) {
+                    logHelper.insertLog("asr_result", speaker, text);
                 }
             }
 
