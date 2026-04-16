@@ -85,7 +85,6 @@ public class StreamingASRService implements PcmDataListener {
             // 步骤3: 创建 Recognizer (16kHz 采样率)
             try {
                 recognizer = new Recognizer(model, 16000.0f);
-                recognizer.setSingleSegment(true);  // 启用单段模式，返回完整句子
                 Log.i(TAG, "✓ Recognizer 创建成功!");
             } catch (IOException e) {
                 Log.e(TAG, "❌ Recognizer 创建失败: " + e.getMessage());
@@ -222,23 +221,23 @@ public class StreamingASRService implements PcmDataListener {
 
     private void processSpeech(byte[] pcmData, String speaker) {
         try {
-            // PCM 16bit mono: 每2字节一个采样
-            short[] shorts = new short[pcmData.length / 2];
-            for (int i = 0; i < shorts.length; i++) {
-                shorts[i] = (short) ((pcmData[i * 2 + 1] << 8) | (pcmData[i * 2] & 0xFF));
-            }
+            // Vosk acceptWaveForm 接受 byte[] + len
+            boolean hasResult = recognizer.acceptWaveForm(pcmData, pcmData.length);
 
-            // Vosk Recognizer.process() 接受 short[] 或 float[]
-            String result = recognizer.acceptWaveform(shorts);
-
-            if (result != null && !result.isEmpty()) {
-                // 解析 JSON: {"text": "识别文字"}
+            if (hasResult) {
+                String result = recognizer.getFinalResult();
                 String text = extractText(result);
                 if (!text.isEmpty()) {
                     Log.i(TAG, "ASR 结果: " + text);
                     if (logHelper != null) {
                         logHelper.insertLog("asr_result", speaker, text);
                     }
+                }
+            } else {
+                String partial = recognizer.getPartialResult();
+                String text = extractText(partial);
+                if (!text.isEmpty()) {
+                    Log.d(TAG, "ASR 部分: " + text);
                 }
             }
 
@@ -249,8 +248,10 @@ public class StreamingASRService implements PcmDataListener {
     }
 
     private String extractText(String json) {
-        // 简单解析 {"text": "xxx"}
+        if (json == null || json.isEmpty()) return "";
+        // final result: {"text": "xxx"}, partial result: {"partial": "xxx"}
         int idx = json.indexOf("\"text\"");
+        if (idx < 0) idx = json.indexOf("\"partial\"");
         if (idx < 0) return "";
         int colon = json.indexOf(":", idx);
         if (colon < 0) return "";
