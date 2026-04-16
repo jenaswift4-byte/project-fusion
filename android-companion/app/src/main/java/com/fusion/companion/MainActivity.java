@@ -381,8 +381,9 @@ public class MainActivity extends Activity {
      */
     private void startLLMService() {
         Intent llmIntent = new Intent(this, LLMService.class);
+        llmIntent.putExtra("action", "init");
         startForegroundService(llmIntent);
-        Log.d(TAG, "LLM 服务已启动");
+        Log.d(TAG, "LLM 服务已启动（初始化模式）");
     }
     
     /**
