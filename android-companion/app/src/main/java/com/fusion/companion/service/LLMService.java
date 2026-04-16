@@ -18,7 +18,6 @@ import com.fusion.companion.llm.LLMEngine;
 import com.fusion.companion.llm.LLMEngineSimple;
 import com.fusion.companion.llm.NexaEngine;
 import com.fusion.companion.log.LogDBHelper;
-import com.fusion.companion.service.MQTTBrokerService;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -308,7 +307,7 @@ public class LLMService extends Service {
             
             // 通过本地 MQTT Broker 发布结果
             try {
-                String brokerUrl = "tcp://127.0.0.1:" + MQTTBrokerService.getCurrentPort();
+                String brokerUrl = "tcp://127.0.0.1:1883";
                 String clientId = "llm_service_" + System.currentTimeMillis();
                 MqttClient client = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
                 MqttConnectOptions opts = new MqttConnectOptions();
