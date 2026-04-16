@@ -234,18 +234,40 @@ public class StreamingASRService implements PcmDataListener {
             
             Log.d(TAG, "processSpeech: " + pcmData.length + " bytes");
             
-            // Vosk acceptWaveForm 接受 byte[] + len
-            recognizer.acceptWaveForm(pcmData, pcmData.length);
-
-            // 获取结果
-            String result = recognizer.getFinalResult();
-            Log.d(TAG, "Vosk 结果: " + result);
+            // Vosk 需要分批调用 acceptWaveForm (每次 100-400ms)
+            // 16kHz 16-bit mono = 32000 bytes/sec, 每次传 3200 bytes (100ms)
+            int chunkSize = 3200;
+            int offset = 0;
+            StringBuilder partialResults = new StringBuilder();
             
-            String text = extractText(result);
-            if (!text.isEmpty()) {
-                Log.i(TAG, "ASR 结果: " + text);
+            while (offset < pcmData.length) {
+                int len = Math.min(chunkSize, pcmData.length - offset);
+                byte[] chunk = new byte[len];
+                System.arraycopy(pcmData, offset, chunk, 0, len);
+                
+                // acceptWaveForm 返回 true 表示有结果可读
+                if (recognizer.acceptWaveForm(chunk, len)) {
+                    String partial = recognizer.getPartialResult();
+                    String text = extractText(partial);
+                    if (!text.isEmpty()) {
+                        partialResults.append(text).append(" ");
+                    }
+                }
+                offset += len;
+            }
+            
+            // 获取最终结果
+            String result = recognizer.getFinalResult();
+            Log.d(TAG, "Vosk 最终结果: " + result);
+            
+            String finalText = extractText(result);
+            // 合并中间结果和最终结果
+            String allText = (partialResults.toString().trim() + " " + finalText).trim();
+            
+            if (!allText.isEmpty()) {
+                Log.i(TAG, "ASR 结果: " + allText);
                 if (logHelper != null) {
-                    logHelper.insertLog("asr_result", speaker, text);
+                    logHelper.insertLog("asr_result", speaker, allText);
                 }
             }
 
