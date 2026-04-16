@@ -16,6 +16,7 @@ import android.widget.Toast;
 import com.fusion.companion.database.SensorDatabase;
 import com.fusion.companion.service.FusionBridgeService;
 import com.fusion.companion.FusionWebSocketServer;
+import com.fusion.companion.service.LLMService;
 import com.fusion.companion.service.MQTTBrokerService;
 import com.fusion.companion.service.MQTTDataStorageService;
 import com.fusion.companion.service.SensorCollector;
@@ -170,9 +171,12 @@ public class MainActivity extends Activity {
         
         // 初始化数据库和 MQTT 数据存储服务
         initDatabaseServices();
-        
+
         // 初始化模式管理器
         initModeManager();
+
+        // 启动 LLM 服务
+        startLLMService();
     }
 
     @Override
@@ -370,6 +374,15 @@ public class MainActivity extends Activity {
         modeManager.start();
         
         Log.d(TAG, "模式管理器已初始化");
+    }
+
+    /**
+     * 启动 LLM 服务
+     */
+    private void startLLMService() {
+        Intent llmIntent = new Intent(this, LLMService.class);
+        startForegroundService(llmIntent);
+        Log.d(TAG, "LLM 服务已启动");
     }
     
     /**
