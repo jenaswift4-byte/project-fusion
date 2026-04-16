@@ -486,6 +486,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
                         return;
                     }
                     
+                    // ═══ LLM 推理命令 (llm/command) ═══
+                    if ("llm/command".equals(topic)) {
+                        handleLLMCommand(payloadStr);
+                        return;
+                    }
+                    
                     // ═══ PC 命令通道 (fusion/cmd/*) ═══
                     if (topic.startsWith("fusion/cmd/")) {
                         handleCommand(topic, payloadStr);
@@ -747,7 +753,10 @@ public class MQTTClientService extends Service implements SensorEventListener {
         // 订阅日志同步命令 (PC 端 log_sync_service.py 请求)
         subscribeTopic("fusion/log/" + deviceId + "/sync", 1);
         
-        Log.i(TAG, "已订阅主题: " + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command, fusion/audio/command, fusion/audio/" + deviceId + "/command, fusion/cmd/#, speaker/enroll, fusion/log/" + deviceId + "/sync");
+        // 订阅 LLM 推理命令
+        subscribeTopic("llm/command", 1);
+        
+        Log.i(TAG, "已订阅主题: " + deviceTopic + ", fusion/broadcast, fusion/mode, fusion/pc/broker, fusion/camera/" + deviceId + "/command, fusion/audio/command, fusion/audio/" + deviceId + "/command, fusion/cmd/#, speaker/enroll, fusion/log/" + deviceId + "/sync, llm/command");
     }
     
     // ==================== 传感器数据发布 ====================
@@ -1174,6 +1183,37 @@ public class MQTTClientService extends Service implements SensorEventListener {
     
     // ==================== PC 命令通道处理 ====================
     
+    /**
+     * 处理 LLM 推理命令 (llm/command)
+     * 
+     * 支持的 action:
+     * - infer: 文本推理
+     * - init: 初始化引擎
+     * - release: 释放引擎
+     */
+    private void handleLLMCommand(String payload) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(payload);
+            String action = json.optString("action", "infer");
+            String text = json.optString("text", "");
+            
+            Log.i(TAG, "收到 LLM 命令: action=" + action + ", text=" + text);
+            
+            Intent llmIntent = new Intent(this, LLMService.class);
+            llmIntent.putExtra("action", action);
+            llmIntent.putExtra("text", text);
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(llmIntent);
+            } else {
+                startService(llmIntent);
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "处理 LLM 命令失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 处理 PC 端发送的 MQTT 命令
      * 
