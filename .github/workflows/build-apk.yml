@@ -33,12 +33,12 @@ jobs:
 
     - name: Setup Vosk AAR (download .so files for APK bundling)
       run: |
-        echo "Downloading Vosk AAR to extract .so files..."
+        echo "Downloading Vosk AAR from Maven Central..."
         mkdir -p android-companion/app/src/main/jniLibs/arm64-v8a
 
-        if curl -fSLk --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 300 \
-          "https://alphacephei.com/vosk/vosk-android-0.3.47.aar" \
-          -o /tmp/vosk.aar 2>/dev/null; then
+        if curl -fSL --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 300 \
+          "https://repo1.maven.org/maven2/com/alphacephei/vosk-android/0.3.47/vosk-android-0.3.47.aar" \
+          -o /tmp/vosk.aar; then
 
           echo "✓ Download complete: $(stat -c%s /tmp/vosk.aar | numfmt --to=iec-i --suffix=B)"
 
@@ -48,17 +48,21 @@ jobs:
           SO_DIR="/tmp/vosk_extracted"
           if [ -d "$SO_DIR/jni/arm64-v8a" ]; then
             cp "$SO_DIR/jni/arm64-v8a/"*.so "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
-            echo "✓ Copied .so files:"
+            echo "✓ Copied arm64-v8a .so files:"
             ls -lh "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
-          elif find "$SO_DIR" -name "*.so" -type f | head -1 | grep -q .; then
-            find "$SO_DIR" -name "*.so" -type f -exec cp {} "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/" \;
-            echo "✓ Copied .so files (from various dirs):"
-            ls -lh "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
-          else
-            echo "⚠ No .so files found in AAR"
+          fi
+          if [ -d "$SO_DIR/jni/armeabi-v7a" ]; then
+            mkdir -p "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/armeabi-v7a"
+            cp "$SO_DIR/jni/armeabi-v7a/"*.so "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/armeabi-v7a/"
+            echo "✓ Copied armeabi-v7a .so files:"
+            ls -lh "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/armeabi-v7a/"
+          fi
+          # Also check for classes.jar for Java API
+          if [ -f "$SO_DIR/classes.jar" ]; then
+            echo "✓ Found classes.jar in AAR (Gradle @aar will handle this)"
           fi
         else
-          echo "⚠ Download failed"
+          echo "❌ AAR download failed - build will likely fail"
         fi
 
     - name: Download Vosk Chinese model
@@ -67,12 +71,18 @@ jobs:
         mkdir -p "$MODEL_DIR"
 
         echo "Downloading Vosk Chinese small model (~42MB)..."
-        curl -fSLk --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 600 \
+        # Try alphacephei first, then GitHub mirror
+        curl -fSL --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 600 \
           "https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip" \
-          -o "$MODEL_DIR/vosk-model-small-cn-0.22.zip" && \
-          echo "✓ Model downloaded: $(stat -c%s $MODEL_DIR/vosk-model-small-cn-0.22.zip | numfmt --to=iec-i --suffix=B)" || \
-          echo "⚠ Model download failed"
+          -o "$MODEL_DIR/vosk-model-small-cn-0.22.zip" 2>/dev/null || \
+        curl -fSL --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 600 \
+          "https://github.com/alphacep/vosk-api/releases/download/v0.22/vosk-model-small-cn-0.22.zip" \
+          -o "$MODEL_DIR/vosk-model-small-cn-0.22.zip" 2>/dev/null || \
+          echo "⚠ Model download failed - ASR will not work in the APK"
 
+        if [ -f "$MODEL_DIR/vosk-model-small-cn-0.22.zip" ]; then
+          echo "✓ Model downloaded: $(stat -c%s $MODEL_DIR/vosk-model-small-cn-0.22.zip | numfmt --to=iec-i --suffix=B)"
+        fi
         ls -lh "$MODEL_DIR/"
 
     - name: Setup Gradle
