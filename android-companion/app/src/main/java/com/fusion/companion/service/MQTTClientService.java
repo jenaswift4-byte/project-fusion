@@ -1183,34 +1183,237 @@ public class MQTTClientService extends Service implements SensorEventListener {
     
     // ==================== PC 命令通道处理 ====================
     
+    // ==================== LLM 引擎（内嵌，避免 MIUI 后台限制） ====================
+    private com.fusion.companion.llm.LLMEngine mLLMEngine;
+    private java.util.concurrent.ExecutorService mLLMExecutor;
+    private android.os.Handler mLLMHandler;
+    private static final String LLM_MODEL_DIR = "/models/qwen/";
+    private static final String LLM_MODEL_FILE = "qwen3-0.6b-q4_k_m.gguf";
+
     /**
      * 处理 LLM 推理命令 (llm/command)
-     * 
-     * 支持的 action:
-     * - infer: 文本推理
-     * - init: 初始化引擎
-     * - release: 释放引擎
+     * 直接在 MQTTClientService 内处理，避免 MIUI 后台限制阻止独立 LLMService
      */
     private void handleLLMCommand(String payload) {
         try {
             org.json.JSONObject json = new org.json.JSONObject(payload);
             String action = json.optString("action", "infer");
             String text = json.optString("text", "");
-            
+
             Log.i(TAG, "收到 LLM 命令: action=" + action + ", text=" + text);
-            
-            Intent llmIntent = new Intent(this, LLMService.class);
-            llmIntent.putExtra("action", action);
-            llmIntent.putExtra("text", text);
-            
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                startForegroundService(llmIntent);
-            } else {
-                startService(llmIntent);
+
+            // 懒初始化 executor
+            if (mLLMExecutor == null) {
+                mLLMExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+                mLLMHandler = new android.os.Handler(android.os.Looper.getMainLooper());
             }
-            
+
+            switch (action) {
+                case "init":
+                    initLLMEngine();
+                    break;
+                case "infer":
+                    inferLLMText(text);
+                    break;
+                case "release":
+                    releaseLLMEngine();
+                    break;
+                default:
+                    inferLLMText(text);  // 默认执行推理
+                    break;
+            }
+
         } catch (Exception e) {
             Log.e(TAG, "处理 LLM 命令失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 初始化 LLM 引擎
+     * 优先级: NexaEngine (真实推理) > LLMEngineSimple (关键词提取)
+     */
+    private void initLLMEngine() {
+        mLLMExecutor.execute(() -> {
+            try {
+                String modelPath = findLLMModelPath();
+                if (modelPath != null) {
+                    Log.i(TAG, "LLM: 发现模型文件: " + modelPath);
+                    com.fusion.companion.llm.NexaEngine nexa = new com.fusion.companion.llm.NexaEngine(this);
+                    if (nexa.initialize(modelPath)) {
+                        mLLMEngine = nexa;
+                        Log.i(TAG, "✓ Nexa SDK 初始化成功: " + nexa.getEngineInfo());
+                        return;
+                    }
+                    Log.w(TAG, "Nexa SDK 初始化失败，回退到简化版引擎");
+                } else {
+                    Log.i(TAG, "LLM: 未发现模型文件，使用简化版引擎");
+                }
+                // 回退到关键词提取
+                com.fusion.companion.llm.LLMEngineSimple simple = new com.fusion.companion.llm.LLMEngineSimple();
+                simple.loadModel(null);
+                mLLMEngine = simple;
+                Log.i(TAG, "✓ 简化版引擎初始化成功");
+            } catch (Exception e) {
+                Log.e(TAG, "LLM 初始化异常: " + e.getMessage());
+                com.fusion.companion.llm.LLMEngineSimple simple = new com.fusion.companion.llm.LLMEngineSimple();
+                simple.loadModel(null);
+                mLLMEngine = simple;
+            }
+        });
+    }
+
+    /**
+     * 文本推理
+     */
+    private void inferLLMText(String text) {
+        if (text == null || text.isEmpty()) {
+            Log.w(TAG, "LLM: 推理文本为空");
+            return;
+        }
+
+        // 懒初始化引擎
+        if (mLLMEngine == null || !mLLMEngine.isInitialized()) {
+            Log.i(TAG, "LLM: 引擎未初始化，同步初始化...");
+            String modelPath = findLLMModelPath();
+            try {
+                if (modelPath != null) {
+                    com.fusion.companion.llm.NexaEngine nexa = new com.fusion.companion.llm.NexaEngine(this);
+                    if (nexa.initialize(modelPath)) {
+                        mLLMEngine = nexa;
+                        Log.i(TAG, "✓ Nexa SDK 同步初始化成功");
+                    } else {
+                        com.fusion.companion.llm.LLMEngineSimple simple = new com.fusion.companion.llm.LLMEngineSimple();
+                        simple.loadModel(null);
+                        mLLMEngine = simple;
+                        Log.i(TAG, "✓ 简化版引擎同步初始化成功");
+                    }
+                } else {
+                    com.fusion.companion.llm.LLMEngineSimple simple = new com.fusion.companion.llm.LLMEngineSimple();
+                    simple.loadModel(null);
+                    mLLMEngine = simple;
+                    Log.i(TAG, "✓ 简化版引擎同步初始化成功（无模型）");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "LLM 同步初始化异常: " + e.getMessage());
+                com.fusion.companion.llm.LLMEngineSimple simple = new com.fusion.companion.llm.LLMEngineSimple();
+                simple.loadModel(null);
+                mLLMEngine = simple;
+            }
+        }
+
+        if (mLLMEngine == null || !mLLMEngine.isInitialized()) {
+            Log.e(TAG, "LLM: 引擎初始化失败");
+            publishLLMResult("error", "LLM engine not initialized");
+            return;
+        }
+
+        String finalText = text;
+        mLLMExecutor.execute(() -> {
+            try {
+                Log.i(TAG, "LLM 开始推理: " + finalText.substring(0, Math.min(50, finalText.length())));
+                long start = System.currentTimeMillis();
+                String result = mLLMEngine.inferText(finalText, 256);
+                long elapsed = System.currentTimeMillis() - start;
+
+                if (result != null && !result.isEmpty()) {
+                    Log.i(TAG, "✓ LLM 推理完成 (" + elapsed + "ms): " + result.substring(0, Math.min(100, result.length())));
+                } else {
+                    Log.w(TAG, "LLM 推理结果为空 (" + elapsed + "ms)");
+                    result = "";
+                }
+                publishLLMResult("infer", result);
+            } catch (Exception e) {
+                Log.e(TAG, "LLM 推理异常: " + e.getMessage());
+                publishLLMResult("error", e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 释放 LLM 引擎
+     */
+    private void releaseLLMEngine() {
+        if (mLLMEngine != null) {
+            mLLMEngine.release();
+            mLLMEngine = null;
+            Log.i(TAG, "LLM 引擎已释放");
+        }
+    }
+
+    /**
+     * 查找 GGUF 模型文件
+     * 搜索顺序: 内部存储 → /sdcard/models/ → /sdcard/Android/data/.../files/models/
+     */
+    private String findLLMModelPath() {
+        // 1. 内部存储
+        String internalPath = getFilesDir() + LLM_MODEL_DIR + LLM_MODEL_FILE;
+        if (new java.io.File(internalPath).exists()) return internalPath;
+
+        // 2. 内部存储递归搜索
+        File modelsDir = new java.io.File(getFilesDir(), "models");
+        if (modelsDir.exists()) {
+            String found = findGgufInDir(modelsDir);
+            if (found != null) return found;
+        }
+
+        // 3. /sdcard/models/
+        File sdcardModels = new java.io.File("/sdcard/models");
+        if (sdcardModels.exists()) {
+            String found = findGgufInDir(sdcardModels);
+            if (found != null) return found;
+        }
+
+        // 4. /sdcard/Android/data/com.fusion.companion/files/models/
+        File extDataModels = new java.io.File("/sdcard/Android/data/com.fusion.companion/files/models");
+        if (extDataModels.exists()) {
+            String found = findGgufInDir(extDataModels);
+            if (found != null) return found;
+        }
+
+        return null;
+    }
+
+    private String findGgufInDir(File dir) {
+        File[] files = dir.listFiles();
+        if (files == null) return null;
+        for (File f : files) {
+            if (f.isFile() && f.getName().endsWith(".gguf")) return f.getAbsolutePath();
+            if (f.isDirectory()) {
+                String found = findGgufInDir(f);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 发布 LLM 推理结果到 MQTT
+     */
+    private void publishLLMResult(String type, String result) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject();
+            json.put("type", type);
+            json.put("result", result);
+            json.put("timestamp", System.currentTimeMillis());
+
+            // 通过本地 MQTT Broker 发布
+            try {
+                String brokerUrl = "tcp://127.0.0.1:1883";
+                String clientId = "llm_mqtt_" + System.currentTimeMillis();
+                org.eclipse.paho.client.mqttv3.MqttClient client = new org.eclipse.paho.client.mqttv3.MqttClient(
+                    brokerUrl, clientId, new org.eclipse.paho.client.mqttv3.persist.MemoryPersistence());
+                org.eclipse.paho.client.mqttv3.MqttConnectOptions opts = new org.eclipse.paho.client.mqttv3.MqttConnectOptions();
+                opts.setCleanSession(true);
+                opts.setConnectionTimeout(5);
+                client.connect(opts);
+                client.publish("llm/response", json.toString().getBytes(), 0, false);
+                client.disconnect();
+                Log.d(TAG, "LLM 结果已发布到 llm/response");
+            } catch (Exception e) {
+                Log.w(TAG, "LLM MQTT 发布失败: " + e.getMessage() + " — 结果: " + result.substring(0, Math.min(80, result.length())));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "发布 LLM 结果失败: " + e.getMessage());
         }
     }
 
