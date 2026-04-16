@@ -18,6 +18,11 @@ import com.fusion.companion.llm.LLMEngine;
 import com.fusion.companion.llm.LLMEngineSimple;
 import com.fusion.companion.llm.NexaEngine;
 import com.fusion.companion.log.LogDBHelper;
+import com.fusion.companion.service.MQTTBrokerService;
+
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.io.File;
 import java.util.concurrent.ExecutorService;
@@ -109,6 +114,11 @@ public class LLMService extends Service {
         switch (action) {
             case "init":
                 initLLM();
+                break;
+                
+            case "infer":
+                String inferText = intent.getStringExtra("text");
+                inferText(inferText);
                 break;
                 
             case "summarize":
@@ -248,6 +258,74 @@ public class LLMService extends Service {
     /**
      * 总结文本
      */
+    private void inferText(String text) {
+        if (text == null || text.isEmpty()) {
+            Log.w(TAG, "推理文本为空，跳过");
+            return;
+        }
+        
+        if (llmEngine == null || !llmEngine.isInitialized()) {
+            Log.w(TAG, "LLM 引擎未初始化，先初始化");
+            initLLM();
+            // 等待初始化完成
+            try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
+        }
+        
+        if (llmEngine == null || !llmEngine.isInitialized()) {
+            Log.e(TAG, "LLM 引擎初始化失败，无法推理");
+            publishLLMResult("error", "LLM engine not initialized");
+            return;
+        }
+        
+        String finalText = text;
+        executor.execute(() -> {
+            try {
+                Log.i(TAG, "开始推理: " + finalText.substring(0, Math.min(50, finalText.length())));
+                long start = System.currentTimeMillis();
+                String result = llmEngine.inferText(finalText, 256);
+                long elapsed = System.currentTimeMillis() - start;
+                
+                if (result != null && !result.isEmpty()) {
+                    Log.i(TAG, "✓ 推理完成 (" + elapsed + "ms): " + result.substring(0, Math.min(100, result.length())));
+                    publishLLMResult("infer", result);
+                } else {
+                    Log.w(TAG, "推理结果为空 (" + elapsed + "ms)");
+                    publishLLMResult("infer", "");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "推理异常: " + e.getMessage());
+                publishLLMResult("error", e.getMessage());
+            }
+        });
+    }
+    
+    private void publishLLMResult(String type, String result) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject();
+            json.put("type", type);
+            json.put("result", result);
+            json.put("timestamp", System.currentTimeMillis());
+            
+            // 通过本地 MQTT Broker 发布结果
+            try {
+                String brokerUrl = "tcp://127.0.0.1:" + MQTTBrokerService.getCurrentPort();
+                String clientId = "llm_service_" + System.currentTimeMillis();
+                MqttClient client = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
+                MqttConnectOptions opts = new MqttConnectOptions();
+                opts.setCleanSession(true);
+                opts.setConnectionTimeout(5);
+                client.connect(opts);
+                client.publish("llm/response", json.toString().getBytes(), 0, false);
+                client.disconnect();
+                Log.d(TAG, "LLM 结果已发布到 llm/response");
+            } catch (Exception e) {
+                Log.w(TAG, "MQTT 发布失败: " + e.getMessage() + " — 结果: " + result.substring(0, Math.min(80, result.length())));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "发布 LLM 结果失败: " + e.getMessage());
+        }
+    }
+
     private void summarizeText(String text) {
         if (llmEngine == null || !llmEngine.isInitialized()) {
             Log.e(TAG, "模型未加载");
