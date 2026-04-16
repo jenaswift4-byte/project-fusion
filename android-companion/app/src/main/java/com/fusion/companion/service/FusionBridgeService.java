@@ -207,6 +207,10 @@ public class FusionBridgeService extends Service {
         streamingASRService = new StreamingASRService(this);
         boolean asrInit = streamingASRService.init();
         Log.i(TAG, "ASR 引擎: " + (asrInit ? "Vosk 离线识别" : "ASR 初始化失败")); 
+        if (asrInit) {
+            streamingASRService.setEnabled(true);  // ✅ 启用 ASR
+            Log.i(TAG, "ASR 已启用");
+        }
 
         // 初始化日志同步
         logSyncService = new LogSyncService(this);
