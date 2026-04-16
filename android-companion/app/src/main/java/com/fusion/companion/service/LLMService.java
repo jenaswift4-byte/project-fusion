@@ -12,7 +12,7 @@ import androidx.annotation.Nullable;
 import com.fusion.companion.llm.LLMEngine;
 import com.fusion.companion.llm.LLMEngineSimple;
 import com.fusion.companion.llm.NexaEngine;
-import com.fusion.companion.util.LogDBHelper;
+import com.fusion.companion.log.LogDBHelper;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -114,14 +114,14 @@ public class LLMService extends Service {
      * 总结文本
      */
     private void summarizeText(String text) {
-        if (!llmEngine.isLoaded()) {
+        if (!llmEngine.isInitialized()) {
             Log.e(TAG, "模型未加载");
             return;
         }
         
         executor.execute(() -> {
             String prompt = buildSummaryPrompt(text);
-            String result = llmEngine.infer(prompt, 256);
+            String result = llmEngine.inferText(prompt, 256);
             
             if (result != null && !result.isEmpty()) {
                 // 存储总结结果
@@ -137,14 +137,14 @@ public class LLMService extends Service {
      * 分析图像
      */
     private void analyzeImage(String imagePath) {
-        if (!llmEngine.isLoaded()) {
+        if (!llmEngine.isInitialized()) {
             Log.e(TAG, "模型未加载");
             return;
         }
         
         executor.execute(() -> {
             String prompt = "请描述这张图片的内容";
-            String result = llmEngine.inferMultimodal(prompt, imagePath, 128);
+            String result = llmEngine.inferImage(prompt, imagePath, 128);
             
             if (result != null && !result.isEmpty()) {
                 Log.i(TAG, "✓ 图像分析完成: " + result);
@@ -202,7 +202,7 @@ public class LLMService extends Service {
         super.onDestroy();
         
         if (llmEngine != null) {
-            llmEngine.free();
+            llmEngine.release();
         }
         
         if (executor != null) {

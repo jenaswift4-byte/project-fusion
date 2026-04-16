@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 public class LLMEngineSimple implements LLMEngine {
     private static final String TAG = "LLMEngineSimple";
     
-    private boolean isLoaded = false;
+    private boolean isInitialized = false;
     
     // 关键词权重（示例）
     private static final Map<String, Integer> KEYWORD_WEIGHTS = new HashMap<String, Integer>() {{
@@ -52,20 +52,16 @@ public class LLMEngineSimple implements LLMEngine {
         "自己", "这", "那", "什么", "他", "她", "它", "这个", "那个", "这里", "那里"
     ));
     
-    /**
-     * 加载模型（占位）
-     */
-    public synchronized boolean loadModel(String modelPath) {
+    @Override
+    public boolean loadModel(String modelPath) {
         Log.i(TAG, "简化版 LLM 引擎初始化（关键词提取模式）");
-        isLoaded = true;
+        isInitialized = true;
         return true;
     }
     
-    /**
-     * 文本推理（关键词提取 + 规则总结）
-     */
-    public synchronized String infer(String prompt, int maxTokens) {
-        if (!isLoaded) {
+    @Override
+    public String inferText(String prompt, int maxTokens) {
+        if (!isInitialized) {
             Log.e(TAG, "引擎未初始化");
             return null;
         }
@@ -88,25 +84,50 @@ public class LLMEngineSimple implements LLMEngine {
         return summary;
     }
     
-    /**
-     * 多模态推理（占位）
-     */
-    public synchronized String inferMultimodal(String prompt, String imagePath, int maxTokens) {
-        // TODO: 实现图像分析
-        Log.w(TAG, "多模态推理暂未实现，返回文本推理结果");
+    @Override
+    public String inferImage(String prompt, String imagePath, int maxTokens) {
+        Log.w(TAG, "多模态推理暂未实现，返回占位结果");
         return "图像分析功能待集成 Qwen-VL 模型。当前图像: " + imagePath;
     }
     
-    /**
-     * 释放资源（占位）
-     */
-    public synchronized void free() {
-        isLoaded = false;
+    @Override
+    public void inferTextAsync(String prompt, int maxTokens, InferenceCallback callback) {
+        new Thread(() -> {
+            String result = inferText(prompt, maxTokens);
+            if (result != null) {
+                callback.onResult(result);
+            } else {
+                callback.onError("推理失败");
+            }
+        }).start();
+    }
+    
+    @Override
+    public void inferImageAsync(String prompt, String imagePath, int maxTokens, InferenceCallback callback) {
+        new Thread(() -> {
+            String result = inferImage(prompt, imagePath, maxTokens);
+            if (result != null) {
+                callback.onResult(result);
+            } else {
+                callback.onError("推理失败");
+            }
+        }).start();
+    }
+    
+    @Override
+    public void release() {
+        isInitialized = false;
         Log.i(TAG, "简化版 LLM 引擎已释放");
     }
     
-    public boolean isLoaded() {
-        return isLoaded;
+    @Override
+    public boolean isInitialized() {
+        return isInitialized;
+    }
+    
+    @Override
+    public String getEngineInfo() {
+        return "LLMEngineSimple v1.0 (关键词提取模式)";
     }
     
     // ========== 私有方法 ==========

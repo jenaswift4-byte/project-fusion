@@ -130,12 +130,8 @@ public class NexaEngine implements LLMEngine {
     /**
      * 异步推理（回调方式）
      */
-    public interface InferenceCallback {
-        void onResult(String result);
-        void onError(String error);
-    }
-
-    public void inferTextAsync(String prompt, int maxTokens, InferenceCallback callback) {
+    @Override
+    public void inferTextAsync(String prompt, int maxTokens, LLMEngine.InferenceCallback callback) {
         new Thread(() -> {
             String result = inferText(prompt, maxTokens);
             if (result != null) {
@@ -146,7 +142,8 @@ public class NexaEngine implements LLMEngine {
         }).start();
     }
 
-    public void inferImageAsync(String prompt, String imagePath, int maxTokens, InferenceCallback callback) {
+    @Override
+    public void inferImageAsync(String prompt, String imagePath, int maxTokens, LLMEngine.InferenceCallback callback) {
         new Thread(() -> {
             String result = inferImage(prompt, imagePath, maxTokens);
             if (result != null) {
