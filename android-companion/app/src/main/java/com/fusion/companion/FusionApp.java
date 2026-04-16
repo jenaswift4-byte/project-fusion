@@ -4,6 +4,8 @@ import android.app.Application;
 import android.content.Intent;
 import android.util.Log;
 
+import com.fusion.companion.service.FusionBridgeService;
+
 /**
  * Fusion Application - 应用入口
  *
