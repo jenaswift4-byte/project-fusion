@@ -225,19 +225,20 @@ public class StreamingASRService implements PcmDataListener {
         lastVoiceActiveTs = 0;
     }
 
-    private void processSpeech(byte[] pcmData, String speaker) {
+    private synchronized void processSpeech(byte[] pcmData, String speaker) {
+        Log.d(TAG, ">>> processSpeech 进入同步块: " + pcmData.length + " bytes (线程: " + Thread.currentThread().getId() + ")");
         try {
             if (recognizer == null) {
                 Log.e(TAG, "Recognizer 为 null，跳过处理");
                 return;
             }
             
-            Log.d(TAG, "processSpeech: " + pcmData.length + " bytes");
-            
             // Vosk 需要分批调用 acceptWaveForm (每次 100-400ms)
             // 16kHz 16-bit mono = 32000 bytes/sec, 每次传 3200 bytes (100ms)
+            Log.d(TAG, "开始分批调用 acceptWaveForm...");
             int chunkSize = 3200;
             int offset = 0;
+            int chunksProcessed = 0;
             StringBuilder partialResults = new StringBuilder();
             
             while (offset < pcmData.length) {
@@ -246,8 +247,12 @@ public class StreamingASRService implements PcmDataListener {
                 System.arraycopy(pcmData, offset, chunk, 0, len);
                 
                 // acceptWaveForm 返回 true 表示有结果可读
-                if (recognizer.acceptWaveForm(chunk, len)) {
+                boolean hasResult = recognizer.acceptWaveForm(chunk, len);
+                chunksProcessed++;
+                
+                if (hasResult) {
                     String partial = recognizer.getPartialResult();
+                    Log.d(TAG, "中间结果 (chunk " + chunksProcessed + "): " + partial);
                     String text = extractText(partial);
                     if (!text.isEmpty()) {
                         partialResults.append(text).append(" ");
@@ -256,23 +261,36 @@ public class StreamingASRService implements PcmDataListener {
                 offset += len;
             }
             
+            Log.d(TAG, "分批完成，共 " + chunksProcessed + " 个 chunk");
+            
             // 获取最终结果
+            Log.d(TAG, "调用 getFinalResult...");
             String result = recognizer.getFinalResult();
-            Log.d(TAG, "Vosk 最终结果: " + result);
+            Log.i(TAG, "✓ Vosk 最终结果 JSON: " + result);
             
             String finalText = extractText(result);
+            Log.i(TAG, "✓ 提取文本: [" + finalText + "]");
+            
             // 合并中间结果和最终结果
             String allText = (partialResults.toString().trim() + " " + finalText).trim();
             
             if (!allText.isEmpty()) {
-                Log.i(TAG, "ASR 结果: " + allText);
+                Log.i(TAG, "✓✓✓ ASR 最终识别: " + allText);
                 if (logHelper != null) {
                     logHelper.insertLog("asr_result", speaker, allText);
+                    Log.i(TAG, "✓ 已存储到数据库");
                 }
+            } else {
+                Log.w(TAG, "⚠ 识别结果为空");
             }
+            
+            Log.d(TAG, "<<< processSpeech 完成");
 
         } catch (Exception e) {
-            Log.e(TAG, "ASR 处理失败: " + e);
+            Log.e(TAG, "ASR 处理异常: " + e.getMessage());
+            e.printStackTrace();
+        } catch (Error e) {
+            Log.e(TAG, "ASR 处理严重错误 (native crash?): " + e.getMessage());
             e.printStackTrace();
         }
     }
