@@ -1,6 +1,7 @@
 package com.fusion.companion;
 
 import android.app.Application;
+import android.content.Intent;
 import android.util.Log;
 
 /**
@@ -16,5 +17,14 @@ public class FusionApp extends Application {
     public void onCreate() {
         super.onCreate();
         Log.i(TAG, "Fusion Companion 启动 (Vosk ASR)");
+
+        // 启动核心服务
+        try {
+            Intent bridgeIntent = new Intent(this, FusionBridgeService.class);
+            startService(bridgeIntent);
+            Log.i(TAG, "FusionBridgeService 已启动");
+        } catch (Exception e) {
+            Log.e(TAG, "启动 FusionBridgeService 失败: " + e.getMessage());
+        }
     }
 }
