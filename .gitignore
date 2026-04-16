@@ -71,9 +71,26 @@ token*
 *.wav
 *.apk
 *.bin
+*.gguf
 
 # WorkBuddy internal
 .workbuddy/
 
 # Test scripts archive
 .test-scripts/
+
+# Temp check directories
+apk-check-working/
+apk-contents-check/
+app-debug-*/
+ci-logs*/
+nexa-sources-extracted/
+nexa-sources.jar
+/com/
+logs.txt
+check_runs.py
+download_build.py
+get_artifact_id.py
+download-apk.ps1
+do-push.bat
+check-asr-logs.bat

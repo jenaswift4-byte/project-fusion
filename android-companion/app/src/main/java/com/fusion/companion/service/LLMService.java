@@ -19,6 +19,7 @@ import com.fusion.companion.llm.LLMEngineSimple;
 import com.fusion.companion.llm.NexaEngine;
 import com.fusion.companion.log.LogDBHelper;
 
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -27,6 +28,7 @@ import java.util.concurrent.Executors;
  * 负责：
  * 1. 文本总结（ASR 转录内容）
  * 2. 图像/视频分析
+ * 3. 自动定时总结
  */
 public class LLMService extends Service {
     private static final String TAG = "LLMService";
@@ -40,6 +42,10 @@ public class LLMService extends Service {
 
     // 定时总结间隔（毫秒）
     private static final long SUMMARY_INTERVAL = 10 * 60 * 1000; // 10 分钟
+
+    // 默认 GGUF 模型路径（手机内部存储）
+    private static final String DEFAULT_MODEL_DIR = "/models/qwen/";
+    private static final String DEFAULT_MODEL_FILE = "qwen3-0.6b-q4_k_m.gguf";
 
     @Override
     public void onCreate() {
@@ -129,40 +135,121 @@ public class LLMService extends Service {
     
     /**
      * 初始化 LLM 模型
+     *
+     * 优先级：
+     * 1. Nexa SDK (真实 LLM 推理) — 需要模型文件存在
+     * 2. LLMEngineSimple (关键词提取) — 无需模型，始终可用
      */
     private void initLLM() {
         executor.execute(() -> {
             try {
-                // 尝试加载 Nexa SDK
-                NexaEngine nexaEngine = new NexaEngine(this);
-                boolean nexaSuccess = nexaEngine.initialize(null);
+                // Step 1: 检查是否有可用的 GGUF 模型文件
+                String modelPath = findModelPath();
+                boolean modelExists = modelPath != null;
 
-                if (nexaSuccess) {
-                    // 使用 Nexa SDK
-                    this.llmEngine = nexaEngine;
-                    Log.i(TAG, "✓ Nexa SDK 初始化成功 (Qwen-3-VL, NPU加速)");
+                if (modelExists) {
+                    Log.i(TAG, "发现模型文件: " + modelPath);
+
+                    // Step 2: 尝试初始化 Nexa SDK
+                    NexaEngine nexaEngine = new NexaEngine(this);
+                    boolean nexaSuccess = nexaEngine.initialize(modelPath);
+
+                    if (nexaSuccess) {
+                        this.llmEngine = nexaEngine;
+                        Log.i(TAG, "✓ Nexa SDK 初始化成功 (" + nexaEngine.getEngineInfo() + ")");
+                        notifyEngineReady(nexaEngine.getEngineInfo());
+                        return;
+                    } else {
+                        Log.w(TAG, "Nexa SDK 初始化失败，回退到简化版引擎");
+                    }
                 } else {
-                    // 回退到简化版引擎
-                    this.llmEngine = new LLMEngineSimple();
-                    ((LLMEngineSimple) this.llmEngine).loadModel(null);
-                    Log.i(TAG, "✓ 简化版引擎初始化成功（关键词提取模式）");
+                    Log.i(TAG, "未发现模型文件，使用简化版引擎");
+                    Log.i(TAG, "  提示: 将 GGUF 模型放到 " + getFilesDir() + DEFAULT_MODEL_DIR + DEFAULT_MODEL_FILE);
+                    Log.i(TAG, "  推荐模型: Qwen3-0.6B-Q4_K_M (~400MB)");
+                    Log.i(TAG, "  下载: https://huggingface.co/Qwen/Qwen3-0.6B-GGUF");
                 }
 
-                mainHandler.post(() -> {
-                    isRunning = true;
-                });
+                // Step 3: 回退到简化版引擎
+                this.llmEngine = new LLMEngineSimple();
+                ((LLMEngineSimple) this.llmEngine).loadModel(null);
+                Log.i(TAG, "✓ 简化版引擎初始化成功（关键词提取模式）");
+                notifyEngineReady("LLMEngineSimple (关键词提取)");
 
             } catch (Exception e) {
                 Log.e(TAG, "LLM 初始化异常", e);
+                // 最终回退
+                this.llmEngine = new LLMEngineSimple();
+                ((LLMEngineSimple) this.llmEngine).loadModel(null);
             }
         });
+    }
+
+    /**
+     * 查找可用的 GGUF 模型文件路径
+     *
+     * 搜索顺序：
+     * 1. 内部存储 /models/qwen/*.gguf
+     * 2. 外部存储 /sdcard/models/qwen/*.gguf
+     * 3. 内部存储其他位置
+     */
+    private String findModelPath() {
+        // 位置 1: 内部存储默认路径
+        String internalPath = getFilesDir() + DEFAULT_MODEL_DIR + DEFAULT_MODEL_FILE;
+        if (new File(internalPath).exists()) {
+            return internalPath;
+        }
+
+        // 位置 2: 搜索内部存储 /models/ 下的所有 .gguf 文件
+        File modelsDir = new File(getFilesDir(), "models");
+        if (modelsDir.exists() && modelsDir.isDirectory()) {
+            String ggufPath = findGgufInDirectory(modelsDir);
+            if (ggufPath != null) return ggufPath;
+        }
+
+        // 位置 3: 外部存储
+        File externalDir = new File("/sdcard/models");
+        if (externalDir.exists() && externalDir.isDirectory()) {
+            String ggufPath = findGgufInDirectory(externalDir);
+            if (ggufPath != null) return ggufPath;
+        }
+
+        return null;
+    }
+
+    /**
+     * 在目录中递归查找 .gguf 文件
+     */
+    private String findGgufInDirectory(File dir) {
+        File[] files = dir.listFiles();
+        if (files == null) return null;
+
+        for (File file : files) {
+            if (file.isFile() && file.getName().endsWith(".gguf")) {
+                return file.getAbsolutePath();
+            }
+            if (file.isDirectory()) {
+                String found = findGgufInDirectory(file);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 通知引擎就绪（通过 MQTT 广播）
+     */
+    private void notifyEngineReady(String engineInfo) {
+        mainHandler.post(() -> {
+            isRunning = true;
+        });
+        // TODO: 通过 MQTT 发布 llm/engine_ready 事件
     }
     
     /**
      * 总结文本
      */
     private void summarizeText(String text) {
-        if (!llmEngine.isInitialized()) {
+        if (llmEngine == null || !llmEngine.isInitialized()) {
             Log.e(TAG, "模型未加载");
             return;
         }
@@ -185,7 +272,7 @@ public class LLMService extends Service {
      * 分析图像
      */
     private void analyzeImage(String imagePath) {
-        if (!llmEngine.isInitialized()) {
+        if (llmEngine == null || !llmEngine.isInitialized()) {
             Log.e(TAG, "模型未加载");
             return;
         }
@@ -240,7 +327,7 @@ public class LLMService extends Service {
      * 构建总结提示词
      */
     private String buildSummaryPrompt(String text) {
-        return "<|im_start|>system\n你是一个智能助手，负责总结和整理文本内容。\n<|im_end|>\n" +
+        return "<|im_start|>system\n你是一个智能助手，负责总结和整理文本内容。请用简洁的中文总结。\n<|im_end|>\n" +
                "<|im_start|>user\n请总结以下内容的关键信息（不超过100字）：\n" + text + "\n<|im_end|>\n" +
                "<|im_start|>assistant\n";
     }

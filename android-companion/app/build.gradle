@@ -1,6 +1,7 @@
 // Project Fusion Android Companion
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -11,8 +12,8 @@ android {
         applicationId "com.fusion.companion"
         minSdk 27
         targetSdk 30
-        versionCode 2
-        versionName "2.1"
+        versionCode 3
+        versionName "2.2"
 
         ndk {
             abiFilters 'arm64-v8a'
@@ -35,10 +36,19 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+
     // 允许 PNG 压缩，大模型文件不压缩
     aaptOptions {
         cruncherEnabled = true
-        noCompress '.onnx', '.txt', '.wav', '.bin', '.zip'
+        noCompress '.onnx', '.txt', '.wav', '.bin', '.zip', '.gguf', '.nexa'
+    }
+
+    // Nexa SDK 要求：使用传统 JNI 打包
+    packagingOptions {
+        jniLibs.useLegacyPackaging = true
     }
 
     lint {
@@ -57,6 +67,13 @@ dependencies {
     // Vosk - 离线流式 ASR (中文小模型 42MB)
     implementation 'net.java.dev.jna:jna:5.13.0@aar'
     implementation 'com.alphacephei:vosk-android:0.3.47@aar'
-    // Nexa SDK - Qwen 本地推理引擎 (NPU 加速)
-    implementation 'ai.nexa:core:+'
+    // Kotlin 标准库
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.22'
+    // AndroidX KTX (Nexa SDK 传递依赖，显式声明避免问题)
+    implementation 'androidx.core:core-ktx:1.15.0'
+    // Kotlin 协程 (Nexa SDK 传递依赖，显式声明以覆盖版本)
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+    // Nexa SDK - Qwen 本地推理引擎 (CPU/GPU/NPU) — AAR ~261MB
+    implementation 'ai.nexa:core:0.0.24'
 }
