@@ -227,13 +227,21 @@ public class StreamingASRService implements PcmDataListener {
 
     private void processSpeech(byte[] pcmData, String speaker) {
         try {
+            if (recognizer == null) {
+                Log.e(TAG, "Recognizer 为 null，跳过处理");
+                return;
+            }
+            
+            Log.d(TAG, "processSpeech: " + pcmData.length + " bytes");
+            
             // Vosk acceptWaveForm 接受 byte[] + len
             recognizer.acceptWaveForm(pcmData, pcmData.length);
 
-            // 必须在所有数据喂完后调用 getFinalResult()
+            // 获取结果
             String result = recognizer.getFinalResult();
+            Log.d(TAG, "Vosk 结果: " + result);
+            
             String text = extractText(result);
-            Log.d(TAG, "Vosk 原始结果: " + result);
             if (!text.isEmpty()) {
                 Log.i(TAG, "ASR 结果: " + text);
                 if (logHelper != null) {
