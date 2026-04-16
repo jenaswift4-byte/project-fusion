@@ -15,13 +15,12 @@ import java.nio.ByteOrder;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 声纹识别 — Sherpa-onnx Stub Implementation
+ * 声纹识别 — 能量特征匹配 (stub 实现)
  *
- * 注意: sherpa-onnx 代码已暂时替换为 stub，CI 编译通过后需要适配真实 API
- * .so 和模型文件需要从 PC 推送到手机
+ * 当前使用能量特征匹配，Vosk 说话人识别模型预留。
  *
  * @author Fusion
- * @version 2.1-stub
+ * @version 2.2
  */
 public class SpeakerIdentifier implements PcmDataListener {
 
@@ -51,7 +50,7 @@ public class SpeakerIdentifier implements PcmDataListener {
         if (initialized) return true;
 
         try {
-            Log.i(TAG, "声纹引擎初始化 (stub 版本，sherpa-onnx 将从 files/lib/ 加载)");
+            Log.i(TAG, "声纹引擎初始化 (能量特征匹配模式)");
             loadProfiles();
             initialized = true;
             return true;

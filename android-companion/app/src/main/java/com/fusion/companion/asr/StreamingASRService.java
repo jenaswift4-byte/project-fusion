@@ -1,43 +1,37 @@
 package com.fusion.companion.asr;
 
 import android.content.Context;
-import android.content.res.AssetManager;
 import android.util.Log;
 
 import com.fusion.companion.audio.PcmDataListener;
 import com.fusion.companion.audio.VADHelper;
 import com.fusion.companion.log.LogDBHelper;
 
-import com.k2fsa.sherpa.onnx.FeatureConfig;
-import com.k2fsa.sherpa.onnx.OnlineModelConfig;
-import com.k2fsa.sherpa.onnx.OnlineRecognizer;
-import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig;
-import com.k2fsa.sherpa.onnx.OnlineStream;
-import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig;
+import org.vosk.Model;
+import org.vosk.Recognizer;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.FileInputStream;
+import java.util.zip.ZipInputStream;
 
 public class StreamingASRService implements PcmDataListener {
 
     private static final String TAG = "StreamingASR";
 
-    private static final int SPEECH_END_TIMEOUT_MS = 400;
+    private static final int SPEECH_END_TIMEOUT_MS = 600;
     private static final int MAX_SPEECH_DURATION_MS = 30000;
 
-    // assets/models/ 中的文件名 (与 HuggingFace 仓库名一致)
-    private static final String[] MODEL_FILES = {
-        "encoder.int8.onnx",
-        "decoder.onnx",
-        "joiner.int8.onnx",
-        "tokens.txt"
-    };
-    private static final String ASSET_DIR = "models";
-    private static final String LOCAL_DIR = "sherpa_models";
+    // Vosk 中文小模型 (42MB)
+    private static final String MODEL_ZIP = "vosk-model-small-cn-0.22.zip";
+    private static final String ASSET_MODEL_DIR = "models";
+    private static final String LOCAL_MODEL_DIR = "vosk_model";
 
-    private OnlineRecognizer recognizer = null;
+    private Model model;
+    private Recognizer recognizer;
     private final VADHelper vadHelper;
     private final LogDBHelper logHelper;
     private final Context appContext;
@@ -60,77 +54,45 @@ public class StreamingASRService implements PcmDataListener {
         if (initialized) return true;
 
         try {
-            Log.i(TAG, "初始化 sherpa-onnx ASR...");
+            Log.i(TAG, "初始化 Vosk 离线 ASR...");
 
-            // 步骤1: 确保 assets 中的模型已复制到内部存储
-            File modelDir = new File(appContext.getFilesDir(), LOCAL_DIR);
+            // 步骤1: 解压模型到内部存储
+            File modelDir = new File(appContext.getFilesDir(), LOCAL_MODEL_DIR);
             if (!modelDir.exists()) modelDir.mkdirs();
 
-            boolean needCopy = false;
-            for (String name : MODEL_FILES) {
-                File f = new File(modelDir, name);
-                if (!f.exists() || f.length() == 0) {
-                    needCopy = true;
-                    break;
-                }
-            }
+            // 检查模型是否已解压
+            File[] files = modelDir.listFiles();
+            boolean modelReady = files != null && files.length > 0;
 
-            if (needCopy) {
-                Log.i(TAG, "首次运行，复制模型到: " + modelDir.getAbsolutePath());
-                for (String name : MODEL_FILES) {
-                    File dest = new File(modelDir, name);
-                    if (!dest.exists() || dest.length() == 0) {
-                        copyAsset(ASSET_DIR + "/" + name, dest);
-                    }
-                }
-                Log.i(TAG, "模型复制完成");
+            if (!modelReady) {
+                Log.i(TAG, "首次运行，解压模型到: " + modelDir.getAbsolutePath());
+                unzipAssetModel(MODEL_ZIP, modelDir);
+                Log.i(TAG, "模型解压完成");
             } else {
-                Log.i(TAG, "模型已就绪，跳过复制");
+                Log.i(TAG, "模型已就绪，跳过解压");
             }
 
-            // 步骤2: 用绝对路径创建 sherpa-onnx 识别器
-            String encoderPath = new File(modelDir, MODEL_FILES[0]).getAbsolutePath();
-            String decoderPath = new File(modelDir, MODEL_FILES[1]).getAbsolutePath();
-            String joinerPath = new File(modelDir, MODEL_FILES[2]).getAbsolutePath();
-            String tokensPath = new File(modelDir, MODEL_FILES[3]).getAbsolutePath();
-
-            Log.i(TAG, "Encoder: " + encoderPath + " (" + new File(encoderPath).length() + " bytes)");
-            Log.i(TAG, "Decoder: " + decoderPath + " (" + new File(decoderPath).length() + " bytes)");
-
+            // 步骤2: 加载模型
+            File modelPath = modelDir;
             try {
-                OnlineTransducerModelConfig transducerConfig =
-                    new OnlineTransducerModelConfig(encoderPath, decoderPath, joinerPath);
-
-                OnlineModelConfig modelConfig = new OnlineModelConfig();
-                modelConfig.setTransducer(transducerConfig);
-                modelConfig.setTokens(tokensPath);
-                modelConfig.setNumThreads(2);
-                modelConfig.setDebug(false);
-                modelConfig.setProvider("cpu");
-                modelConfig.setModelType("zipformer");
-
-                FeatureConfig featureConfig = new FeatureConfig(16000, 80, 1.0f);
-
-                OnlineRecognizerConfig config = new OnlineRecognizerConfig();
-                config.setFeatConfig(featureConfig);
-                config.setModelConfig(modelConfig);
-                config.setEnableEndpoint(false);
-                config.setDecodingMethod("greedy_search");
-                config.setMaxActivePaths(1);
-
-                // null AssetManager = 从文件系统绝对路径加载
-                recognizer = new OnlineRecognizer(null, config);
-                Log.i(TAG, "✓ OnlineRecognizer 创建成功！");
-
-            } catch (UnsatisfiedLinkError e) {
-                Log.e(TAG, "❌ JNI 库加载失败: " + e.getMessage());
-                throw e;
-            } catch (Exception e) {
-                Log.e(TAG, "❌ 创建失败: " + e.getClass().getName() + ": " + e.getMessage());
+                model = new Model(modelPath.getAbsolutePath());
+                Log.i(TAG, "✓ Model 加载成功!");
+            } catch (IOException e) {
+                Log.e(TAG, "❌ Model 加载失败: " + e.getMessage());
                 throw e;
             }
 
-            Log.i(TAG, "sherpa-onnx ASR 初始化成功!");
+            // 步骤3: 创建 Recognizer (16kHz 采样率)
+            try {
+                recognizer = new Recognizer(model, 16000.0f);
+                recognizer.setSingleSegment(true);  // 启用单段模式，返回完整句子
+                Log.i(TAG, "✓ Recognizer 创建成功!");
+            } catch (IOException e) {
+                Log.e(TAG, "❌ Recognizer 创建失败: " + e.getMessage());
+                throw e;
+            }
+
+            Log.i(TAG, "Vosk ASR 初始化成功!");
             initialized = true;
             return true;
 
@@ -142,21 +104,47 @@ public class StreamingASRService implements PcmDataListener {
     }
 
     /**
-     * 从 assets 复制单个文件到内部存储
+     * 解压 assets 中的模型 zip 到目标目录
      */
-    private void copyAsset(String assetPath, File destFile) throws Exception {
-        Log.i(TAG, "复制: " + assetPath + " -> " + destFile.getName());
-        try (InputStream is = appContext.getAssets().open(assetPath);
-             OutputStream os = new FileOutputStream(destFile)) {
-            byte[] buf = new byte[65536];
-            int n;
-            long total = 0;
-            while ((n = is.read(buf)) != -1) {
-                os.write(buf, 0, n);
-                total += n;
+    private void unzipAssetModel(String assetZipPath, File destDir) throws IOException {
+        Log.i(TAG, "解压: " + assetZipPath);
+        InputStream is = appContext.getAssets().open(ASSET_MODEL_DIR + "/" + assetZipPath);
+        ZipInputStream zis = new ZipInputStream(is);
+
+        byte[] buf = new byte[65536];
+        int count;
+        long total = 0;
+
+        while (true) {
+            ZipEntry entry = zis.getNextEntry();
+            if (entry == null) break;
+
+            File outFile = new File(destDir, entry.getName());
+
+            // 安全检查：防止 zip 路径穿越
+            String canonicalDest = destDir.getCanonicalPath();
+            String canonicalOut = outFile.getCanonicalPath();
+            if (!canonicalOut.startsWith(canonicalDest)) {
+                throw new IOException("Zip 路径穿越: " + entry.getName());
             }
-            Log.i(TAG, "  已复制 " + total + " bytes");
+
+            if (entry.isDirectory()) {
+                outFile.mkdirs();
+            } else {
+                File parent = outFile.getParentFile();
+                if (parent != null && !parent.exists()) parent.mkdirs();
+
+                OutputStream os = new FileOutputStream(outFile);
+                while ((count = zis.read(buf)) != -1) {
+                    os.write(buf, 0, count);
+                    total += count;
+                }
+                os.close();
+            }
+            zis.closeEntry();
         }
+        zis.close();
+        Log.i(TAG, "  已解压 " + total + " bytes");
     }
 
     @Override
@@ -198,6 +186,9 @@ public class StreamingASRService implements PcmDataListener {
         speechBuffer = null;
         speechStartTs = 0;
         lastVoiceActiveTs = 0;
+        if (recognizer != null) {
+            recognizer.reset();  // 重置识别器
+        }
     }
 
     @Override
@@ -220,7 +211,7 @@ public class StreamingASRService implements PcmDataListener {
         String speaker = lastSpeaker;
         resetBuffer();
 
-        new Thread(() -> processSpeech(audioData, sampleRate, speaker), "asr_process").start();
+        new Thread(() -> processSpeech(audioData, speaker), "vosk_asr").start();
     }
 
     private void resetBuffer() {
@@ -229,46 +220,45 @@ public class StreamingASRService implements PcmDataListener {
         lastVoiceActiveTs = 0;
     }
 
-    private void processSpeech(byte[] pcmData, int sampleRate, String speaker) {
+    private void processSpeech(byte[] pcmData, String speaker) {
         try {
+            // PCM 16bit mono: 每2字节一个采样
             short[] shorts = new short[pcmData.length / 2];
             for (int i = 0; i < shorts.length; i++) {
                 shorts[i] = (short) ((pcmData[i * 2 + 1] << 8) | (pcmData[i * 2] & 0xFF));
             }
-            float[] floats = new float[shorts.length];
-            for (int i = 0; i < floats.length; i++) {
-                floats[i] = shorts[i] / 32768.0f;
-            }
 
-            OnlineStream stream = recognizer.createStream("");
-            stream.acceptWaveform(floats, sampleRate);
-            stream.inputFinished();
+            // Vosk Recognizer.process() 接受 short[] 或 float[]
+            String result = recognizer.acceptWaveform(shorts);
 
-            StringBuilder text = new StringBuilder();
-            while (recognizer.isReady(stream)) {
-                recognizer.decode(stream);
-            }
-
-            while (!recognizer.getResult(stream).getText().isEmpty()) {
-                String partial = recognizer.getResult(stream).getText();
-                text.append(partial);
-                recognizer.decode(stream);
-            }
-
-            String result = text.toString().trim();
-            if (!result.isEmpty()) {
-                Log.i(TAG, "ASR 结果: " + result);
-                if (logHelper != null) {
-                    logHelper.insertLog("asr_result", speaker, result);
+            if (result != null && !result.isEmpty()) {
+                // 解析 JSON: {"text": "识别文字"}
+                String text = extractText(result);
+                if (!text.isEmpty()) {
+                    Log.i(TAG, "ASR 结果: " + text);
+                    if (logHelper != null) {
+                        logHelper.insertLog("asr_result", speaker, text);
+                    }
                 }
             }
-
-            stream.release();
 
         } catch (Exception e) {
             Log.e(TAG, "ASR 处理失败: " + e);
             e.printStackTrace();
         }
+    }
+
+    private String extractText(String json) {
+        // 简单解析 {"text": "xxx"}
+        int idx = json.indexOf("\"text\"");
+        if (idx < 0) return "";
+        int colon = json.indexOf(":", idx);
+        if (colon < 0) return "";
+        int start = json.indexOf("\"", colon + 1);
+        if (start < 0) return "";
+        int end = json.indexOf("\"", start + 1);
+        if (end < 0) return "";
+        return json.substring(start + 1, end).trim();
     }
 
     public void setEnabled(boolean enabled) {

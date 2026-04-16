@@ -17,15 +17,14 @@ import java.util.concurrent.Executors;
  * 模型管理器 — 管理 AI 模型文件的下载和版本控制
  *
  * 管理的模型:
- *   1. Sherpa-onnx ASR 模型 (流式语音识别)
- *   2. Vosk 说话人识别模型 (声纹比对)
- *   3. Qwen 3.5 2.1B GGUF (每日摘要 LLM)
+ *   1. Vosk 说话人识别模型 (声纹比对)
+ *   2. Qwen 3.5 2.1B GGUF (每日摘要 LLM)
  *
  * 下载源: Hugging Face
  * 存储位置: app 私有目录 models/
  *
  * @author Fusion
- * @version 1.0
+ * @version 1.1
  */
 public class ModelManager {
 
@@ -37,9 +36,6 @@ public class ModelManager {
     // 模型定义
     private static final String[][] MODEL_DEFS = {
         // {id, 名称, HuggingFace URL, 大小(bytes), 版本}
-        {"sherpa_asr", "Sherpa-onnx ASR (中文流式)",
-            "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/main/model.onnx",
-            "14000000", "1"},
         {"vosk_speaker", "Vosk 说话人模型",
             "https://huggingface.co/vosk-models/vosk-model-spk/resolve/main/model.onnx",
             "5000000", "1"},
@@ -104,9 +100,6 @@ public class ModelManager {
         // 根据模型类型确定文件名
         String fileName;
         switch (modelId) {
-            case "sherpa_asr":
-                fileName = "sherpa_asr.onnx";
-                break;
             case "vosk_speaker":
                 fileName = "vosk_speaker.onnx";
                 break;

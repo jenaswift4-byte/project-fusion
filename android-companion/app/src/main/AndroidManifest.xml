@@ -57,15 +57,6 @@
             </intent-filter>
         </activity>
 
-        <!-- 语音识别 Activity (透明，用于 Service 绑定失败时的 fallback) -->
-        <activity
-            android:name=".voice.SpeechRecognitionActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            android:excludeFromRecents="true"
-            android:taskAffinity=""
-            android:finishOnTaskLaunch="true" />
-
         <!-- 通知监听服务 -->
         <service
             android:name=".service.FusionNotificationListener"

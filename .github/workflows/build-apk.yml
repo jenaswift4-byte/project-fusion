@@ -31,25 +31,21 @@ jobs:
           "build-tools;34.0.0" \
           --sdk_root=$ANDROID_HOME || true
 
-    - name: Setup sherpa-onnx AAR (download real .so for APK bundling)
+    - name: Setup Vosk AAR (download .so files for APK bundling)
       run: |
-        echo "Downloading sherpa-onnx AAR to extract .so files..."
-        mkdir -p android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38
+        echo "Downloading Vosk AAR to extract .so files..."
         mkdir -p android-companion/app/src/main/jniLibs/arm64-v8a
-        mkdir -p android-companion/app/src/main/assets/models
-        
+
         if curl -fSLk --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 300 \
-          "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.38/sherpa-onnx-1.12.38.aar" \
-          -o /tmp/sherpa.aar 2>/dev/null; then
-          
-          echo "✓ Download complete: $(stat -c%s /tmp/sherpa.aar | numfmt --to=iec-i --suffix=B)"
-          
-          cd /tmp && unzip -q sherpa.aar -d sherpa_extracted
-          
-          cp /tmp/sherpa_extracted/classes.jar "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/sherpa-onnx-1.12.38.jar"
-          
+          "https://alphacephei.com/vosk/vosk-android-0.3.47.aar" \
+          -o /tmp/vosk.aar 2>/dev/null; then
+
+          echo "✓ Download complete: $(stat -c%s /tmp/vosk.aar | numfmt --to=iec-i --suffix=B)"
+
+          cd /tmp && unzip -q vosk.aar -d vosk_extracted
+
           # Find and copy .so files
-          SO_DIR="/tmp/sherpa_extracted"
+          SO_DIR="/tmp/vosk_extracted"
           if [ -d "$SO_DIR/jni/arm64-v8a" ]; then
             cp "$SO_DIR/jni/arm64-v8a/"*.so "$GITHUB_WORKSPACE/android-companion/app/src/main/jniLibs/arm64-v8a/"
             echo "✓ Copied .so files:"
@@ -62,26 +58,21 @@ jobs:
             echo "⚠ No .so files found in AAR"
           fi
         else
-          echo "⚠ Download failed, using stub JAR"
-          echo '# Stub' > "$GITHUB_WORKSPACE/android-companion/.maven-repo/com/k2fsa/sherpa/onnx/sherpa-onnx/1.12.38/stub.txt"
+          echo "⚠ Download failed"
         fi
-        
-        echo '# Placeholder for models' > "$GITHUB_WORKSPACE/android-companion/app/src/main/assets/models/README.txt"
 
-    - name: Download sherpa-onnx ASR models
+    - name: Download Vosk Chinese model
       run: |
         MODEL_DIR="$GITHUB_WORKSPACE/android-companion/app/src/main/assets/models"
-        HF_BASE="https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/main"
-        
-        echo "Downloading Chinese streaming zipformer model (~167MB total)..."
-        for f in encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt; do
-          echo "  Downloading $f ..."
-          curl -fSLk --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 600 \
-            "$HF_BASE/$f?download=true" \
-            -o "$MODEL_DIR/$f" && echo "  ✓ $f done" || echo "  ✗ $f failed"
-        done
-        
-        echo "Model files in assets/models/:"
+        mkdir -p "$MODEL_DIR"
+
+        echo "Downloading Vosk Chinese small model (~42MB)..."
+        curl -fSLk --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 600 \
+          "https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip" \
+          -o "$MODEL_DIR/vosk-model-small-cn-0.22.zip" && \
+          echo "✓ Model downloaded: $(stat -c%s $MODEL_DIR/vosk-model-small-cn-0.22.zip | numfmt --to=iec-i --suffix=B)" || \
+          echo "⚠ Model download failed"
+
         ls -lh "$MODEL_DIR/"
 
     - name: Setup Gradle

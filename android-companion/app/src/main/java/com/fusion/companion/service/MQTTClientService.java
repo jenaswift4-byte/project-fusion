@@ -29,8 +29,7 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
-import com.fusion.companion.voice.AndroidSpeechRecognizer;
-import com.fusion.companion.voice.VoiceRecognitionListener;
+import com.fusion.companion.asr.StreamingASRService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -112,8 +111,8 @@ public class MQTTClientService extends Service implements SensorEventListener {
     // 主线程 Handler
     private Handler handler;
     
-    // Android 原生语音识别器 (零模型依赖，利用小爱同学引擎)
-    private AndroidSpeechRecognizer speechRecognizer;
+    // Vosk 离线流式语音识别
+    private StreamingASRService streamingASR;
     private HandlerThread handlerThread;
     
     // 传感器管理器
@@ -189,41 +188,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
         batteryManager = (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
         powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         
-        // 初始化 Android 原生语音识别器 (零模型，用小爱同学引擎)
-        if (AndroidSpeechRecognizer.isAvailable(this)) {
-            speechRecognizer = new AndroidSpeechRecognizer(this);
-            speechRecognizer.setDeviceId(deviceId);
-            speechRecognizer.setRecognitionListener(new VoiceRecognitionListener() {
-                @Override public void onReadyForSpeech() {
-                    Log.i(TAG, "语音识别: 准备就绪");
-                    publishVoiceStatus("ready", null);
-                }
-                @Override public void onBeginOfSpeech() {
-                    Log.i(TAG, "语音识别: 检测到说话");
-                    publishVoiceStatus("listening", null);
-                }
-                @Override public void onEndOfSpeech() {
-                    Log.i(TAG, "语音识别: 说话结束");
-                    publishVoiceStatus("end", null);
-                }
-                @Override public void onPartialResult(String text) {
-                    Log.d(TAG, "语音识别(实时): " + text);
-                    publishVoiceResult(text, true);
-                }
-                @Override public void onResult(String text) {
-                    Log.i(TAG, "语音识别(最终): " + text);
-                    publishVoiceResult(text, false);
-                }
-                @Override public void onError(int errorCode, String message) {
-                    Log.e(TAG, "语音识别错误: " + errorCode + " - " + message);
-                    publishVoiceStatus("error", message);
-                }
-                @Override public void onVolumeChanged(int rmsdB) {}
-            });
-            Log.i(TAG, "Android 语音识别器初始化完成");
-        } else {
-            Log.w(TAG, "设备不支持 Android 语音识别");
-        }
+        // 初始化 Vosk 离线 ASR
+        streamingASR = new StreamingASRService(this);
+        new Thread(() -> {
+            boolean ok = streamingASR.init();
+            Log.i(TAG, "Vosk ASR 初始化: " + (ok ? "✓" : "✗"));
+        }, "vosk-init").start();
         
         // 加载配置
         loadConfiguration();
@@ -239,13 +209,12 @@ public class MQTTClientService extends Service implements SensorEventListener {
         // 处理来自 FusionBridgeService 广播触发的语音识别命令
         if (intent != null) {
             String action = intent.getStringExtra("action");
-            if ("speech_recognize".equals(action) && speechRecognizer != null) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    boolean ok = speechRecognizer.startRecognition();
-                    Log.i(TAG, "语音识别 (Intent 触发): " + (ok ? "成功" : "失败"));
-                });
-            } else if ("speech_stop".equals(action) && speechRecognizer != null) {
-                new Handler(Looper.getMainLooper()).post(() -> speechRecognizer.stopRecognition());
+            if ("speech_recognize".equals(action) && streamingASR != null) {
+                streamingASR.setEnabled(true);
+                Log.i(TAG, "Vosk ASR 启用 (Intent 触发)");
+            } else if ("speech_stop".equals(action) && streamingASR != null) {
+                streamingASR.setEnabled(false);
+                Log.i(TAG, "Vosk ASR 停止 (Intent 触发)");
             }
         }
         
@@ -267,10 +236,10 @@ public class MQTTClientService extends Service implements SensorEventListener {
     public void onDestroy() {
         Log.i(TAG, "MQTT Client Service 销毁");
         
-        // 销毁语音识别器
-        if (speechRecognizer != null) {
-            speechRecognizer.destroy();
-            speechRecognizer = null;
+        // 停止 Vosk ASR
+        if (streamingASR != null) {
+            streamingASR.setEnabled(false);
+            streamingASR = null;
         }
         
         // 停止定时任务
@@ -1297,13 +1266,9 @@ public class MQTTClientService extends Service implements SensorEventListener {
                     break;
                 
                 case "speech_recognize":
-                    // Android 原生语音识别 (零模型，利用小爱同学引擎)
-                    if (speechRecognizer != null) {
-                        // SpeechRecognizer 必须在主线程操作
-                        new Handler(Looper.getMainLooper()).post(() -> {
-                            boolean ok = speechRecognizer.startRecognition();
-                            Log.i(TAG, "语音识别启动: " + (ok ? "成功" : "失败"));
-                        });
+                    // Vosk 离线 ASR 启用
+                    if (streamingASR != null) {
+                        streamingASR.setEnabled(true);
                         response.put("result", "started");
                     } else {
                         response.put("result", "not_available");
@@ -1312,8 +1277,8 @@ public class MQTTClientService extends Service implements SensorEventListener {
                     break;
                     
                 case "speech_stop":
-                    if (speechRecognizer != null) {
-                        new Handler(Looper.getMainLooper()).post(() -> speechRecognizer.stopRecognition());
+                    if (streamingASR != null) {
+                        streamingASR.setEnabled(false);
                         response.put("result", "stopped");
                     } else {
                         response.put("result", "not_available");

@@ -197,17 +197,16 @@ public class FusionBridgeService extends Service {
         cameraStreamer.setContext(this);
         cameraStreamer.checkPermission(this);
 
-        // 初始化声纹识别 (Sherpa-onnx - stub 模式，不崩溃)
+        // 初始化声纹识别 (stub 模式，能量特征匹配)
         speakerIdentifier = new SpeakerIdentifier(this);
         boolean spkInit = speakerIdentifier.init();
         Log.i(TAG, "声纹引擎初始化: " + (spkInit ? "成功" : "失败(Fallback能量模式)"));
         speakerIdentifier.loadProfiles(); // 加载已注册的声纹
 
-        // sherpa-onnx ASR 暂时跳过 — 模型与库版本不兼容会导致 SIGABRT
-        // 改用 AndroidSpeechRecognizer (MQTTClientService 中初始化，零模型依赖)
-        // streamingASRService = new StreamingASRService(this);
-        // boolean asrInit = streamingASRService.init();
-        Log.i(TAG, "ASR 引擎: 使用 AndroidSpeechRecognizer (小爱同学引擎，无需模型)"); 
+        // Vosk 离线 ASR — StreamingASRService 已改用 Vosk (无网络依赖)
+        streamingASRService = new StreamingASRService(this);
+        boolean asrInit = streamingASRService.init();
+        Log.i(TAG, "ASR 引擎: " + (asrInit ? "Vosk 离线识别" : "ASR 初始化失败")); 
 
         // 初始化日志同步
         logSyncService = new LogSyncService(this);
@@ -217,9 +216,9 @@ public class FusionBridgeService extends Service {
         dailySummaryService.scheduleDailySummary(); // 注册 23:59 定时任务
 
         // 将声纹识别注册为 AudioStreamer 的 PCM 监听器
-        // (sherpa-onnx ASR 已禁用，语音识别改用 AndroidSpeechRecognizer)
+        // Vosk 离线 ASR 处理 PCM 流
         audioStreamer.addPcmDataListener(speakerIdentifier);
-        // audioStreamer.addPcmDataListener(streamingASRService);
+        audioStreamer.addPcmDataListener(streamingASRService);
 
         startClipboardMonitor();
         startTelephonyMonitor();
