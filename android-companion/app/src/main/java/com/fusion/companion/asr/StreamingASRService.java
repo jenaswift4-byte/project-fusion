@@ -159,15 +159,12 @@ public class StreamingASRService implements PcmDataListener {
         boolean isSpeech = vadHelper.isSpeech(pcmData, sampleRate);
 
         if (isSpeech) {
-            int prevLen = speechBuffer != null ? speechBuffer.length : 0;
             speechBuffer = VADHelper.appendPcm(speechBuffer, pcmData);
             lastVoiceActiveTs = timestamp;
 
             if (speechStartTs == 0) {
                 speechStartTs = timestamp;
                 Log.d(TAG, "语音段开始");
-            } else {
-                Log.v(TAG, "累积语音: " + prevLen + " -> " + speechBuffer.length);
             }
 
             int maxBytes = MAX_SPEECH_DURATION_MS * sampleRate * 2 / 1000;
@@ -210,9 +207,7 @@ public class StreamingASRService implements PcmDataListener {
     }
 
     private void finalizeSpeechSegment(int sampleRate) {
-        Log.d(TAG, "finalizeSpeechSegment: buffer=" + (speechBuffer != null ? speechBuffer.length : "null"));
         if (speechBuffer == null || speechBuffer.length < 3200) {
-            Log.w(TAG, "语音段太短，跳过 (" + (speechBuffer != null ? speechBuffer.length : 0) + " < 3200)");
             resetBuffer();
             return;
         }
@@ -221,7 +216,6 @@ public class StreamingASRService implements PcmDataListener {
         String speaker = lastSpeaker;
         resetBuffer();
 
-        Log.i(TAG, "启动 Vosk ASR 线程，音频长度: " + audioData.length + " bytes");
         new Thread(() -> processSpeech(audioData, speaker), "vosk_asr").start();
     }
 
@@ -232,25 +226,22 @@ public class StreamingASRService implements PcmDataListener {
     }
 
     private void processSpeech(byte[] pcmData, String speaker) {
-        Log.i(TAG, "processSpeech 开始，数据长度: " + pcmData.length);
         try {
             // Vosk acceptWaveForm 接受 byte[] + len
-            boolean hasResult = recognizer.acceptWaveForm(pcmData, pcmData.length);
-            Log.d(TAG, "acceptWaveForm 返回: " + hasResult);
+            recognizer.acceptWaveForm(pcmData, pcmData.length);
 
-            if (hasResult) {
-                String result = recognizer.getFinalResult();
-                Log.d(TAG, "getFinalResult: " + result);
-                String text = extractText(result);
-                if (!text.isEmpty()) {
-                    Log.i(TAG, "ASR 结果: " + text);
+            // 必须在所有数据喂完后调用 getFinalResult()
+            String result = recognizer.getFinalResult();
+            String text = extractText(result);
+            Log.d(TAG, "Vosk 原始结果: " + result);
+            if (!text.isEmpty()) {
+                Log.i(TAG, "ASR 结果: " + text);
                     if (logHelper != null) {
                         logHelper.insertLog("asr_result", speaker, text);
                     }
                 }
             } else {
                 String partial = recognizer.getPartialResult();
-                Log.d(TAG, "getPartialResult: " + partial);
                 String text = extractText(partial);
                 if (!text.isEmpty()) {
                     Log.d(TAG, "ASR 部分: " + text);
