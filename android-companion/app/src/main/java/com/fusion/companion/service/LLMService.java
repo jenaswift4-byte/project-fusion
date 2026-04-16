@@ -1,13 +1,18 @@
 package com.fusion.companion.service;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 
 import com.fusion.companion.llm.LLMEngine;
 import com.fusion.companion.llm.LLMEngineSimple;
@@ -25,6 +30,8 @@ import java.util.concurrent.Executors;
  */
 public class LLMService extends Service {
     private static final String TAG = "LLMService";
+    private static final String CHANNEL_ID = "llm_service_channel";
+    private static final int NOTIFICATION_ID = 1001;
 
     private LLMEngine llmEngine;  // 使用接口类型
     private ExecutorService executor;
@@ -41,6 +48,47 @@ public class LLMService extends Service {
 
         executor = Executors.newSingleThreadExecutor();
         mainHandler = new Handler(Looper.getMainLooper());
+
+        // 立即启动前台服务（Android 8.0+ 要求 5 秒内）
+        startForegroundService();
+    }
+
+    /**
+     * 启动前台服务
+     */
+    private void startForegroundService() {
+        createNotificationChannel();
+
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("LLM 服务")
+                .setContentText("智能助手运行中")
+                .setSmallIcon(android.R.drawable.ic_menu_info_details)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .build();
+
+        startForeground(NOTIFICATION_ID, notification);
+        Log.i(TAG, "✓ 前台服务已启动");
+    }
+
+    /**
+     * 创建通知渠道
+     */
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "LLM 服务",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            channel.setDescription("智能助手后台服务");
+            channel.setSound(null, null); // 静音
+
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
     }
     
     @Override
